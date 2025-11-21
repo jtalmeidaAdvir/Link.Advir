@@ -216,6 +216,32 @@ const AnaliseComplotaPontos = () => {
         }
     };
 
+    // Função auxiliar para extrair HH:mm de uma string ISO ou hora completa
+    const extrairHoraMinuto = (horaStr) => {
+        if (!horaStr) return null;
+        
+        // Se for uma data ISO (contém 'T' ou '-'), extrair apenas a parte da hora
+        if (typeof horaStr === 'string' && (horaStr.includes('T') || horaStr.includes('-'))) {
+            try {
+                const data = new Date(horaStr);
+                const horas = String(data.getUTCHours()).padStart(2, '0');
+                const minutos = String(data.getUTCMinutes()).padStart(2, '0');
+                return `${horas}:${minutos}`;
+            } catch (e) {
+                console.warn('Erro ao converter hora ISO:', horaStr, e);
+                return null;
+            }
+        }
+        
+        // Se já estiver em formato HH:mm ou HH:mm:ss, extrair apenas HH:mm
+        const partes = String(horaStr).split(':');
+        if (partes.length >= 2) {
+            return `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
+        }
+        
+        return null;
+    };
+
     const carregarHorariosUtilizadores = async (utilizadores) => {
         try {
             const token = secureStorage.getItem("loginToken");
@@ -241,13 +267,17 @@ const AnaliseComplotaPontos = () => {
 
                         // ✅ VALIDAR que o plano está ATIVO
                         if (planoHorario && planoHorario.ativo === true && horarioData) {
+                            // ✅ CONVERTER horários ISO para formato HH:mm
+                            const horaEntrada = extrairHoraMinuto(horarioData.horaEntrada) || "08:00";
+                            const horaSaida = extrairHoraMinuto(horarioData.horaSaida) || "17:00";
+                            
                             return {
                                 user: user,
                                 userId: user.id,
                                 userName: user.nome,
                                 horario: {
-                                    horaEntrada: horarioData.horaEntrada || "08:00",
-                                    horaSaida: horarioData.horaSaida || "17:00",
+                                    horaEntrada: horaEntrada,
+                                    horaSaida: horaSaida,
                                     intervaloAlmoco: parseFloat(horarioData.intervaloAlmoco) || 1.00,
                                     horasPorDia: parseFloat(horarioData.horasPorDia) || 8.00,
                                 },
