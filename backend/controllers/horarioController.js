@@ -209,36 +209,50 @@ const obterHorarioUser = async (req, res) => {
     const { userId } = req.params;
 
     try {
+        console.log(`[HORARIO_USER] ========================================`);
         console.log(`[HORARIO_USER] Buscando plano para userId: ${userId}`);
+        console.log(`[HORARIO_USER] Tipo de userId: ${typeof userId}`);
+        
+        // Converter para número
+        const userIdNum = parseInt(userId, 10);
+        console.log(`[HORARIO_USER] userId convertido: ${userIdNum} (tipo: ${typeof userIdNum})`);
         
         // Primeiro, verificar se existem planos para este user
         const todosPlanos = await PlanoHorario.findAll({
-            where: { user_id: userId },
-            attributes: ['id', 'user_id', 'horario_id', 'ativo', 'dataInicio', 'dataFim']
+            where: { user_id: userIdNum },
+            attributes: ['id', 'user_id', 'horario_id', 'ativo', 'dataInicio', 'dataFim'],
+            raw: true
         });
         
-        console.log(`[HORARIO_USER] Planos encontrados para user ${userId}:`, JSON.stringify(todosPlanos, null, 2));
+        console.log(`[HORARIO_USER] Total de planos encontrados: ${todosPlanos.length}`);
+        console.log(`[HORARIO_USER] Planos (raw):`, JSON.stringify(todosPlanos, null, 2));
         
         // Buscar plano ativo
         const planoAtivo = await PlanoHorario.findOne({
-            where: { user_id: userId, ativo: true },
-            order: [['dataInicio', 'DESC']]
+            where: { user_id: userIdNum, ativo: true },
+            order: [['dataInicio', 'DESC']],
+            raw: true
         });
 
-        console.log(`[HORARIO_USER] Plano ativo encontrado:`, planoAtivo ? 'SIM' : 'NÃO');
+        console.log(`[HORARIO_USER] Plano ativo:`, planoAtivo ? JSON.stringify(planoAtivo, null, 2) : 'NENHUM');
 
         if (!planoAtivo) {
-            console.log(`[HORARIO_USER] ❌ Nenhum plano ativo para user ${userId}`);
+            console.log(`[HORARIO_USER] ❌ Nenhum plano ativo para user ${userIdNum}`);
             return res.status(404).json({ message: 'Utilizador sem horário atribuído.' });
         }
 
         // Buscar o horário associado manualmente
-        const horario = await Horario.findByPk(planoAtivo.horario_id);
+        console.log(`[HORARIO_USER] Buscando Horario com ID: ${planoAtivo.horario_id}`);
+        const horario = await Horario.findByPk(planoAtivo.horario_id, { raw: true });
+        
+        console.log(`[HORARIO_USER] Horário encontrado:`, horario ? 'SIM' : 'NÃO');
         
         if (!horario) {
             console.log(`[HORARIO_USER] ❌ Horário ID ${planoAtivo.horario_id} não encontrado`);
             return res.status(404).json({ message: 'Horário não encontrado.' });
         }
+
+        console.log(`[HORARIO_USER] Dados do horário:`, JSON.stringify(horario, null, 2));
 
         // Construir resposta com estrutura esperada pelo frontend
         const resposta = {
@@ -253,30 +267,34 @@ const obterHorarioUser = async (req, res) => {
                 id: horario.id,
                 empresa_id: horario.empresa_id,
                 descricao: horario.descricao,
-                horasPorDia: horario.horasPorDia,
-                horasSemanais: horario.horasSemanais,
+                horasPorDia: parseFloat(horario.horasPorDia),
+                horasSemanais: parseFloat(horario.horasSemanais),
                 diasSemana: horario.diasSemana,
                 horaEntrada: horario.horaEntrada,
                 horaSaida: horario.horaSaida,
-                intervaloAlmoco: horario.intervaloAlmoco,
+                intervaloAlmoco: parseFloat(horario.intervaloAlmoco),
                 ativo: horario.ativo,
                 observacoes: horario.observacoes
             }
         };
 
         // Log detalhado para debug
-        console.log(`[HORARIO] User ${userId}:`, {
+        console.log(`[HORARIO_USER] ✅ Sucesso! User ${userIdNum}:`, {
             planoId: resposta.id,
             horarioId: resposta.horario_id,
+            descricao: resposta.Horario.descricao,
             horaEntrada: resposta.Horario.horaEntrada,
             horaSaida: resposta.Horario.horaSaida,
             horasPorDia: resposta.Horario.horasPorDia,
             intervaloAlmoco: resposta.Horario.intervaloAlmoco
         });
+        console.log(`[HORARIO_USER] ========================================`);
 
         res.status(200).json(resposta);
     } catch (error) {
-        console.error('[HORARIO_USER] Erro ao obter horário do utilizador:', error);
+        console.error('[HORARIO_USER] ❌ ERRO CRÍTICO:', error);
+        console.error('[HORARIO_USER] Stack:', error.stack);
+        console.log(`[HORARIO_USER] ========================================`);
         res.status(500).json({ message: 'Erro ao obter horário do utilizador.', error: error.message });
     }
 };
