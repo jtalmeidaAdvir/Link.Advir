@@ -337,6 +337,49 @@ const historicoHorariosUser = async (req, res) => {
     }
 };
 
+// Diagnóstico: Listar todos os users e seus horários
+const diagnosticoHorarios = async (req, res) => {
+    try {
+        const { empresaId } = req.params;
+        
+        // Buscar todos os users da empresa
+        const users = await User.findAll({
+            where: { empresa_id: empresaId },
+            attributes: ['id', 'nome', 'email'],
+            order: [['nome', 'ASC']]
+        });
+
+        // Para cada user, verificar se tem horário ativo
+        const diagnostico = await Promise.all(users.map(async (user) => {
+            const planoAtivo = await PlanoHorario.findOne({
+                where: { user_id: user.id, ativo: true },
+                include: [{ model: Horario, as: 'Horario' }]
+            });
+
+            return {
+                userId: user.id,
+                nome: user.nome,
+                email: user.email,
+                temHorario: !!planoAtivo,
+                horario: planoAtivo ? planoAtivo.Horario.descricao : null
+            };
+        }));
+
+        const usersComHorario = diagnostico.filter(u => u.temHorario).length;
+        const usersSemHorario = diagnostico.filter(u => !u.temHorario).length;
+
+        res.status(200).json({
+            total: diagnostico.length,
+            comHorario: usersComHorario,
+            semHorario: usersSemHorario,
+            utilizadores: diagnostico
+        });
+    } catch (error) {
+        console.error('Erro no diagnóstico:', error);
+        res.status(500).json({ message: 'Erro no diagnóstico de horários.' });
+    }
+};
+
 module.exports = {
     listarHorarios,
     criarHorario,
@@ -344,5 +387,6 @@ module.exports = {
     eliminarHorario,
     atribuirHorarioUser,
     obterHorarioUser,
-    historicoHorariosUser
+    historicoHorariosUser,
+    diagnosticoHorarios
 };
