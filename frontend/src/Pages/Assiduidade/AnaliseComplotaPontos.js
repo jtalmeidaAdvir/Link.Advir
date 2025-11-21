@@ -146,8 +146,11 @@ const AnaliseComplotaPontos = () => {
     // Só carregar dados da grade quando os horários estiverem disponíveis
     useEffect(() => {
         if (horariosCarregados && utilizadores.length > 0 && Object.keys(horariosUtilizadores).length > 0) {
-            console.log("✅ [INIT] Horários carregados, iniciando carregamento da grade...");
+            console.log(`✅ [INIT] Horários carregados (${Object.keys(horariosUtilizadores).length}/${utilizadores.length}), iniciando carregamento da grade...`);
+            console.log(`📋 [INIT] Período: ${mesSelecionado}/${anoSelecionado} | Obra: ${obraSelecionada || 'Todas'}`);
             carregarDadosGrade();
+        } else if (utilizadores.length > 0 && !horariosCarregados) {
+            console.log(`⏳ [INIT] Aguardando carregamento de horários (${Object.keys(horariosUtilizadores).length}/${utilizadores.length} carregados)...`);
         }
     }, [obraSelecionada, mesSelecionado, anoSelecionado, horariosCarregados]);
 
@@ -191,18 +194,16 @@ const AnaliseComplotaPontos = () => {
 
             console.log(
                 "🔍 [INIT] Utilizadores carregados:",
-                utilizadoresFormatados.map((u) => ({
-                    id: u.id,
-                    nome: u.nome,
-                    codFuncionario: u.codFuncionario,
-                    original: usersData.find((ud) => ud.id === u.id),
-                })),
+                utilizadoresFormatados.length,
             );
 
-            setUtilizadores(utilizadoresFormatados);
-
-            // Carregar horários de todos os utilizadores ANTES de marcar como concluído
-            await carregarHorariosUtilizadores(utilizadoresFormatados);
+            // Carregar horários e filtrar apenas utilizadores com plano ativo
+            const { utilizadoresComHorario, horariosMap } = await carregarHorariosUtilizadores(utilizadoresFormatados);
+            
+            console.log(`✅ [INIT] Filtrados ${utilizadoresComHorario.length} utilizadores COM plano de horário ativo`);
+            
+            setUtilizadores(utilizadoresComHorario);
+            setHorariosUtilizadores(horariosMap);
             
             // Marcar horários como carregados apenas depois de concluir
             setHorariosCarregados(true);
@@ -219,10 +220,12 @@ const AnaliseComplotaPontos = () => {
         try {
             const token = secureStorage.getItem("loginToken");
             const horariosMap = {};
+            const utilizadoresComHorario = [];
 
-            console.log("🔍 [HORARIOS] Carregando horários dos utilizadores...");
+            console.log(`🔍 [HORARIOS] Iniciando carregamento de horários para ${utilizadores.length} utilizadores...`);
 
-            for (const user of utilizadores) {
+            // Carregar todos os horários em paralelo para ser mais rápido
+            const promises = utilizadores.map(async (user) => {
                 try {
                     const res = await fetch(
                         `https://backend.advir.pt/api/horario/user/${user.id}`,
@@ -236,57 +239,87 @@ const AnaliseComplotaPontos = () => {
                         // A API retorna um objeto PlanoHorario que contém um objeto Horario aninhado
                         const horarioData = planoHorario?.Horario || planoHorario;
                         
-                        horariosMap[user.id] = {
-                            horaEntrada: horarioData.horaEntrada || "08:00",
-                            horaSaida: horarioData.horaSaida || "17:00",
-                            intervaloAlmoco: horarioData.intervaloAlmoco || 1.00,
-                            horasPorDia: horarioData.horasPorDia || 8.00,
-                        };
-                        
-                        console.log(
-                            `✅ [HORARIOS] ${user.nome} (ID: ${user.id}): ${horariosMap[user.id].horaEntrada}-${horariosMap[user.id].horaSaida} (${horariosMap[user.id].horasPorDia}h/dia, ${horariosMap[user.id].intervaloAlmoco}h almoço)`,
-                            `[Response completa:`, planoHorario, `]`
-                        );
+                        // ✅ VALIDAR que o plano está ATIVO
+                        if (planoHorario && planoHorario.ativo === true && horarioData) {
+                            return {
+                                user: user,
+                                userId: user.id,
+                                userName: user.nome,
+                                horario: {
+                                    horaEntrada: horarioData.horaEntrada || "08:00",
+                                    horaSaida: horarioData.horaSaida || "17:00",
+                                    intervaloAlmoco: parseFloat(horarioData.intervaloAlmoco) || 1.00,
+                                    horasPorDia: parseFloat(horarioData.horasPorDia) || 8.00,
+                                },
+                                encontrado: true,
+                                planoAtivo: true
+                            };
+                        } else {
+                            console.warn(`⚠️ [HORARIOS] ${user.nome}: Plano inativo ou sem horário associado`);
+                            return {
+                                user: user,
+                                userId: user.id,
+                                userName: user.nome,
+                                horario: null,
+                                encontrado: false,
+                                planoAtivo: false
+                            };
+                        }
                     } else {
-                        // Usar horário padrão se não encontrar
-                        horariosMap[user.id] = {
-                            horaEntrada: "08:00",
-                            horaSaida: "17:00",
-                            intervaloAlmoco: 1.00,
-                            horasPorDia: 8.00,
+                        console.warn(`⚠️ [HORARIOS] ${user.nome}: Sem plano de horário (${res.status})`);
+                        return {
+                            user: user,
+                            userId: user.id,
+                            userName: user.nome,
+                            horario: null,
+                            encontrado: false,
+                            planoAtivo: false
                         };
-                        console.warn(
-                            `⚠️ [HORARIOS] ${user.nome} (ID: ${user.id}): Sem horário definido, usando padrão 08:00-17:00`
-                        );
                     }
                 } catch (error) {
-                    console.error(
-                        `❌ [HORARIOS] Erro ao carregar horário de ${user.nome} (ID: ${user.id}):`,
-                        error
-                    );
-                    horariosMap[user.id] = {
-                        horaEntrada: "08:00",
-                        horaSaida: "17:00",
-                        intervaloAlmoco: 1.00,
-                        horasPorDia: 8.00,
+                    console.error(`❌ [HORARIOS] Erro ao carregar ${user.nome}:`, error.message);
+                    return {
+                        user: user,
+                        userId: user.id,
+                        userName: user.nome,
+                        horario: null,
+                        encontrado: false,
+                        planoAtivo: false
                     };
                 }
-            }
+            });
 
-            // Aguardar atualização do estado antes de continuar
-            await new Promise(resolve => {
-                setHorariosUtilizadores(horariosMap);
-                setTimeout(resolve, 100);
+            const resultados = await Promise.all(promises);
+            
+            // ✅ FILTRAR apenas utilizadores com plano de horário ativo
+            resultados.forEach(resultado => {
+                if (resultado.planoAtivo && resultado.horario) {
+                    horariosMap[resultado.userId] = resultado.horario;
+                    utilizadoresComHorario.push(resultado.user);
+                }
             });
             
-            console.log("✅ [HORARIOS] Total de horários carregados:", Object.keys(horariosMap).length);
-            console.log("📋 [HORARIOS] Mapa completo de horários por utilizador:");
-            Object.entries(horariosMap).forEach(([userId, horario]) => {
-                const user = utilizadores.find(u => u.id.toString() === userId.toString());
-                console.log(`   - ${user?.nome || 'ID: ' + userId}: ${horario.horaEntrada}-${horario.horaSaida} (${horario.horasPorDia}h/dia)`);
-            });
+            // Logs de resumo
+            const comHorario = resultados.filter(r => r.planoAtivo).length;
+            const semHorario = resultados.length - comHorario;
+            
+            console.log(`✅ [HORARIOS] Carregamento concluído:`);
+            console.log(`   - Total analisado: ${resultados.length} utilizadores`);
+            console.log(`   - ✅ Com plano ativo: ${comHorario}`);
+            console.log(`   - ❌ Sem plano ativo (EXCLUÍDOS): ${semHorario}`);
+            
+            if (comHorario > 0) {
+                console.log(`📋 [HORARIOS] Utilizadores com horário ativo:`);
+                resultados.filter(r => r.planoAtivo).forEach(r => {
+                    console.log(`   - ${r.userName}: ${r.horario.horaEntrada}-${r.horario.horaSaida} (${r.horario.horasPorDia}h/dia)`);
+                });
+            }
+            
+            return { utilizadoresComHorario, horariosMap };
+            
         } catch (error) {
             console.error("❌ [HORARIOS] Erro geral ao carregar horários:", error);
+            return { utilizadoresComHorario: [], horariosMap: {} };
         }
     };
 
@@ -458,15 +491,12 @@ const AnaliseComplotaPontos = () => {
     };
 
     const gerarPontosFicticios = (userId, dia, isHoje, horaAtual) => {
-        // Obter horário do utilizador - verificar se existe no estado atual
+        // Obter horário do utilizador
         const horarioUser = horariosUtilizadores[userId];
         
         if (!horarioUser) {
-            console.error(`❌ [PONTOS] UserId ${userId} - Dia ${dia}: ERRO - Horário não encontrado no estado!`);
-            console.error(`❌ [PONTOS] Estado atual de horariosUtilizadores:`, Object.keys(horariosUtilizadores).length, "horários carregados");
-            console.error(`❌ [PONTOS] IDs disponíveis:`, Object.keys(horariosUtilizadores));
-        } else {
-            console.log(`✅ [PONTOS] UserId ${userId} - Dia ${dia}: Usando horário personalizado ${horarioUser.horaEntrada}-${horarioUser.horaSaida} (${horarioUser.horasPorDia}h/dia, ${horarioUser.intervaloAlmoco}h almoço)`);
+            console.warn(`⚠️ [PONTOS] UserId ${userId} - Dia ${dia}: Horário não encontrado, usando padrão 08:00-17:00`);
+            console.log(`📊 [PONTOS] Estado: ${Object.keys(horariosUtilizadores).length} horários carregados - IDs: [${Object.keys(horariosUtilizadores).join(', ')}]`);
         }
 
         const horarioFinal = horarioUser || {
@@ -476,44 +506,72 @@ const AnaliseComplotaPontos = () => {
             horasPorDia: 8.00,
         };
 
-        console.log(`📋 [PONTOS] UserId ${userId} - Dia ${dia}: Horário final a aplicar: ${horarioFinal.horaEntrada}-${horarioFinal.horaSaida}`);
+        if (dia === 1) {
+            console.log(`📋 [PONTOS] UserId ${userId}: Horário aplicado ${horarioFinal.horaEntrada}-${horarioFinal.horaSaida} (${horarioFinal.horasPorDia}h/dia, ${horarioFinal.intervaloAlmoco}h almoço)`);
+        }
 
-        // Gerar variação pequena na entrada (±10 minutos)
-        const seed = userId * 1000 + dia + Math.floor(dia / 7);
-        const random1 = ((seed * 9301 + 49297) % 233280) / 233280;
-        const variacaoMinutos = Math.floor(random1 * 21) - 10; // -10 a +10 minutos
+        // Parse do horário (formato HH:mm ou HH:mm:ss)
+        const parseHora = (horaStr) => {
+            if (!horaStr) return { h: 0, m: 0 };
+            const partes = String(horaStr).split(':');
+            return {
+                h: parseInt(partes[0], 10) || 0,
+                m: parseInt(partes[1], 10) || 0
+            };
+        };
 
-        // Calcular hora de entrada com variação
-        const [entradaBaseH, entradaBaseM] = horarioFinal.horaEntrada.split(":").map(Number);
-        let minutosEntrada = entradaBaseH * 60 + entradaBaseM + variacaoMinutos;
+        // Função para adicionar variação aleatória de -5 a +5 minutos
+        const adicionarVariacao = (h, m) => {
+            // Gerar variação entre -5 e +5 minutos
+            const variacao = Math.floor(Math.random() * 11) - 5; // -5 a +5
+            let totalMinutos = h * 60 + m + variacao;
+            
+            // Garantir que não fica negativo
+            if (totalMinutos < 0) totalMinutos = 0;
+            
+            const novaHora = Math.floor(totalMinutos / 60);
+            const novoMinuto = totalMinutos % 60;
+            
+            return {
+                h: novaHora,
+                m: novoMinuto
+            };
+        };
+
+        // Aplicar variação aos horários
+        const entradaBase = parseHora(horarioFinal.horaEntrada);
+        const saidaBase = parseHora(horarioFinal.horaSaida);
         
-        const entradaH = Math.floor(minutosEntrada / 60);
-        const entradaM = minutosEntrada % 60;
-        const horaEntrada = `${String(entradaH).padStart(2, "0")}:${String(entradaM).padStart(2, "0")}`;
+        const entradaVariada = adicionarVariacao(entradaBase.h, entradaBase.m);
+        const saidaVariada = adicionarVariacao(saidaBase.h, saidaBase.m);
+        
+        const horaEntrada = `${String(entradaVariada.h).padStart(2, "0")}:${String(entradaVariada.m).padStart(2, "0")}`;
+        const horaSaida = `${String(saidaVariada.h).padStart(2, "0")}:${String(saidaVariada.m).padStart(2, "0")}`;
 
-        // Calcular almoço (meio do expediente, intervalo configurado)
+        // Calcular intervalo de almoço (com horários base, não variados)
         const intervaloMinutos = Math.floor(horarioFinal.intervaloAlmoco * 60);
-        const horasTrabalhoDia = horarioFinal.horasPorDia;
+        const minutosEntrada = entradaBase.h * 60 + entradaBase.m;
+        const minutosSaida = saidaBase.h * 60 + saidaBase.m;
         
-        // Saída almoço: aproximadamente no meio do dia
-        const minutosAteAlmoco = Math.floor((horasTrabalhoDia * 60) / 2);
+        // Saída e entrada de almoço (meio do expediente)
+        const minutosTrabalho = minutosSaida - minutosEntrada - intervaloMinutos;
+        const minutosAteAlmoco = Math.floor(minutosTrabalho / 2);
+        
         const minutosSaidaAlmoco = minutosEntrada + minutosAteAlmoco;
-        const saidaAlmocoH = Math.floor(minutosSaidaAlmoco / 60);
-        const saidaAlmocoM = minutosSaidaAlmoco % 60;
-        const saidaAlmoco = `${String(saidaAlmocoH).padStart(2, "0")}:${String(saidaAlmocoM).padStart(2, "0")}`;
+        const saidaAlmocoBase = {
+            h: Math.floor(minutosSaidaAlmoco / 60),
+            m: minutosSaidaAlmoco % 60
+        };
+        const saidaAlmocoVariada = adicionarVariacao(saidaAlmocoBase.h, saidaAlmocoBase.m);
+        const saidaAlmoco = `${String(saidaAlmocoVariada.h).padStart(2, "0")}:${String(saidaAlmocoVariada.m).padStart(2, "0")}`;
         
-        // Entrada almoço: após intervalo
         const minutosEntradaAlmoco = minutosSaidaAlmoco + intervaloMinutos;
-        const entradaAlmocoH = Math.floor(minutosEntradaAlmoco / 60);
-        const entradaAlmocoM = minutosEntradaAlmoco % 60;
-        const entradaAlmoco = `${String(entradaAlmocoH).padStart(2, "0")}:${String(entradaAlmocoM).padStart(2, "0")}`;
-
-        // Horário de saída: hora de entrada + horas de trabalho + intervalo
-        const totalMinutosDia = (horasTrabalhoDia * 60) + intervaloMinutos;
-        const minutosSaida = minutosEntrada + totalMinutosDia;
-        const horaSaidaH = Math.floor(minutosSaida / 60);
-        const horaSaidaM = minutosSaida % 60;
-        const horaSaida = `${String(horaSaidaH).padStart(2, "0")}:${String(horaSaidaM).padStart(2, "0")}`;
+        const entradaAlmocoBase = {
+            h: Math.floor(minutosEntradaAlmoco / 60),
+            m: minutosEntradaAlmoco % 60
+        };
+        const entradaAlmocoVariada = adicionarVariacao(entradaAlmocoBase.h, entradaAlmocoBase.m);
+        const entradaAlmoco = `${String(entradaAlmocoVariada.h).padStart(2, "0")}:${String(entradaAlmocoVariada.m).padStart(2, "0")}`;
 
         // Verificar se deve mostrar saída (se é hoje e já passou da hora)
         let mostrarSaida = true;
@@ -523,19 +581,18 @@ const AnaliseComplotaPontos = () => {
             const [horaAtualH, horaAtualM] = horaAtual.split(":").map(Number);
             const minutosAtuais = horaAtualH * 60 + horaAtualM;
             
-            // Só mostra almoço se já passou da entrada do almoço
             mostrarAlmoco = minutosAtuais >= minutosEntradaAlmoco;
-            
-            // Só mostra saída se já passou da hora de saída
             mostrarSaida = minutosAtuais >= minutosSaida;
         }
+
+        const horasPorDia = parseFloat(horarioFinal.horasPorDia) || 8.0;
 
         return {
             horaEntrada: horaEntrada,
             horaSaida: mostrarSaida ? horaSaida : null,
             saidaAlmoco: mostrarAlmoco ? saidaAlmoco : null,
             entradaAlmoco: mostrarAlmoco ? entradaAlmoco : null,
-            totalHoras: mostrarSaida ? horasTrabalhoDia : null,
+            totalHoras: mostrarSaida ? horasPorDia : null,
             temSaida: mostrarSaida,
         };
     };
@@ -573,138 +630,12 @@ const AnaliseComplotaPontos = () => {
         setLoading(true);
         try {
             // 1) Carregar faltas
-            console.log("🔍 [GRADE] Etapa 1: Carregando faltas...");
+            console.log("🔍 [GRADE] Carregando faltas...");
             const faltasData = await carregarFaltas();
             setFaltas(faltasData);
             console.log("✅ [GRADE] Faltas carregadas:", faltasData.length);
 
-            // 2) Obter registos reais detalhados por utilizador no período selecionado
-            console.log(
-                "🔍 [GRADE] Etapa 2: Obtendo registos reais detalhados...",
-            );
-            const token = secureStorage.getItem("loginToken");
-            const registosReaisDetalhados = {};
-
-            // Para cada utilizador, buscar os registos reais do mês
-            for (const user of utilizadores) {
-                try {
-                    const dataInicio = new Date(
-                        anoSelecionado,
-                        mesSelecionado - 1,
-                        1,
-                    );
-                    const dataFim = new Date(anoSelecionado, mesSelecionado, 0);
-                    const di = fmtLocal(dataInicio);
-                    const df = fmtLocal(dataFim);
-
-                    const url = new URL(
-                        `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo`,
-                    );
-
-                    // Usar parâmetros corretos da API
-                    url.searchParams.set("user_id", String(user.id));
-                    url.searchParams.set("ano", String(anoSelecionado));
-                    url.searchParams.set(
-                        "mes",
-                        String(mesSelecionado).padStart(2, "0"),
-                    );
-
-                    // Adicionar obra_id apenas se uma obra específica estiver selecionada
-                    if (obraSelecionada && obraSelecionada !== "") {
-                        url.searchParams.set(
-                            "obra_id",
-                            String(obraSelecionada),
-                        );
-                    }
-
-                    console.log(
-                        `🔍 [GRADE] Buscando registos para ${user.nome} (ID: ${user.id}) - URL: ${url.toString()}`,
-                    );
-
-                    const res = await fetch(url.toString(), {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-
-                    if (res.ok) {
-                        const registos = await res.json();
-                        const registosPorDia = {};
-
-                        console.log(
-                            `🔍 [GRADE] ${user.nome}: API retornou ${registos.length} registos totais`,
-                        );
-
-                        // Agrupar por dia **do mês/ano selecionados** usando "timestamp"
-                        (Array.isArray(registos) ? registos : []).forEach(
-                            (registro) => {
-                                const iso =
-                                    registro.timestamp ||
-                                    registro.dataHora ||
-                                    registro.data ||
-                                    registro.createdAt ||
-                                    registro.updatedAt;
-                                const p = ymdFrom(iso);
-                                if (!p) return;
-
-                                // ✅ VALIDAÇÃO CORRIGIDA: comparar números com números
-                                const anoRegisto = Number(p.y);
-                                const mesRegisto = Number(p.m);
-                                const anoEsperado = Number(anoSelecionado);
-                                const mesEsperado = Number(mesSelecionado);
-
-                                if (
-                                    anoRegisto !== anoEsperado ||
-                                    mesRegisto !== mesEsperado
-                                ) {
-                                    console.log(
-                                        `⚠️ [GRADE] ${user.nome}: Registo ignorado - data ${anoRegisto}-${mesRegisto}-${p.d} não pertence ao período ${anoEsperado}-${mesEsperado}`,
-                                    );
-                                    return;
-                                }
-
-                                const dia = p.d;
-                                if (!registosPorDia[dia])
-                                    registosPorDia[dia] = [];
-                                registosPorDia[dia].push({
-                                    ...registro,
-                                    _hhmm: `${p.hh}:${p.mm}`,
-                                }); // guarda HH:mm já calculado
-
-                                console.log(
-                                    `✅ [GRADE] ${user.nome}: Registo aceite - dia ${dia} às ${p.hh}:${p.mm} (${registro.tipo})`,
-                                );
-                            },
-                        );
-
-                        registosReaisDetalhados[user.id] = registosPorDia;
-                        console.log(
-                            `✅ [GRADE] ${user.nome}: ${Object.keys(registosPorDia).length} dias com registos processados`,
-                        );
-
-                        if (Object.keys(registosPorDia).length > 0) {
-                            console.log(
-                                `🔍 [GRADE] ${user.nome}: Dias com registos: ${Object.keys(registosPorDia).join(", ")}`,
-                            );
-                        }
-                    } else {
-                        const errorText = await res
-                            .text()
-                            .catch(() => "Erro desconhecido");
-                        console.warn(
-                            `❌ [GRADE] Erro ${res.status} ao buscar registos para ${user.nome}: ${errorText}`,
-                        );
-                        registosReaisDetalhados[user.id] = {};
-                    }
-                } catch (error) {
-                    console.error(
-                        `❌ [GRADE] Erro ao processar ${user.nome}:`,
-                        error,
-                    );
-                    registosReaisDetalhados[user.id] = {};
-                }
-            }
-
-            // 3) Filtrar faltas para o mês/ano selecionado
-            console.log("🔍 [GRADE] Etapa 3: Filtrando faltas do mês...");
+            // 2) Filtrar faltas para o mês/ano selecionado
             const faltasDoMes = faltasData.filter((falta) => {
                 const dataFalta = new Date(falta.Data);
                 const mesData = dataFalta.getMonth() + 1;
@@ -712,95 +643,14 @@ const AnaliseComplotaPontos = () => {
                 return mesData === mesSelecionado && anoData === anoSelecionado;
             });
 
-            console.log(
-                "✅ [GRADE] Faltas do mês filtradas:",
-                faltasDoMes.length,
-            );
-            console.log("🔍 [GRADE] UserIds únicos nas faltas:", [
-                ...new Set(faltasDoMes.map((f) => f.userId)),
-            ]);
-            console.log(
-                "🔍 [GRADE] UserIds dos utilizadores:",
-                utilizadores.map((u) => u.id),
-            );
-            console.log(
-                "🔍 [GRADE] Primeiras faltas do mês:",
-                faltasDoMes.slice(0, 3).map((f) => ({
-                    userId: f.userId,
-                    nomeUsuario: f.nomeUsuario,
-                    Data: f.Data,
-                    Falta: f.Falta,
-                })),
-            );
+            console.log("✅ [GRADE] Faltas do mês filtradas:", faltasDoMes.length);
 
-            // 4) Construir a grelha com validação rigorosa
-            const diasDoMes = new Date(
-                anoSelecionado,
-                mesSelecionado,
-                0,
-            ).getDate();
+            // 3) Construir a grelha apenas com horários esperados
+            const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
             const hoje = new Date();
             const dadosGradeTemp = [];
 
             utilizadores.forEach((user) => {
-                const registosUsuario = registosReaisDetalhados[user.id] || {};
-
-                // 🔍 STEP 1: Verificar se tem registos reais ESPECIFICAMENTE no período selecionado
-                const temRegistosReaisNoMes =
-                    Object.keys(registosUsuario).length > 0;
-
-                // 🔍 STEP 2: Verificar se tem faltas ESPECIFICAMENTE no período selecionado
-                const faltasUsuarioNoMes = faltasDoMes.filter(
-                    (falta) => falta.userId === user.id,
-                );
-                const temFaltasNoMes = faltasUsuarioNoMes.length > 0;
-
-                // 🔍 STEP 3: Para debug, mostrar detalhes dos registos
-                if (temRegistosReaisNoMes) {
-                    const totalRegistos =
-                        Object.values(registosUsuario).flat().length;
-                    console.log(
-                        `🔍 [GRADE] ${user.nome}: Encontrados ${totalRegistos} registos em ${Object.keys(registosUsuario).length} dias diferentes`,
-                    );
-                }
-
-                // ✅ VALIDAÇÃO MAIS PERMISSIVA: Processar se tem registos OU faltas
-                if (!temRegistosReaisNoMes && !temFaltasNoMes) {
-                    console.log(
-                        `🚫 [GRADE] ${user.nome}: IGNORADO - zero atividade no período ${mesSelecionado}/${anoSelecionado}`,
-                    );
-                    console.log(
-                        `🚫 [GRADE] ${user.nome}: - Registos no mês: ${temRegistosReaisNoMes ? "SIM" : "NÃO"}`,
-                    );
-                    console.log(
-                        `🚫 [GRADE] ${user.nome}: - Faltas no mês: ${temFaltasNoMes ? "SIM" : "NÃO"}`,
-                    );
-                    return; // 🚫 NÃO PROCESSAR este utilizador
-                }
-
-                // ✅ Utilizador tem atividade real no período - vai ser processado
-                console.log(
-                    `✅ [GRADE] ${user.nome}: PROCESSANDO - tem atividade no período ${mesSelecionado}/${anoSelecionado}`,
-                );
-                console.log(
-                    `✅ [GRADE] ${user.nome}: - Registos no mês: ${temRegistosReaisNoMes ? "SIM" : "NÃO"} (${Object.keys(registosUsuario).length} dias)`,
-                );
-                console.log(
-                    `✅ [GRADE] ${user.nome}: - Faltas no mês: ${temFaltasNoMes ? "SIM" : "NÃO"} (${faltasUsuarioNoMes.length} faltas)`,
-                );
-
-                if (temRegistosReaisNoMes && temFaltasNoMes) {
-                    console.log(
-                        `🔄 [GRADE] ${user.nome}: Tipo: REGISTOS + FALTAS`,
-                    );
-                } else if (temRegistosReaisNoMes && !temFaltasNoMes) {
-                    console.log(
-                        `🔄 [GRADE] ${user.nome}: Tipo: APENAS REGISTOS`,
-                    );
-                } else if (!temRegistosReaisNoMes && temFaltasNoMes) {
-                    console.log(`🔄 [GRADE] ${user.nome}: Tipo: APENAS FALTAS`);
-                }
-
                 const dadosUsuario = {
                     utilizador: user,
                     estatisticasDias: {},
@@ -810,11 +660,7 @@ const AnaliseComplotaPontos = () => {
                 };
 
                 for (let dia = 1; dia <= diasDoMes; dia++) {
-                    const dataAtual = new Date(
-                        anoSelecionado,
-                        mesSelecionado - 1,
-                        dia,
-                    );
+                    const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, dia);
                     const diaSemana = dataAtual.getDay();
                     const isWeekend = diaSemana === 0 || diaSemana === 6;
                     const isFutureDate = dataAtual > hoje;
@@ -825,10 +671,6 @@ const AnaliseComplotaPontos = () => {
                         return df.getDate() === dia && falta.userId === user.id;
                     });
 
-                    // Verificar registos reais do dia
-                    const registosReaisDoDia = registosUsuario[dia] || [];
-                    const temRegistosReais = registosReaisDoDia.length > 0;
-
                     let estatisticasDia = {
                         dia,
                         diaSemana,
@@ -837,88 +679,35 @@ const AnaliseComplotaPontos = () => {
                         faltas: faltasDoDia,
                         temFalta: faltasDoDia.length > 0,
                         trabalhou: false,
-                        registosReais: registosReaisDoDia,
-                        temRegistosReais,
                     };
 
-                    // Log para validação dos primeiros 5 dias
-                    if (dia <= 5) {
-                        console.log(`🔍 [GRADE] ${user.nome} - Dia ${dia}:`);
-                        console.log(`   - Fim de semana: ${isWeekend}`);
-                        console.log(`   - Futuro: ${isFutureDate}`);
-                        console.log(`   - Faltas: ${faltasDoDia.length}`);
-                        console.log(
-                            `   - Registos reais: ${registosReaisDoDia.length}`,
-                        );
-                        console.log(
-                            `   - Detalhes registos:`,
-                            registosReaisDoDia.map((r) => ({
-                                data: r.data || r.dataHora,
-                                tipo: r.tipo,
-                                hora: r.hora,
-                            })),
-                        );
-                    }
-
-                    // PRIORIDADE 1: Faltas (sempre prevalecem sobre qualquer registo)
+                    // PRIORIDADE 1: Faltas
                     if (faltasDoDia.length > 0) {
                         estatisticasDia.trabalhou = false;
                         estatisticasDia.temFalta = true;
                         estatisticasDia.faltas = faltasDoDia;
                         dadosUsuario.faltasTotal++;
-
-                        // 🔧 Limpar qualquer dado de trabalho se há falta
-                        estatisticasDia.horaEntrada = null;
-                        estatisticasDia.horaSaida = null;
-                        estatisticasDia.totalHoras = null;
-                        estatisticasDia.temSaida = false;
-                        estatisticasDia.saidaAlmoco = null; // Limpar almoço
-                        estatisticasDia.entradaAlmoco = null; // Limpar almoço
-
-                        console.log(
-                            `❌ [GRADE] ${user.nome} - Dia ${dia}: FALTA registada (${faltasDoDia.length} falta(s)) - ${isFutureDate ? "FUTURO" : "PASSADO"}`,
-                        );
                     }
-                    // PRIORIDADE 2: Dias úteis sem faltas -> Gerar fictícios baseados no horário do colaborador
+                    // PRIORIDADE 2: Dias úteis -> GERAR HORÁRIO ESPERADO
                     else if (!isWeekend && !isFutureDate) {
-                        const isHoje =
-                            new Date(
-                                anoSelecionado,
-                                mesSelecionado - 1,
-                                dia,
-                            ).toDateString() === hoje.toDateString();
+                        const isHoje = dataAtual.toDateString() === hoje.toDateString();
                         const horaAtual = isHoje
                             ? `${String(hoje.getHours()).padStart(2, "0")}:${String(hoje.getMinutes()).padStart(2, "0")}`
                             : null;
 
-                        const pontosFicticios = gerarPontosFicticios(
-                            user.id,
-                            dia,
-                            isHoje,
-                            horaAtual,
-                        );
+                        // Gerar horário esperado
+                        const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
                         Object.assign(estatisticasDia, pontosFicticios);
                         estatisticasDia.trabalhou = true;
 
+                        // Contar horas
                         if (pontosFicticios.temSaida) {
                             const horasDia = horariosUtilizadores[user.id]?.horasPorDia || 8;
                             dadosUsuario.totalHorasMes += horasDia;
                             dadosUsuario.diasTrabalhados++;
-                            console.log(`✅ [PONTOS] ${user.nome} - Dia ${dia}: Dia completo, adicionadas ${horasDia}h`);
                         } else {
                             dadosUsuario.diasTrabalhados += 0.5;
-                            console.log(`⏳ [PONTOS] ${user.nome} - Dia ${dia}: Dia parcial (hoje sem saída)`);
                         }
-                    }
-                    // Dias futuros ou fins de semana -> NADA
-                    else {
-                        estatisticasDia.trabalhou = false;
-                        estatisticasDia.horaEntrada = null;
-                        estatisticasDia.horaSaida = null;
-                        estatisticasDia.totalHoras = null;
-                        estatisticasDia.temSaida = false;
-                        estatisticasDia.saidaAlmoco = null;
-                        estatisticasDia.entradaAlmoco = null;
                     }
 
                     dadosUsuario.estatisticasDias[dia] = estatisticasDia;
@@ -927,64 +716,7 @@ const AnaliseComplotaPontos = () => {
                 dadosGradeTemp.push(dadosUsuario);
             });
 
-            console.log(
-                "✅ [GRADE] Grade final gerada com",
-                dadosGradeTemp.length,
-                "utilizadores",
-            );
-            console.log(
-                "✅ [GRADE] Utilizadores filtrados:",
-                utilizadores.length - dadosGradeTemp.length,
-                "utilizadores sem atividade no período",
-            );
-
-            // Validação final - verificar se algum utilizador sem atividade passou pela validação
-            dadosGradeTemp.forEach((dadosUsuario) => {
-                const registosReaisUtilizador =
-                    registosReaisDetalhados[dadosUsuario.utilizador.id] || {};
-                const faltasUtilizador = faltasDoMes.filter(
-                    (f) => f.userId === dadosUsuario.utilizador.id,
-                );
-
-                const totalDiasComRegistos = Object.keys(
-                    registosReaisUtilizador,
-                ).length;
-                const totalFaltasNoMes = faltasUtilizador.length;
-                const totalDiasComPontosFicticios = Object.values(
-                    dadosUsuario.estatisticasDias,
-                ).filter(
-                    (dia) =>
-                        dia.trabalhou && !dia.temRegistosReais && !dia.temFalta,
-                ).length;
-
-                // 🚨 ALERTA: Se tem pontos fictícios mas não tem registos reais no mês
-                if (
-                    totalDiasComPontosFicticios > 0 &&
-                    totalDiasComRegistos === 0 &&
-                    totalFaltasNoMes === 0
-                ) {
-                    console.error(
-                        `🚨 [VALIDAÇÃO] ERRO: ${dadosUsuario.utilizador.nome} tem ${totalDiasComPontosFicticios} pontos fictícios mas ZERO atividade real no período!`,
-                    );
-                }
-
-                console.log(`📊 [GRADE] ${dadosUsuario.utilizador.nome}:`);
-                console.log(
-                    `   - Dias com registos reais: ${totalDiasComRegistos}`,
-                );
-                console.log(
-                    `   - Dias com pontos fictícios: ${totalDiasComPontosFicticios}`,
-                );
-                console.log(`   - Total faltas: ${totalFaltasNoMes}`);
-                console.log(
-                    `   - Dias trabalhados: ${dadosUsuario.diasTrabalhados}`,
-                );
-                console.log(`   - Total horas: ${dadosUsuario.totalHorasMes}`);
-                console.log(
-                    `   - ✅ Validação: ${totalDiasComRegistos > 0 || totalFaltasNoMes > 0 ? "PASSOU" : "❌ FALHOU"}`,
-                );
-            });
-
+            console.log("✅ [GRADE] Grade gerada com", dadosGradeTemp.length, "utilizadores");
             setDadosGrade(dadosGradeTemp);
         } catch (error) {
             console.error("❌ [GRADE] Erro ao carregar dados da grade:", error);
@@ -1013,28 +745,34 @@ const AnaliseComplotaPontos = () => {
     };
 
     const getCellText = (estatisticas) => {
-        // ✅ VERIFICAÇÃO DE SEGURANÇA: se estatisticas é undefined ou fim de semana, retornar vazio
         if (!estatisticas || estatisticas.isWeekend) return "";
 
-        // 1º FALTAS mesmo em datas futuras
+        // Faltas
         if (estatisticas.temFalta) return "FALTA";
-        // 2º FUTURO (sem falta) não mostra nada
+        
+        // Futuro
         if (estatisticas.isFutureDate) return "";
 
+        // Horário esperado
         if (estatisticas.trabalhou) {
-            if (estatisticas.horaSaida) {
-                let cellValue = `${estatisticas.horaEntrada}`;
+            let cellValue = "";
+            
+            if (estatisticas.horaEntrada) {
+                cellValue = `${estatisticas.horaEntrada}`;
                 if (estatisticas.saidaAlmoco) {
                     cellValue += `\n${estatisticas.saidaAlmoco}`;
                 }
                 if (estatisticas.entradaAlmoco) {
                     cellValue += `\n${estatisticas.entradaAlmoco}`;
                 }
-                cellValue += `\n${estatisticas.horaSaida}`;
-                return cellValue;
-            } else {
-                return `${estatisticas.horaEntrada}\n---`;
+                if (estatisticas.horaSaida) {
+                    cellValue += `\n${estatisticas.horaSaida}`;
+                } else {
+                    cellValue += `\n---`;
+                }
             }
+
+            return cellValue;
         }
 
         return "";
