@@ -415,16 +415,23 @@ const PessoalObra = ({ route, navigation }) => {
                 const minutos = totalMin % 60;
                 const totalHoras = `${horas}h ${minutos}min`;
 
-                let tipoLabel = pessoa.tipo_pessoa === 'visitante' ? 'Visitante' : 
-                                 pessoa.tipo_pessoa === 'externo' ? 'Externo' : 'Colaborador';
-                
                 let empresaNome = pessoa.nomeEmpresa;
                 
-                // Se empresa for N/A, buscar empresa selecionada do localStorage e tipo JPA
-                if (empresaNome === 'N/A') {
-                    const empresaSelecionadaStorage = secureStorage.getItem('empresaSelecionada');
-                    empresaNome = empresaSelecionadaStorage || 'Martela';
-                    tipoLabel = 'JPA';
+                // Determinar tipo baseado no tipo_pessoa e empresa
+                let tipoLabel;
+                if (pessoa.tipo_pessoa === 'visitante') {
+                    tipoLabel = 'Visitante';
+                } else if (pessoa.tipo_pessoa === 'externo') {
+                    tipoLabel = 'Externo';
+                } else {
+                    // É colaborador - verificar se é interno ou externo baseado na empresa
+                    if (empresaNome === 'N/A') {
+                        const empresaSelecionadaStorage = secureStorage.getItem('empresaSelecionada');
+                        empresaNome = empresaSelecionadaStorage || 'Martela';
+                        tipoLabel = 'Interno'; // Se empresa é N/A, é interno (JPA)
+                    } else {
+                        tipoLabel = 'Interno'; // Colaboradores são sempre internos
+                    }
                 }
 
                 wsData.push([
