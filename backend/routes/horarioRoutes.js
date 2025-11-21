@@ -1,7 +1,5 @@
-
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
 const {
     listarHorarios,
     criarHorario,
@@ -11,16 +9,25 @@ const {
     obterHorarioUser,
     historicoHorariosUser
 } = require('../controllers/horarioController');
+const { protect } = require('../middleware/authMiddleware');
 
-// Rotas de horários por empresa
-router.get('/empresa/:empresaId', authMiddleware, listarHorarios);
-router.post('/empresa/:empresaId', authMiddleware, criarHorario);
-router.put('/:horarioId', authMiddleware, atualizarHorario);
-router.delete('/:horarioId', authMiddleware, eliminarHorario);
+// Rotas para horários de empresa
+router.get('/empresa/:empresaId', protect, listarHorarios);
+router.post('/empresa/:empresaId', protect, criarHorario);
+router.put('/:horarioId', protect, atualizarHorario);
+router.delete('/:horarioId', protect, eliminarHorario);
 
-// Rotas de planos de horário (atribuição a users)
-router.post('/atribuir', authMiddleware, atribuirHorarioUser);
-router.get('/user/:userId', authMiddleware, obterHorarioUser);
-router.get('/user/:userId/historico', authMiddleware, historicoHorariosUser);
+// Rotas para gestão de horários de utilizadores
+router.post('/atribuir', protect, atribuirHorarioUser);
+
+// Log para debug da rota
+router.get('/user/:userId', protect, (req, res, next) => {
+    console.log(`[ROUTE] 🌐 Rota /user/:userId chamada`);
+    console.log(`[ROUTE] Params:`, req.params);
+    console.log(`[ROUTE] userId:`, req.params.userId);
+    next();
+}, obterHorarioUser);
+
+router.get('/user/:userId/historico', protect, historicoHorariosUser);
 
 module.exports = router;

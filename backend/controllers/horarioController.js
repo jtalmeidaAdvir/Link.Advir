@@ -209,27 +209,61 @@ const obterHorarioUser = async (req, res) => {
     const { userId } = req.params;
 
     try {
-        console.log(`[HORARIO_USER] Buscando plano para userId: ${userId}`);
+        console.log(`========================================`);
+        console.log(`[HORARIO_USER] 🔍 INICIANDO BUSCA`);
+        console.log(`[HORARIO_USER] userId recebido: "${userId}" (tipo: ${typeof userId})`);
+        console.log(`[HORARIO_USER] req.params:`, req.params);
+        console.log(`========================================`);
+        
+        // Converter userId para número
+        const userIdNum = parseInt(userId, 10);
+        
+        if (isNaN(userIdNum)) {
+            console.error(`[HORARIO_USER] ❌ userId inválido: "${userId}"`);
+            return res.status(400).json({ message: 'userId inválido' });
+        }
+        
+        console.log(`[HORARIO_USER] userId convertido: ${userIdNum}`);
         
         // Primeiro, verificar se existem planos para este user
         const todosPlanos = await PlanoHorario.findAll({
-            where: { user_id: userId },
+            where: { user_id: userIdNum },
             attributes: ['id', 'user_id', 'horario_id', 'ativo', 'dataInicio', 'dataFim']
         });
         
-        console.log(`[HORARIO_USER] Planos encontrados para user ${userId}:`, JSON.stringify(todosPlanos, null, 2));
+        console.log(`[HORARIO_USER] Total de planos encontrados: ${todosPlanos.length}`);
+        console.log(`[HORARIO_USER] Planos (todos):`, JSON.stringify(todosPlanos, null, 2));
         
-        // Buscar plano ativo
+        // Buscar plano ativo (usando userIdNum convertido)
         const planoAtivo = await PlanoHorario.findOne({
-            where: { user_id: userId, ativo: true },
+            where: { 
+                user_id: userIdNum, 
+                ativo: true 
+            },
             order: [['dataInicio', 'DESC']]
         });
 
-        console.log(`[HORARIO_USER] Plano ativo encontrado:`, planoAtivo ? 'SIM' : 'NÃO');
+        console.log(`[HORARIO_USER] Plano ativo encontrado:`, planoAtivo ? 'SIM ✅' : 'NÃO ❌');
+        
+        if (planoAtivo) {
+            console.log(`[HORARIO_USER] Detalhes do plano ativo:`, {
+                id: planoAtivo.id,
+                user_id: planoAtivo.user_id,
+                horario_id: planoAtivo.horario_id,
+                ativo: planoAtivo.ativo,
+                dataInicio: planoAtivo.dataInicio,
+                dataFim: planoAtivo.dataFim
+            });
+        }
 
         if (!planoAtivo) {
-            console.log(`[HORARIO_USER] ❌ Nenhum plano ativo para user ${userId}`);
-            return res.status(404).json({ message: 'Utilizador sem horário atribuído.' });
+            console.log(`[HORARIO_USER] ❌ Nenhum plano ativo para user ${userIdNum}`);
+            console.log(`========================================`);
+            return res.status(404).json({ 
+                message: 'Utilizador sem horário atribuído.',
+                userId: userIdNum,
+                todosPlanos: todosPlanos.length
+            });
         }
 
         // Buscar o horário associado manualmente
@@ -265,14 +299,17 @@ const obterHorarioUser = async (req, res) => {
         };
 
         // Log detalhado para debug
-        console.log(`[HORARIO] User ${userId}:`, {
-            planoId: resposta.id,
-            horarioId: resposta.horario_id,
+        console.log(`[HORARIO_USER] ✅ SUCESSO - User ${userIdNum}:`);
+        console.log(`[HORARIO_USER] Plano ID: ${resposta.id}`);
+        console.log(`[HORARIO_USER] Horário ID: ${resposta.horario_id}`);
+        console.log(`[HORARIO_USER] Horário:`, {
+            descricao: resposta.Horario.descricao,
             horaEntrada: resposta.Horario.horaEntrada,
             horaSaida: resposta.Horario.horaSaida,
             horasPorDia: resposta.Horario.horasPorDia,
             intervaloAlmoco: resposta.Horario.intervaloAlmoco
         });
+        console.log(`========================================`);
 
         res.status(200).json(resposta);
     } catch (error) {
