@@ -41,7 +41,7 @@ const PartesDiariasJPA = ({ navigation }) => {
     const carregarDados = useCallback(async () => {
         try {
             const token = await secureStorage.getItem("loginToken");
-
+            console.log(token);
             // Carregar registos de ponto JPA
             const urlRegistos = `https://backend.advir.pt/api/parte-diaria-jpa/cabecalhos?mes=${mesAno.mes}&ano=${mesAno.ano}`;
 
@@ -49,7 +49,8 @@ const PartesDiariasJPA = ({ navigation }) => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            if (!respRegistos.ok) throw new Error("Erro ao carregar registos JPA");
+            if (!respRegistos.ok)
+                throw new Error("Erro ao carregar registos JPA");
 
             const registos = await respRegistos.json();
             setRegistosPonto(registos);
@@ -78,7 +79,6 @@ const PartesDiariasJPA = ({ navigation }) => {
                 }
             });
             setObras(Array.from(obrasUnicas.values()));
-
         } catch (error) {
             console.error("Erro ao carregar dados JPA:", error);
             Alert.alert("Erro", "Não foi possível carregar os dados da JPA");
@@ -114,7 +114,9 @@ const PartesDiariasJPA = ({ navigation }) => {
                     obraNome: registo.Obra.nome || `Obra ${obraId}`,
                     userId,
                     userName: registo.User.nome,
-                    horasPorDia: Object.fromEntries(diasDoMes.map(d => [d, 0])),
+                    horasPorDia: Object.fromEntries(
+                        diasDoMes.map((d) => [d, 0]),
+                    ),
                     registos: [],
                 });
             }
@@ -139,27 +141,32 @@ const PartesDiariasJPA = ({ navigation }) => {
 
             registosPorDia.forEach((registosDia, dia) => {
                 // Verificar se algum registo deste dia foi editado manualmente
-                const registoEditado = registosDia.find(r => r.editadoManualmente && r.horasEditadas !== undefined);
+                const registoEditado = registosDia.find(
+                    (r) =>
+                        r.editadoManualmente && r.horasEditadas !== undefined,
+                );
 
                 if (registoEditado) {
                     // Usar o valor editado manualmente
                     grupo.horasPorDia[dia] = registoEditado.horasEditadas;
                 } else {
                     // Calcular normally
-                    const eventosOrdenados = registosDia.sort((a, b) => 
-                        new Date(a.timestamp) - new Date(b.timestamp)
+                    const eventosOrdenados = registosDia.sort(
+                        (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
                     );
 
                     let totalMinutosDia = 0;
                     let ultimaEntrada = null;
 
                     eventosOrdenados.forEach((reg) => {
-                        if (reg.tipo === 'entrada') {
+                        if (reg.tipo === "entrada") {
                             ultimaEntrada = new Date(reg.timestamp);
-                        } else if (reg.tipo === 'saida' && ultimaEntrada) {
+                        } else if (reg.tipo === "saida" && ultimaEntrada) {
                             const saida = new Date(reg.timestamp);
                             const diffMs = saida - ultimaEntrada;
-                            const diffMinutos = Math.round(diffMs / (1000 * 60));
+                            const diffMinutos = Math.round(
+                                diffMs / (1000 * 60),
+                            );
 
                             if (diffMinutos > 0 && diffMinutos < 1440) {
                                 totalMinutosDia += diffMinutos;
@@ -206,7 +213,9 @@ const PartesDiariasJPA = ({ navigation }) => {
                     obraNome: registo.Obra.nome || `Obra ${obraId}`,
                     userId,
                     userName: registo.User.nome,
-                    horasPorDia: Object.fromEntries(diasDoMes.map(d => [d, 0])),
+                    horasPorDia: Object.fromEntries(
+                        diasDoMes.map((d) => [d, 0]),
+                    ),
                     registos: [],
                 });
             }
@@ -231,27 +240,32 @@ const PartesDiariasJPA = ({ navigation }) => {
 
             registosPorDia.forEach((registosDia, dia) => {
                 // Verificar se algum registo deste dia foi editado manualmente
-                const registoEditado = registosDia.find(r => r.editadoManualmente && r.horasEditadas !== undefined);
+                const registoEditado = registosDia.find(
+                    (r) =>
+                        r.editadoManualmente && r.horasEditadas !== undefined,
+                );
 
                 if (registoEditado) {
                     // Usar o valor editado manualmente
                     grupo.horasPorDia[dia] = registoEditado.horasEditadas;
                 } else {
-                    // Calcular normalmente
-                    const eventosOrdenados = registosDia.sort((a, b) => 
-                        new Date(a.timestamp) - new Date(b.timestamp)
+                    // Calcular normally
+                    const eventosOrdenados = registosDia.sort(
+                        (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
                     );
 
                     let totalMinutosDia = 0;
                     let ultimaEntrada = null;
 
                     eventosOrdenados.forEach((reg) => {
-                        if (reg.tipo === 'entrada') {
+                        if (reg.tipo === "entrada") {
                             ultimaEntrada = new Date(reg.timestamp);
-                        } else if (reg.tipo === 'saida' && ultimaEntrada) {
+                        } else if (reg.tipo === "saida" && ultimaEntrada) {
                             const saida = new Date(reg.timestamp);
                             const diffMs = saida - ultimaEntrada;
-                            const diffMinutos = Math.round(diffMs / (1000 * 60));
+                            const diffMinutos = Math.round(
+                                diffMs / (1000 * 60),
+                            );
 
                             if (diffMinutos > 0 && diffMinutos < 1440) {
                                 totalMinutosDia += diffMinutos;
@@ -293,7 +307,7 @@ const PartesDiariasJPA = ({ navigation }) => {
 
             dadosPorUtilizador.forEach((userGroup, userId) => {
                 const obrasDoUtilizador = userGroup.obras.filter(
-                    obra => Number(obra.obraId) === obraIdNumber
+                    (obra) => Number(obra.obraId) === obraIdNumber,
                 );
 
                 if (obrasDoUtilizador.length > 0) {
@@ -348,7 +362,7 @@ const PartesDiariasJPA = ({ navigation }) => {
         }
 
         // Se não há valor, cancelar
-        if (!editValue || editValue.trim() === '') {
+        if (!editValue || editValue.trim() === "") {
             setEditingCell(null);
             setEditValue("");
             return;
@@ -357,10 +371,12 @@ const PartesDiariasJPA = ({ navigation }) => {
         // Parsear o valor editado (formato: "9:20" ou "9.33" ou "9")
         let novoMinutos = 0;
 
-        if (editValue.includes(':')) {
-            const [horas, mins] = editValue.split(':').map(v => parseInt(v) || 0);
+        if (editValue.includes(":")) {
+            const [horas, mins] = editValue
+                .split(":")
+                .map((v) => parseInt(v) || 0);
             novoMinutos = horas * 60 + mins;
-        } else if (editValue.includes('.')) {
+        } else if (editValue.includes(".")) {
             const horas = parseFloat(editValue) || 0;
             novoMinutos = Math.round(horas * 60);
         } else {
@@ -369,16 +385,18 @@ const PartesDiariasJPA = ({ navigation }) => {
         }
 
         // Atualizar os dados localmente
-        setRegistosPonto(prevRegistos => {
+        setRegistosPonto((prevRegistos) => {
             // Criar uma cópia dos registos
             const novosRegistos = [...prevRegistos];
 
             // Encontrar o registo correspondente
-            const index = novosRegistos.findIndex(r => 
-                r.User && r.Obra &&
-                r.User.id === editingCell.userId && 
-                r.Obra.id === editingCell.obraId &&
-                new Date(r.timestamp).getDate() === editingCell.dia
+            const index = novosRegistos.findIndex(
+                (r) =>
+                    r.User &&
+                    r.Obra &&
+                    r.User.id === editingCell.userId &&
+                    r.Obra.id === editingCell.obraId &&
+                    new Date(r.timestamp).getDate() === editingCell.dia,
             );
 
             if (index !== -1) {
@@ -390,35 +408,43 @@ const PartesDiariasJPA = ({ navigation }) => {
                 };
             } else {
                 // Criar novo registo se não existir
-                const dataRegisto = new Date(mesAno.ano, mesAno.mes - 1, editingCell.dia, 9, 0, 0);
-                
+                const dataRegisto = new Date(
+                    mesAno.ano,
+                    mesAno.mes - 1,
+                    editingCell.dia,
+                    9,
+                    0,
+                    0,
+                );
+
                 // Encontrar dados do utilizador e obra
-                const userInfo = Array.from(dadosPorUtilizador.values())
-                    .find(u => u.userId === editingCell.userId);
-                const obraInfo = obras.find(o => o.id === editingCell.obraId);
+                const userInfo = Array.from(dadosPorUtilizador.values()).find(
+                    (u) => u.userId === editingCell.userId,
+                );
+                const obraInfo = obras.find((o) => o.id === editingCell.obraId);
 
                 novosRegistos.push({
                     id: `temp-${Date.now()}`,
                     timestamp: dataRegisto.toISOString(),
-                    tipo: 'entrada',
+                    tipo: "entrada",
                     horasEditadas: novoMinutos,
                     editadoManualmente: true,
                     User: {
                         id: editingCell.userId,
-                        nome: userInfo?.userName || 'Utilizador',
+                        nome: userInfo?.userName || "Utilizador",
                     },
                     Obra: {
                         id: editingCell.obraId,
-                        nome: obraInfo?.nome || 'Obra',
-                        localizacao: obraInfo?.localizacao || '',
+                        nome: obraInfo?.nome || "Obra",
+                        localizacao: obraInfo?.localizacao || "",
                     },
                 });
             }
-            
+
             Alert.alert(
                 "Edição Local",
                 `Horas atualizadas para ${formatarHorasMinutos(novoMinutos)}\n\nNota: Esta alteração é apenas local. Implemente a sincronização com o backend para persistir os dados.`,
-                [{ text: "OK" }]
+                [{ text: "OK" }],
             );
 
             return novosRegistos;
@@ -428,13 +454,433 @@ const PartesDiariasJPA = ({ navigation }) => {
         setEditValue("");
     };
 
-    // Função para integrar dados (placeholder)
-    const integrarDados = () => {
-        Alert.alert(
-            "Em Desenvolvimento",
-            "A funcionalidade de integração ainda está a ser implementada.",
-            [{ text: "OK" }]
-        );
+    // Função para buscar codFuncionario de um user
+    const obterCodFuncionario = async (userId) => {
+        try {
+            const token = await secureStorage.getItem("loginToken");
+            const response = await fetch(
+                `https://backend.advir.pt/api/users/${userId}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+
+            if (!response.ok) {
+                console.error(`Erro ao buscar user ${userId}`);
+                return null;
+            }
+
+            const userData = await response.json();
+            return userData.codFuncionario || null;
+        } catch (error) {
+            console.error(`Erro ao obter codFuncionario para user ${userId}:`, error);
+            return null;
+        }
+    };
+
+    // Função para integrar dados
+    const integrarDados = async () => {
+        console.log("🎯 integrarDados() chamada");
+        
+        // Mostrar loading imediatamente
+        setLoading(true);
+
+        try {
+            // Filtrar registos pela obra selecionada ANTES de processar
+            let registosParaEnviar = [];
+
+            if (obraSelecionada !== null && obraSelecionada !== undefined) {
+                // Se há obra selecionada, filtrar apenas os registos dessa obra
+                const obraIdNumber = Number(obraSelecionada);
+                registosParaEnviar = registosPonto.filter(
+                    (r) => r.Obra && Number(r.Obra.id) === obraIdNumber,
+                );
+
+                console.log(`📌 Filtro aplicado: Obra ID ${obraIdNumber}`);
+                console.log(
+                    `📊 Registos da obra selecionada: ${registosParaEnviar.length} de ${registosPonto.length} total`,
+                );
+            } else {
+                // Se não há filtro, usar todos os registos visíveis
+                if (tipoVisualizacao === "utilizador") {
+                    dadosFiltrados.forEach((userGroup) => {
+                        userGroup.obras.forEach((obra) => {
+                            obra.registos.forEach((registo) => {
+                                registosParaEnviar.push(registo);
+                            });
+                        });
+                    });
+                } else {
+                    dadosFiltrados.forEach((obraGroup) => {
+                        obraGroup.utilizadores.forEach((utilizador) => {
+                            utilizador.registos.forEach((registo) => {
+                                registosParaEnviar.push(registo);
+                            });
+                        });
+                    });
+                }
+            }
+
+            // Verificar se há dados para enviar
+            if (registosParaEnviar.length === 0) {
+                if (typeof window !== "undefined" && window.alert) {
+                    window.alert(
+                        "Aviso\n\nNão há dados visíveis para integrar.",
+                    );
+                } else {
+                    Alert.alert(
+                        "Aviso",
+                        "Não há dados visíveis para integrar.",
+                    );
+                }
+                return;
+            }
+
+            // Buscar credenciais do secureStorage
+            const urlempresa = await secureStorage.getItem("urlempresa");
+            const token = await secureStorage.getItem("painelAdminToken");
+
+            if (!urlempresa || !token) {
+                if (typeof window !== "undefined" && window.alert) {
+                    window.alert(
+                        "Erro\n\nCredenciais de autenticação não encontradas. Verifique se 'urlempresa' e 'painelAdminToken' estão configurados.",
+                    );
+                } else {
+                    Alert.alert(
+                        "Erro",
+                        "Credenciais de autenticação não encontradas. Verifique se 'urlempresa' e 'painelAdminToken' estão configurados.",
+                    );
+                }
+                return;
+            }
+
+            console.log("URL Empresa:", urlempresa);
+            console.log("Token disponível:", token ? "Sim" : "Não");
+
+            console.log("=== REGISTOS A PROCESSAR ===");
+            console.log(
+                "Total de registos FILTRADOS:",
+                registosParaEnviar.length,
+            );
+            console.log(
+                "Registos filtrados completos:",
+                JSON.stringify(registosParaEnviar.slice(0, 5), null, 2),
+            );
+
+            // Agrupar APENAS os registos filtrados por obra (SEM agrupar por data)
+            const registosPorObra = {};
+
+            console.log(
+                `🔄 Processando ${registosParaEnviar.length} registos filtrados para envio mensal...`,
+            );
+
+            registosParaEnviar.forEach((registo) => {
+                if (!registo.Obra || !registo.User) return;
+
+                const obraId = registo.Obra.id;
+                const data = new Date(registo.timestamp);
+                const dataFormatada = data.toISOString().split("T")[0]; // YYYY-MM-DD
+
+                const funcionario =
+                    registo.User.funcionarioId ||
+                    registo.User.codigo ||
+                    registo.User.id;
+
+                // Agrupar apenas por obra (não por data)
+                if (!registosPorObra[obraId]) {
+                    registosPorObra[obraId] = {
+                        obraId,
+                        obraNome: registo.Obra.nome || `Obra ${obraId}`,
+                        itensPorFuncionarioDia: {},
+                    };
+                }
+
+                const key = `${funcionario}-${dataFormatada}`;
+                
+                if (!registosPorObra[obraId].itensPorFuncionarioDia[key]) {
+                    registosPorObra[obraId].itensPorFuncionarioDia[key] = {
+                        funcionario,
+                        userName: registo.User.nome,
+                        data: dataFormatada,
+                        registos: [],
+                    };
+                }
+
+                registosPorObra[obraId].itensPorFuncionarioDia[key].registos.push(
+                    registo,
+                );
+            });
+
+            // Processar e enviar uma parte mensal por obra
+            const envios = [];
+
+            for (const obraId in registosPorObra) {
+                const obra = registosPorObra[obraId];
+                const itensParaEnviar = [];
+
+                // Processar cada combinação funcionário-dia
+                for (const key in obra.itensPorFuncionarioDia) {
+                    const funcDiaData = obra.itensPorFuncionarioDia[key];
+                    const registosDia = funcDiaData.registos;
+
+                    // Verificar se há registo editado manualmente
+                    const registoEditado = registosDia.find(
+                        (r) =>
+                            r.editadoManualmente &&
+                            r.horasEditadas !== undefined,
+                    );
+
+                    let totalMinutos = 0;
+
+                    if (registoEditado) {
+                        totalMinutos = registoEditado.horasEditadas;
+                    } else {
+                        // Calcular horas normalmente
+                        const eventosOrdenados = registosDia.sort(
+                            (a, b) =>
+                                new Date(a.timestamp) - new Date(b.timestamp),
+                        );
+
+                        let ultimaEntrada = null;
+
+                        eventosOrdenados.forEach((reg) => {
+                            if (reg.tipo === "entrada") {
+                                ultimaEntrada = new Date(reg.timestamp);
+                            } else if (reg.tipo === "saida" && ultimaEntrada) {
+                                const saida = new Date(reg.timestamp);
+                                const diffMs = saida - ultimaEntrada;
+                                const diffMinutos = Math.round(
+                                    diffMs / (1000 * 60),
+                                );
+
+                                if (diffMinutos > 0 && diffMinutos < 1440) {
+                                    totalMinutos += diffMinutos;
+                                }
+
+                                ultimaEntrada = null;
+                            }
+                        });
+                    }
+
+                    // Converter minutos para horas decimais
+                    const horasDecimais = Number(
+                        (totalMinutos / 60).toFixed(2),
+                    );
+
+                    if (horasDecimais > 0) {
+                        // Buscar codFuncionario do user
+                        const codFuncionario = await obterCodFuncionario(funcDiaData.funcionario);
+                        
+                        if (!codFuncionario) {
+                            console.warn(
+                                `⚠️ codFuncionario não encontrado para user ${funcDiaData.funcionario} (${funcDiaData.userName})`
+                            );
+                            continue;
+                        }
+
+                        const item = {
+                            Funcionario: String(codFuncionario),
+                            NumHoras: horasDecimais,
+                            Data: funcDiaData.data,
+                        };
+
+                        console.log(
+                            `📝 Item criado: ${funcDiaData.userName} (cod: ${codFuncionario}) - ${horasDecimais}h - ${funcDiaData.data}`,
+                        );
+
+                        itensParaEnviar.push(item);
+                    }
+                }
+
+                if (itensParaEnviar.length > 0) {
+                    // Data final do mês
+                    const dataFinal = new Date(mesAno.ano, mesAno.mes, 0).toISOString().split("T")[0];
+                    
+                    const payload = {
+                        Cabecalho: {
+                            ObraID: obra.obraNome,
+                            Notas: `Parte diária mensal de ${mesAno.mes}/${mesAno.ano} - ${obra.obraNome}`,
+                        },
+                        Itens: itensParaEnviar,
+                    };
+
+                    console.log(
+                        `\n🏗️ PAYLOAD MENSAL PREPARADO para ${obra.obraNome}:`,
+                    );
+                    console.log(JSON.stringify(payload, null, 2));
+                    console.log(`   Total de itens: ${itensParaEnviar.length}`);
+
+                    envios.push({
+                        payload,
+                        obraNome: obra.obraNome,
+                        data: `${mesAno.mes}/${mesAno.ano}`,
+                    });
+                    console.log(
+                        `✅ Envio mensal adicionado. Total: ${envios.length}`,
+                    );
+                }
+            }
+
+            console.log(
+                `\n📦 RESUMO: Total de envios preparados: ${envios.length}`,
+            );
+            console.log(
+                `📋 Envios:`,
+                JSON.stringify(
+                    envios.map((e) => ({ obra: e.obraNome, data: e.data })),
+                    null,
+                    2,
+                ),
+            );
+
+            if (envios.length === 0) {
+                console.log("⚠️ Nenhum envio preparado - mostrando alerta");
+                if (typeof window !== "undefined" && window.alert) {
+                    window.alert(
+                        "Aviso\n\nNão há registos válidos para enviar.",
+                    );
+                } else {
+                    Alert.alert(
+                        "Aviso",
+                        "Não há registos válidos para enviar.",
+                    );
+                }
+                return;
+            }
+
+            // Confirmar envio
+            const obraTexto = obraSelecionada
+                ? obras.find((o) => o.id === obraSelecionada)?.nome ||
+                  `Obra ${obraSelecionada}`
+                : "todas as obras visíveis";
+
+            console.log(`✅ Preparado para mostrar Alert de confirmação`);
+            console.log(`   Obra: ${obraTexto}`);
+            console.log(`   Número de partes mensais: ${envios.length}`);
+
+            // Função de envio para reutilizar
+            const executarEnvio = async () => {
+                console.log("🚀 Utilizador confirmou envio");
+                let sucessos = 0;
+                let erros = 0;
+                const errosDetalhes = [];
+
+                for (const envio of envios) {
+                    try {
+                        const url = `http://localhost:3001/parteDiariaJPA/InsertParteDiariaItemJPA`;
+
+                        console.log("Enviando para:", url);
+                        console.log(
+                            "Payload:",
+                            JSON.stringify(envio.payload, null, 2),
+                        );
+
+                        const response = await fetch(url, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${token}`,
+                                urlempresa: urlempresa,
+                            },
+                            body: JSON.stringify(envio.payload),
+                        });
+
+                        const responseText = await response.text();
+                        console.log("Resposta:", response.status, responseText);
+
+                        if (response.ok) {
+                            sucessos++;
+                        } else {
+                            erros++;
+                            errosDetalhes.push(
+                                `${envio.data} - ${envio.obraNome}: ${responseText}`,
+                            );
+                            console.error(
+                                `Erro ao enviar parte de ${envio.data} - ${envio.obraNome}:`,
+                                responseText,
+                            );
+                        }
+                    } catch (error) {
+                        erros++;
+                        errosDetalhes.push(
+                            `${envio.data} - ${envio.obraNome}: ${error.message}`,
+                        );
+                        console.error(
+                            `Erro ao enviar parte de ${envio.data} - ${envio.obraNome}:`,
+                            error,
+                        );
+                    }
+                }
+
+                let mensagem = `Enviadas com sucesso: ${sucessos}\nErros: ${erros}`;
+                if (erros > 0 && errosDetalhes.length > 0) {
+                    mensagem += `\n\nDetalhes dos erros:\n${errosDetalhes.slice(0, 3).join("\n")}`;
+                    if (errosDetalhes.length > 3) {
+                        mensagem += `\n... e mais ${errosDetalhes.length - 3} erro(s)`;
+                    }
+                }
+
+                // Mostrar resultado
+                setLoading(false);
+                if (typeof window !== "undefined" && window.alert) {
+                    window.alert(`Resultado da Integração\n\n${mensagem}`);
+                    carregarDados();
+                } else {
+                    Alert.alert("Resultado da Integração", mensagem, [
+                        { text: "OK", onPress: () => carregarDados() },
+                    ]);
+                }
+            };
+
+            // Usar window.confirm para web ou Alert para mobile
+            if (typeof window !== "undefined" && window.confirm) {
+                console.log(
+                    "🌐 Ambiente WEB detectado - usando window.confirm",
+                );
+                const confirmado = window.confirm(
+                    `Confirmar Integração Mensal\n\nSerá enviada ${envios.length} parte(s) mensal(is) de ${obraTexto} referente a ${mesAno.mes}/${mesAno.ano}. Deseja continuar?`,
+                );
+
+                if (confirmado) {
+                    await executarEnvio();
+                } else {
+                    console.log("❌ Utilizador cancelou o envio");
+                    setLoading(false);
+                }
+            } else {
+                console.log(
+                    "📱 Ambiente MOBILE detectado - usando Alert.alert",
+                );
+                Alert.alert(
+                    "Confirmar Integração Mensal",
+                    `Será enviada ${envios.length} parte(s) mensal(is) de ${obraTexto} referente a ${mesAno.mes}/${mesAno.ano}. Deseja continuar?`,
+                    [
+                        { 
+                            text: "Cancelar", 
+                            style: "cancel",
+                            onPress: () => setLoading(false)
+                        },
+                        {
+                            text: "Enviar",
+                            onPress: executarEnvio,
+                        },
+                    ],
+                );
+            }
+        } catch (error) {
+            console.error("Erro ao integrar dados:", error);
+            setLoading(false);
+            if (typeof window !== "undefined" && window.alert) {
+                window.alert(
+                    `Erro\n\nNão foi possível integrar os dados: ${error.message}`,
+                );
+            } else {
+                Alert.alert(
+                    "Erro",
+                    `Não foi possível integrar os dados: ${error.message}`,
+                );
+            }
+        }
     };
 
     // Cancelar edição
@@ -454,19 +900,34 @@ const PartesDiariasJPA = ({ navigation }) => {
                         <Ionicons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                     <View style={styles.headerTextContainer}>
-                        <Text style={styles.headerTitle}>JPA Partes Diárias</Text>
+                        <Text style={styles.headerTitle}>
+                            JPA Partes Diárias
+                        </Text>
                         <Text style={styles.headerSubtitle}>
-                            {new Date(mesAno.ano, mesAno.mes - 1).toLocaleDateString("pt-PT", {
+                            {new Date(
+                                mesAno.ano,
+                                mesAno.mes - 1,
+                            ).toLocaleDateString("pt-PT", {
                                 month: "long",
                                 year: "numeric",
                             })}
                         </Text>
                     </View>
                     <View style={styles.headerButtons}>
-                        <TouchableOpacity onPress={integrarDados} style={styles.integrarButton}>
-                            <MaterialCommunityIcons name="database-sync" size={20} color="#fff" />
+                        <TouchableOpacity
+                            onPress={integrarDados}
+                            style={styles.integrarButton}
+                        >
+                            <MaterialCommunityIcons
+                                name="database-sync"
+                                size={20}
+                                color="#fff"
+                            />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+                        <TouchableOpacity
+                            onPress={onRefresh}
+                            style={styles.refreshButton}
+                        >
                             <Ionicons name="refresh" size={24} color="#fff" />
                         </TouchableOpacity>
                     </View>
@@ -484,19 +945,27 @@ const PartesDiariasJPA = ({ navigation }) => {
                     <TouchableOpacity
                         style={styles.monthButton}
                         onPress={() => {
-                            const novoMes = mesAno.mes === 1 ? 12 : mesAno.mes - 1;
-                            const novoAno = mesAno.mes === 1 ? mesAno.ano - 1 : mesAno.ano;
+                            const novoMes =
+                                mesAno.mes === 1 ? 12 : mesAno.mes - 1;
+                            const novoAno =
+                                mesAno.mes === 1 ? mesAno.ano - 1 : mesAno.ano;
                             setMesAno({ mes: novoMes, ano: novoAno });
                         }}
                     >
-                        <Ionicons name="chevron-back" size={24} color="#2196F3" />
+                        <Ionicons
+                            name="chevron-back"
+                            size={24}
+                            color="#2196F3"
+                        />
                     </TouchableOpacity>
 
                     <View style={styles.monthDisplay}>
                         <Text style={styles.monthText}>
-                            {new Date(mesAno.ano, mesAno.mes - 1).toLocaleDateString("pt-PT", {
-                                month: "long",
-                            }).toUpperCase()}
+                            {new Date(mesAno.ano, mesAno.mes - 1)
+                                .toLocaleDateString("pt-PT", {
+                                    month: "long",
+                                })
+                                .toUpperCase()}
                         </Text>
                         <Text style={styles.yearText}>{mesAno.ano}</Text>
                     </View>
@@ -504,12 +973,18 @@ const PartesDiariasJPA = ({ navigation }) => {
                     <TouchableOpacity
                         style={styles.monthButton}
                         onPress={() => {
-                            const novoMes = mesAno.mes === 12 ? 1 : mesAno.mes + 1;
-                            const novoAno = mesAno.mes === 12 ? mesAno.ano + 1 : mesAno.ano;
+                            const novoMes =
+                                mesAno.mes === 12 ? 1 : mesAno.mes + 1;
+                            const novoAno =
+                                mesAno.mes === 12 ? mesAno.ano + 1 : mesAno.ano;
                             setMesAno({ mes: novoMes, ano: novoAno });
                         }}
                     >
-                        <Ionicons name="chevron-forward" size={24} color="#2196F3" />
+                        <Ionicons
+                            name="chevron-forward"
+                            size={24}
+                            color="#2196F3"
+                        />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -521,19 +996,25 @@ const PartesDiariasJPA = ({ navigation }) => {
                     <TouchableOpacity
                         style={[
                             styles.filterButton,
-                            tipoVisualizacao === "utilizador" && styles.filterButtonActive,
+                            tipoVisualizacao === "utilizador" &&
+                                styles.filterButtonActive,
                         ]}
                         onPress={() => setTipoVisualizacao("utilizador")}
                     >
                         <Ionicons
                             name="people"
                             size={16}
-                            color={tipoVisualizacao === "utilizador" ? "#fff" : "#2196F3"}
+                            color={
+                                tipoVisualizacao === "utilizador"
+                                    ? "#fff"
+                                    : "#2196F3"
+                            }
                         />
                         <Text
                             style={[
                                 styles.filterButtonText,
-                                tipoVisualizacao === "utilizador" && styles.filterButtonTextActive,
+                                tipoVisualizacao === "utilizador" &&
+                                    styles.filterButtonTextActive,
                             ]}
                         >
                             Por Utilizador
@@ -542,19 +1023,23 @@ const PartesDiariasJPA = ({ navigation }) => {
                     <TouchableOpacity
                         style={[
                             styles.filterButton,
-                            tipoVisualizacao === "obra" && styles.filterButtonActive,
+                            tipoVisualizacao === "obra" &&
+                                styles.filterButtonActive,
                         ]}
                         onPress={() => setTipoVisualizacao("obra")}
                     >
                         <MaterialCommunityIcons
                             name="office-building"
                             size={16}
-                            color={tipoVisualizacao === "obra" ? "#fff" : "#2196F3"}
+                            color={
+                                tipoVisualizacao === "obra" ? "#fff" : "#2196F3"
+                            }
                         />
                         <Text
                             style={[
                                 styles.filterButtonText,
-                                tipoVisualizacao === "obra" && styles.filterButtonTextActive,
+                                tipoVisualizacao === "obra" &&
+                                    styles.filterButtonTextActive,
                             ]}
                         >
                             Por Obra
@@ -571,10 +1056,15 @@ const PartesDiariasJPA = ({ navigation }) => {
                         <View style={styles.pickerWrapper}>
                             <Picker
                                 selectedValue={obraSelecionada}
-                                onValueChange={(value) => setObraSelecionada(value)}
+                                onValueChange={(value) =>
+                                    setObraSelecionada(value)
+                                }
                                 style={styles.picker}
                             >
-                                <Picker.Item label="Todas as obras" value={null} />
+                                <Picker.Item
+                                    label="Todas as obras"
+                                    value={null}
+                                />
                                 {obras.map((obra) => (
                                     <Picker.Item
                                         key={obra.id}
@@ -599,9 +1089,15 @@ const PartesDiariasJPA = ({ navigation }) => {
             return (
                 <View style={styles.emptyContainer}>
                     <View style={styles.emptyIconContainer}>
-                        <MaterialCommunityIcons name="calendar-blank" size={80} color="#BDBDBD" />
+                        <MaterialCommunityIcons
+                            name="calendar-blank"
+                            size={80}
+                            color="#BDBDBD"
+                        />
                     </View>
-                    <Text style={styles.emptyText}>Nenhum registo encontrado</Text>
+                    <Text style={styles.emptyText}>
+                        Nenhum registo encontrado
+                    </Text>
                     <Text style={styles.emptySubText}>
                         Não existem registos para o período selecionado
                     </Text>
@@ -623,35 +1119,68 @@ const PartesDiariasJPA = ({ navigation }) => {
                                     />
                                 </View>
                                 <View>
-                                    <Text style={styles.obraTitle}>{userGroup.userName}</Text>
+                                    <Text style={styles.obraTitle}>
+                                        {userGroup.userName}
+                                    </Text>
                                     <Text style={styles.obraSubtitle}>
                                         {userGroup.obras.length} obra
-                                        {userGroup.obras.length !== 1 ? "s" : ""}
+                                        {userGroup.obras.length !== 1
+                                            ? "s"
+                                            : ""}
                                     </Text>
                                 </View>
                             </View>
                         </View>
 
-                        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={true}
+                        >
                             <View>
                                 <View style={styles.tableHeaderRow}>
-                                    <View style={[styles.tableCell, styles.tableCellFixed]}>
-                                        <Text style={styles.tableHeaderText}>Obra</Text>
+                                    <View
+                                        style={[
+                                            styles.tableCell,
+                                            styles.tableCellFixed,
+                                        ]}
+                                    >
+                                        <Text style={styles.tableHeaderText}>
+                                            Obra
+                                        </Text>
                                     </View>
                                     {diasDoMes.map((dia) => (
-                                        <View key={dia} style={[styles.tableCell, styles.tableCellDay]}>
-                                            <Text style={styles.tableHeaderText}>{dia}</Text>
+                                        <View
+                                            key={dia}
+                                            style={[
+                                                styles.tableCell,
+                                                styles.tableCellDay,
+                                            ]}
+                                        >
+                                            <Text
+                                                style={styles.tableHeaderText}
+                                            >
+                                                {dia}
+                                            </Text>
                                         </View>
                                     ))}
-                                    <View style={[styles.tableCell, styles.tableCellTotal]}>
-                                        <Text style={styles.tableHeaderText}>Total</Text>
+                                    <View
+                                        style={[
+                                            styles.tableCell,
+                                            styles.tableCellTotal,
+                                        ]}
+                                    >
+                                        <Text style={styles.tableHeaderText}>
+                                            Total
+                                        </Text>
                                     </View>
                                 </View>
 
                                 {userGroup.obras.map((obra, obraIndex) => {
                                     const totalHoras = diasDoMes.reduce(
-                                        (total, dia) => total + (obra.horasPorDia[dia] || 0), // Ensure obra.horasPorDia[dia] is not undefined
-                                        0
+                                        (total, dia) =>
+                                            total +
+                                            (obra.horasPorDia[dia] || 0), // Ensure obra.horasPorDia[dia] is not undefined
+                                        0,
                                     );
 
                                     return (
@@ -659,20 +1188,33 @@ const PartesDiariasJPA = ({ navigation }) => {
                                             key={`${obra.userId}-${obra.obraId}`}
                                             style={[
                                                 styles.tableDataRow,
-                                                obraIndex % 2 === 0 && styles.tableRowEven,
+                                                obraIndex % 2 === 0 &&
+                                                    styles.tableRowEven,
                                             ]}
                                         >
-                                            <View style={[styles.tableCell, styles.tableCellFixed]}>
-                                                <Text style={styles.tableCellText} numberOfLines={1}>
+                                            <View
+                                                style={[
+                                                    styles.tableCell,
+                                                    styles.tableCellFixed,
+                                                ]}
+                                            >
+                                                <Text
+                                                    style={styles.tableCellText}
+                                                    numberOfLines={1}
+                                                >
                                                     {obra.obraNome}
                                                 </Text>
                                             </View>
 
                                             {diasDoMes.map((dia) => {
-                                                const horas = obra.horasPorDia[dia] || 0; // Ensure horas is not undefined
-                                                const isEditing = editingCell?.userId === obra.userId && 
-                                                                  editingCell?.obraId === obra.obraId && 
-                                                                  editingCell?.dia === dia;
+                                                const horas =
+                                                    obra.horasPorDia[dia] || 0; // Ensure horas is not undefined
+                                                const isEditing =
+                                                    editingCell?.userId ===
+                                                        obra.userId &&
+                                                    editingCell?.obraId ===
+                                                        obra.obraId &&
+                                                    editingCell?.dia === dia;
 
                                                 return (
                                                     <TouchableOpacity
@@ -680,23 +1222,40 @@ const PartesDiariasJPA = ({ navigation }) => {
                                                         style={[
                                                             styles.tableCell,
                                                             styles.tableCellDay,
-                                                            horas > 0 && styles.tableCellWithHours,
-                                                            isEditing && styles.tableCellEditing,
+                                                            horas > 0 &&
+                                                                styles.tableCellWithHours,
+                                                            isEditing &&
+                                                                styles.tableCellEditing,
                                                         ]}
                                                         onPress={() => {
                                                             if (!isEditing) {
-                                                                iniciarEdicao(obra.userId, obra.obraId, dia, horas);
+                                                                iniciarEdicao(
+                                                                    obra.userId,
+                                                                    obra.obraId,
+                                                                    dia,
+                                                                    horas,
+                                                                );
                                                             }
                                                         }}
                                                         activeOpacity={0.6}
                                                     >
                                                         {isEditing ? (
                                                             <TextInput
-                                                                style={styles.editInput}
-                                                                value={editValue}
-                                                                onChangeText={setEditValue}
-                                                                onBlur={salvarEdicao}
-                                                                onSubmitEditing={salvarEdicao}
+                                                                style={
+                                                                    styles.editInput
+                                                                }
+                                                                value={
+                                                                    editValue
+                                                                }
+                                                                onChangeText={
+                                                                    setEditValue
+                                                                }
+                                                                onBlur={
+                                                                    salvarEdicao
+                                                                }
+                                                                onSubmitEditing={
+                                                                    salvarEdicao
+                                                                }
                                                                 autoFocus
                                                                 keyboardType="default"
                                                                 placeholder="0:00"
@@ -705,20 +1264,37 @@ const PartesDiariasJPA = ({ navigation }) => {
                                                             <Text
                                                                 style={[
                                                                     styles.tableCellText,
-                                                                    horas > 0 && styles.tableCellHoursText,
-                                                                    horas === 0 && { color: '#BDBDBD' },
+                                                                    horas > 0 &&
+                                                                        styles.tableCellHoursText,
+                                                                    horas ===
+                                                                        0 && {
+                                                                        color: "#BDBDBD",
+                                                                    },
                                                                 ]}
                                                             >
-                                                                {formatarHorasMinutos(horas)}
+                                                                {formatarHorasMinutos(
+                                                                    horas,
+                                                                )}
                                                             </Text>
                                                         )}
                                                     </TouchableOpacity>
                                                 );
                                             })}
 
-                                            <View style={[styles.tableCell, styles.tableCellTotal]}>
-                                                <Text style={styles.tableCellTotalText}>
-                                                    {formatarHorasMinutos(totalHoras)}
+                                            <View
+                                                style={[
+                                                    styles.tableCell,
+                                                    styles.tableCellTotal,
+                                                ]}
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.tableCellTotalText
+                                                    }
+                                                >
+                                                    {formatarHorasMinutos(
+                                                        totalHoras,
+                                                    )}
                                                 </Text>
                                             </View>
                                         </View>
@@ -737,9 +1313,15 @@ const PartesDiariasJPA = ({ navigation }) => {
             return (
                 <View style={styles.emptyContainer}>
                     <View style={styles.emptyIconContainer}>
-                        <MaterialCommunityIcons name="calendar-blank" size={80} color="#BDBDBD" />
+                        <MaterialCommunityIcons
+                            name="calendar-blank"
+                            size={80}
+                            color="#BDBDBD"
+                        />
                     </View>
-                    <Text style={styles.emptyText}>Nenhum registo encontrado</Text>
+                    <Text style={styles.emptyText}>
+                        Nenhum registo encontrado
+                    </Text>
                     <Text style={styles.emptySubText}>
                         Não existem registos para o período selecionado
                     </Text>
@@ -761,107 +1343,199 @@ const PartesDiariasJPA = ({ navigation }) => {
                                     />
                                 </View>
                                 <View>
-                                    <Text style={styles.obraTitle}>{obraGroup.obraNome}</Text>
+                                    <Text style={styles.obraTitle}>
+                                        {obraGroup.obraNome}
+                                    </Text>
                                     <Text style={styles.obraSubtitle}>
-                                        {obraGroup.utilizadores.length} utilizador
-                                        {obraGroup.utilizadores.length !== 1 ? "es" : ""}
+                                        {obraGroup.utilizadores.length}{" "}
+                                        utilizador
+                                        {obraGroup.utilizadores.length !== 1
+                                            ? "es"
+                                            : ""}
                                     </Text>
                                 </View>
                             </View>
                         </View>
 
-                        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={true}
+                        >
                             <View>
                                 <View style={styles.tableHeaderRow}>
-                                    <View style={[styles.tableCell, styles.tableCellFixed]}>
-                                        <Text style={styles.tableHeaderText}>Utilizador</Text>
+                                    <View
+                                        style={[
+                                            styles.tableCell,
+                                            styles.tableCellFixed,
+                                        ]}
+                                    >
+                                        <Text style={styles.tableHeaderText}>
+                                            Utilizador
+                                        </Text>
                                     </View>
                                     {diasDoMes.map((dia) => (
-                                        <View key={dia} style={[styles.tableCell, styles.tableCellDay]}>
-                                            <Text style={styles.tableHeaderText}>{dia}</Text>
+                                        <View
+                                            key={dia}
+                                            style={[
+                                                styles.tableCell,
+                                                styles.tableCellDay,
+                                            ]}
+                                        >
+                                            <Text
+                                                style={styles.tableHeaderText}
+                                            >
+                                                {dia}
+                                            </Text>
                                         </View>
                                     ))}
-                                    <View style={[styles.tableCell, styles.tableCellTotal]}>
-                                        <Text style={styles.tableHeaderText}>Total</Text>
+                                    <View
+                                        style={[
+                                            styles.tableCell,
+                                            styles.tableCellTotal,
+                                        ]}
+                                    >
+                                        <Text style={styles.tableHeaderText}>
+                                            Total
+                                        </Text>
                                     </View>
                                 </View>
 
-                                {obraGroup.utilizadores.map((utilizador, userIndex) => {
-                                    const totalHoras = diasDoMes.reduce(
-                                        (total, dia) => total + (utilizador.horasPorDia[dia] || 0), // Ensure utilizador.horasPorDia[dia] is not undefined
-                                        0
-                                    );
+                                {obraGroup.utilizadores.map(
+                                    (utilizador, userIndex) => {
+                                        const totalHoras = diasDoMes.reduce(
+                                            (total, dia) =>
+                                                total +
+                                                (utilizador.horasPorDia[dia] ||
+                                                    0), // Ensure utilizador.horasPorDia[dia] is not undefined
+                                            0,
+                                        );
 
-                                    return (
-                                        <View
-                                            key={`${utilizador.obraId}-${utilizador.userId}`}
-                                            style={[
-                                                styles.tableDataRow,
-                                                userIndex % 2 === 0 && styles.tableRowEven,
-                                            ]}
-                                        >
-                                            <View style={[styles.tableCell, styles.tableCellFixed]}>
-                                                <Text style={styles.tableCellText} numberOfLines={1}>
-                                                    {utilizador.userName}
-                                                </Text>
-                                            </View>
-
-                                            {diasDoMes.map((dia) => {
-                                                const horas = utilizador.horasPorDia[dia] || 0; // Ensure horas is not undefined
-                                                const isEditing = editingCell?.userId === utilizador.userId && 
-                                                                  editingCell?.obraId === utilizador.obraId && 
-                                                                  editingCell?.dia === dia;
-
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={`${utilizador.userId}-${dia}`}
-                                                        style={[
-                                                            styles.tableCell,
-                                                            styles.tableCellDay,
-                                                            horas > 0 && styles.tableCellWithHours,
-                                                            isEditing && styles.tableCellEditing,
-                                                        ]}
-                                                        onPress={() => {
-                                                            if (!isEditing) {
-                                                                iniciarEdicao(utilizador.userId, utilizador.obraId, dia, horas);
-                                                            }
-                                                        }}
-                                                        activeOpacity={0.6}
+                                        return (
+                                            <View
+                                                key={`${utilizador.obraId}-${utilizador.userId}`}
+                                                style={[
+                                                    styles.tableDataRow,
+                                                    userIndex % 2 === 0 &&
+                                                        styles.tableRowEven,
+                                                ]}
+                                            >
+                                                <View
+                                                    style={[
+                                                        styles.tableCell,
+                                                        styles.tableCellFixed,
+                                                    ]}
+                                                >
+                                                    <Text
+                                                        style={
+                                                            styles.tableCellText
+                                                        }
+                                                        numberOfLines={1}
                                                     >
-                                                        {isEditing ? (
-                                                            <TextInput
-                                                                style={styles.editInput}
-                                                                value={editValue}
-                                                                onChangeText={setEditValue}
-                                                                onBlur={salvarEdicao}
-                                                                onSubmitEditing={salvarEdicao}
-                                                                autoFocus
-                                                                keyboardType="default"
-                                                                placeholder="0:00"
-                                                            />
-                                                        ) : (
-                                                            <Text
-                                                                style={[
-                                                                    styles.tableCellText,
-                                                                    horas > 0 && styles.tableCellHoursText,
-                                                                    horas === 0 && { color: '#BDBDBD' },
-                                                                ]}
-                                                            >
-                                                                {formatarHorasMinutos(horas)}
-                                                            </Text>
-                                                        )}
-                                                    </TouchableOpacity>
-                                                );
-                                            })}
+                                                        {utilizador.userName}
+                                                    </Text>
+                                                </View>
 
-                                            <View style={[styles.tableCell, styles.tableCellTotal]}>
-                                                <Text style={styles.tableCellTotalText}>
-                                                    {formatarHorasMinutos(totalHoras)}
-                                                </Text>
+                                                {diasDoMes.map((dia) => {
+                                                    const horas =
+                                                        utilizador.horasPorDia[
+                                                            dia
+                                                        ] || 0; // Ensure horas is not undefined
+                                                    const isEditing =
+                                                        editingCell?.userId ===
+                                                            utilizador.userId &&
+                                                        editingCell?.obraId ===
+                                                            utilizador.obraId &&
+                                                        editingCell?.dia ===
+                                                            dia;
+
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={`${utilizador.userId}-${dia}`}
+                                                            style={[
+                                                                styles.tableCell,
+                                                                styles.tableCellDay,
+                                                                horas > 0 &&
+                                                                    styles.tableCellWithHours,
+                                                                isEditing &&
+                                                                    styles.tableCellEditing,
+                                                            ]}
+                                                            onPress={() => {
+                                                                if (
+                                                                    !isEditing
+                                                                ) {
+                                                                    iniciarEdicao(
+                                                                        utilizador.userId,
+                                                                        utilizador.obraId,
+                                                                        dia,
+                                                                        horas,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            activeOpacity={0.6}
+                                                        >
+                                                            {isEditing ? (
+                                                                <TextInput
+                                                                    style={
+                                                                        styles.editInput
+                                                                    }
+                                                                    value={
+                                                                        editValue
+                                                                    }
+                                                                    onChangeText={
+                                                                        setEditValue
+                                                                    }
+                                                                    onBlur={
+                                                                        salvarEdicao
+                                                                    }
+                                                                    onSubmitEditing={
+                                                                        salvarEdicao
+                                                                    }
+                                                                    autoFocus
+                                                                    keyboardType="default"
+                                                                    placeholder="0:00"
+                                                                />
+                                                            ) : (
+                                                                <Text
+                                                                    style={[
+                                                                        styles.tableCellText,
+                                                                        horas >
+                                                                            0 &&
+                                                                            styles.tableCellHoursText,
+                                                                        horas ===
+                                                                            0 && {
+                                                                            color: "#BDBDBD",
+                                                                        },
+                                                                    ]}
+                                                                >
+                                                                    {formatarHorasMinutos(
+                                                                        horas,
+                                                                    )}
+                                                                </Text>
+                                                            )}
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
+
+                                                <View
+                                                    style={[
+                                                        styles.tableCell,
+                                                        styles.tableCellTotal,
+                                                    ]}
+                                                >
+                                                    <Text
+                                                        style={
+                                                            styles.tableCellTotalText
+                                                        }
+                                                    >
+                                                        {formatarHorasMinutos(
+                                                            totalHoras,
+                                                        )}
+                                                    </Text>
+                                                </View>
                                             </View>
-                                        </View>
-                                    );
-                                })}
+                                        );
+                                    },
+                                )}
                             </View>
                         </ScrollView>
                     </View>
@@ -872,11 +1546,16 @@ const PartesDiariasJPA = ({ navigation }) => {
 
     if (loading) {
         return (
-            <LinearGradient colors={["#E3F2FD", "#BBDEFB"]} style={styles.container}>
+            <LinearGradient
+                colors={["#E3F2FD", "#BBDEFB"]}
+                style={styles.container}
+            >
                 <SafeAreaView style={styles.container}>
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color="#2196F3" />
-                        <Text style={styles.loadingText}>A carregar dados da JPA...</Text>
+                        <Text style={styles.loadingText}>
+                            A carregar dados da JPA...
+                        </Text>
                     </View>
                 </SafeAreaView>
             </LinearGradient>
@@ -884,22 +1563,27 @@ const PartesDiariasJPA = ({ navigation }) => {
     }
 
     return (
-        <LinearGradient colors={["#E3F2FD", "#BBDEFB"]} style={styles.container}>
+        <LinearGradient
+            colors={["#E3F2FD", "#BBDEFB"]}
+            style={styles.container}
+        >
             <SafeAreaView style={styles.container}>
                 {renderHeader()}
                 <ScrollView
                     style={styles.content}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                        />
                     }
                 >
                     {renderControls()}
                     {renderEstatisticas()}
-                    {tipoVisualizacao === "utilizador" 
-                        ? renderVisualizacaoPorUtilizador() 
-                        : renderVisualizacaoPorObra()
-                    }
+                    {tipoVisualizacao === "utilizador"
+                        ? renderVisualizacaoPorUtilizador()
+                        : renderVisualizacaoPorObra()}
                     <View style={{ height: 30 }} />
                 </ScrollView>
             </SafeAreaView>
