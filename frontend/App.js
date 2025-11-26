@@ -75,6 +75,7 @@ import ConcursosAprovacao from "./src/Pages/Concursos/ConcursosAprovacao";
 import Obras from "./src/Pages/Obras/Obras";
 import Escritorio from "./src/Pages/Obras/Escritorio";
 import PartesDiarias from "./src/Pages/Obras/PartesDiarias";
+import PartesDiariasJPA from "./src/Pages/Obras/PartesDiariasJPA";
 
 import PessoalObra from "./src/Pages/Obras/PessoalObra";
 import ConsultaQRCodesExternos from "./src/Pages/Obras/Externos/ConsultaQRCodesExternos";
@@ -357,6 +358,7 @@ const CustomDrawerContent = ({
         "GestaoPartes", // GestaoPartesDiarias
         "MapaRegistos", // MapaRegistos
         "Ausencias",
+        "PartesDiariasJPA",
         "ConsultaQRCodesExternos",
     ];
     const comunicadosSubmodulesOrder = ["ComunicadosUser", "GestorComunicados"];
@@ -403,6 +405,7 @@ const CustomDrawerContent = ({
             Obras: "road",
             Escritório: "building-o",
             PartesDiarias: "book",
+            PartesDiariasJPA: "book",
             Equipas: "users",
             Agenda: "calendar",
             GestaoFaltas: "check-square-o",
@@ -927,6 +930,8 @@ const CustomDrawerContent = ({
                                                             "Escritorio",
                                                         PartesDiarias:
                                                             "PartesDiarias",
+                                                              PartesDiariasJPA:
+                                                            "PartesDiariasJPA",
                                                         ConsultaQRCodesExternos:
                                                             "ConsultaQRCodesExternos",
 
@@ -1043,6 +1048,8 @@ const CustomDrawerContent = ({
                                                                 "Ponto Facial",
                                                             PartesDiarias:
                                                                 "Partes Diárias",
+                                                                PartesDiariasJPA:
+                                                                "Partes Diárias JPA",
                                                             ConsultaQRCodesExternos:
                                                                 "ConsultaQRCodesExternos",
                                                             GestaoFaltas:
@@ -2280,6 +2287,10 @@ const AppNavigator = () => {
                             <Drawer.Screen
                                 name="PartesDiarias"
                                 component={PartesDiarias}
+                            />
+                                 <Drawer.Screen
+                                name="PartesDiariasJPA"
+                                component={PartesDiariasJPA}
                             />
                             <Drawer.Screen
                                 name="ConsultaQRCodesExternos"
