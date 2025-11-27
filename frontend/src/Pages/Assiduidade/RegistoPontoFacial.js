@@ -1142,14 +1142,23 @@ const RegistoPontoFacial = (props) => {
 
       if (resRegisto.ok) {
         const result = await resRegisto.json();
+        const mensagemBoasVindas = obterMensagemAleatoria();
         setModalData({
           type: "success",
-          message: `${result.action === "entrada" ? "Entrada" : "Saída"} registada!`,
+          message: mensagemBoasVindas,
           userName: externo.nome,
           action: result.action === "entrada" ? "Entrada" : "Saída",
         });
         setShowResultModal(true);
         setShowExternoQRModal(false);
+        
+        // Auto-fechar o modal após 3 segundos
+        setTimeout(() => {
+          setShowResultModal(false);
+          setModalData({ type: "", message: "", userName: "", action: "" });
+          setStatusMessage("");
+        }, 3000);
+        
         carregarResumoObra(obraSelecionada);
       } else {
         const error = await resRegisto.json();
@@ -1157,8 +1166,21 @@ const RegistoPontoFacial = (props) => {
       }
     } catch (error) {
       console.error("Erro ao processar QR code:", error);
-      alert(error.message || "Erro ao processar QR code");
-      setQrScannerActive(true);
+      setModalData({
+        type: "error",
+        message: error.message || "Erro ao processar QR code",
+        userName: "",
+        action: "Erro",
+      });
+      setShowResultModal(true);
+      
+      // Auto-fechar modal de erro após 4 segundos
+      setTimeout(() => {
+        setShowResultModal(false);
+        setModalData({ type: "", message: "", userName: "", action: "" });
+        setStatusMessage("");
+        setQrScannerActive(true);
+      }, 4000);
     } finally {
       setStatusMessage("");
     }
@@ -2428,7 +2450,7 @@ const RegistoPontoFacial = (props) => {
 
       {/* Modal de Resultado */}
       {showResultModal && (
-        <div className="result-modal-overlay">
+        <div className="result-modal-overlay" onClick={handleCloseModal}>
           <div className="result-modal auto-close-modal" onClick={(e) => e.stopPropagation()}>
             <div className="result-modal-header">
               <div
