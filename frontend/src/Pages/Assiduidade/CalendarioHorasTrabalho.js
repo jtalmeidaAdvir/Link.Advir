@@ -1214,12 +1214,13 @@ const CalendarioHorasTrabalho = () => {
             }
             const h = Math.floor(minutosTotais / 60);
             const m = minutosTotais % 60;
-            resumoMap[dia.dia] = `${h}h${m > 0 ? `${m}` : ''}`;
+            resumoMap[dia.dia] = `${h}h${m > 0 ? m : ''}`;
         });
 
         const ordenado = [...registosDia].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         const temposPorObra = {};
         const estadoAtual = {};
+        
         ordenado.forEach((r) => {
             const obraId = r.obra_id;
             const nomeObra = r.Obra?.nome || 'Sem nome';
@@ -1233,11 +1234,15 @@ const CalendarioHorasTrabalho = () => {
             }
         });
 
+        // Adicionar tempo ativo APÓS processar todos os registos (só se for hoje)
         if (diaISO === hojeISO) {
+            const agora = new Date();
             Object.entries(estadoAtual).forEach(([obraId, entradaTS]) => {
                 if (entradaTS) {
-                    const minutos = Math.max(0, (new Date() - entradaTS) / 60000);
-                    temposPorObra[obraId].totalMinutos += minutos;
+                    const minutos = Math.max(0, (agora - entradaTS) / 60000);
+                    if (temposPorObra[obraId]) {
+                        temposPorObra[obraId].totalMinutos += minutos;
+                    }
                 }
             });
         }
@@ -1444,7 +1449,7 @@ const CalendarioHorasTrabalho = () => {
 
                 const horas = Math.floor(minutosTotais / 60);
                 const minutos = minutosTotais % 60;
-                mapeado[dia.dia] = `${horas}h${minutos > 0 ? ` ${minutos}min` : ''}`;
+                mapeado[dia.dia] = `${horas}h${minutos > 0 ? minutos : ''}`;
             });
 
             setResumo(mapeado);
@@ -1650,7 +1655,7 @@ const CalendarioHorasTrabalho = () => {
                     const ts = new Date(registo.timestamp);
 
                     if (!temposPorObra[obraId]) {
-                        temposPorObra[obraId] = { nome: nomeObra, totalMinutos: 0, id: obraId }; // Adiciona o ID da obra
+                        temposPorObra[obraId] = { nome: nomeObra, totalMinutos: 0, id: obraId };
                     }
 
                     if (registo.tipo === 'entrada') {
@@ -1663,13 +1668,20 @@ const CalendarioHorasTrabalho = () => {
                         temposPorObra[obraId].totalMinutos += minutos;
                         estadoAtualPorObra[obraId] = null;
                     }
+                }
 
-                    // Considera o tempo ativo se ainda houver uma entrada e for hoje
-                    if (estadoAtualPorObra[obraId] && formatarData(ts) === formatarData(new Date())) {
-                        const agora = new Date();
-                        const minutos = Math.max(0, (agora - estadoAtualPorObra[obraId]) / 60000);
-                        temposPorObra[obraId].totalMinutos += minutos;
-                    }
+                // Adicionar tempo ativo APÓS processar todos os registos (só se for hoje)
+                const dataHoje = formatarData(new Date());
+                if (data === dataHoje) {
+                    const agora = new Date();
+                    Object.entries(estadoAtualPorObra).forEach(([obraId, entradaTS]) => {
+                        if (entradaTS) {
+                            const minutos = Math.max(0, (agora - entradaTS) / 60000);
+                            if (temposPorObra[obraId]) {
+                                temposPorObra[obraId].totalMinutos += minutos;
+                            }
+                        }
+                    });
                 }
 
                 const detalhesPorObra = Object.values(temposPorObra).map(o => ({
@@ -2464,7 +2476,7 @@ const CalendarioHorasTrabalho = () => {
                                                         <div className="d-flex justify-content-between">
                                                             <span className="fw-semibold">🛠 {entry.nome}</span>
                                                             <span className="text-success fw-bold">
-                                                                {entry.horas}h {entry.minutos > 0 ? `${entry.minutos}min` : ''}
+                                                                {entry.horas}h{entry.minutos > 0 ? entry.minutos : ''}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -2478,7 +2490,7 @@ const CalendarioHorasTrabalho = () => {
                                                         const minutosRestantes = totalMinutos % 60;
                                                         return (
                                                             <span className="fw-bold text-primary">
-                                                                {totalHoras}h {minutosRestantes > 0 ? `${minutosRestantes}min` : ''}
+                                                                {totalHoras}h{minutosRestantes > 0 ? minutosRestantes : ''}
                                                             </span>
                                                         );
                                                     })()}
