@@ -90,16 +90,16 @@ const normalizeClasseCode = (v) => {
 // em carregarClasses()
 // dentro de carregarClasses()
 
-        
 
-const getEspecialidade = (it = {}) => {
+
+const getEspecialidade = (it = {}, especialidadesList = []) => {
     // Se temos SubEmpID, usar o mapa para obter a descrição
     if (it.SubEmpID != null) {
         const subEmpIdStr = String(it.SubEmpID);
         const descricao = especialidadesList.find(e => String(e.subEmpId) === subEmpIdStr)?.descricao;
         if (descricao) return descricao;
     }
-    
+
     // Priorizar especialidades reais antes da categoria genérica
     const esp = it.Especialidade ||
         it.EspecialidadeNome ||
@@ -108,7 +108,7 @@ const getEspecialidade = (it = {}) => {
         it.SubCategoria ||
         it.Subcategoria ||
         '';
-    
+
     // Se não encontrou especialidade específica e categoria não é equipamentos
     if (!esp && String(it.Categoria || '').toLowerCase() !== 'equipamentos') {
         const cat = it.Categoria || '';
@@ -118,7 +118,7 @@ const getEspecialidade = (it = {}) => {
         }
         return cat;
     }
-    
+
     return esp || '—';
 };
 
@@ -178,7 +178,7 @@ const GestaoTrabalhadoresExternos = () => {
     const [erro, setErro] = useState('');
     const [registos, setRegistos] = useState([]);
 
-    
+
     // === NOVO: navegação de meses ===
     const hoje = new Date();
     const [mesSelecionado, setMesSelecionado] = useState(hoje.getMonth() + 1); // 1..12
@@ -252,6 +252,7 @@ const GestaoTrabalhadoresExternos = () => {
     const [especialidadeGradeFiltro, setEspecialidadeGradeFiltro] = useState('');
     const [classeGradeFiltro, setClasseGradeFiltro] = useState('');
     const [agruparGradePor, setAgruparGradePor] = useState('geral');
+    const [obraGradeFiltro, setObraGradeFiltro] = useState(''); // Estado adicionado para filtro de obra
 
     // Helper para requisições com retry
     const fetchComRetentativas = async (url, options, tentativas = 3, delay = 1000) => {
@@ -607,7 +608,7 @@ const GestaoTrabalhadoresExternos = () => {
 const fetchPartesGrade = useCallback(async () => {
   setGradeLoading(true);
 
-  const mes = mesSelecionado;       // 1..12
+  const mes = mesSelecionado;
   const ano = anoSelecionado;
   const diasNoMes = getDiasNoMes(ano, mes);
 
@@ -626,9 +627,7 @@ const fetchPartesGrade = useCallback(async () => {
     });
 
     const externosProcessados = [];
-    const mapGrupoParaHoras = new Map();
-    const mapGrupoParaInfo = new Map();
-    const mapGrupoParaValores = new Map();
+    const mapGrupoParaDados = new Map();
 
     partesDoMes.forEach(cab => {
       const itensExternos = (cab.ParteDiariaItems || []).filter(it => {
@@ -644,67 +643,97 @@ const fetchPartesGrade = useCallback(async () => {
         const info = nomeToInfo[nomeKey] || {};
         const valorHora = info.valorHora || 0;
         const moeda = info.moeda || 'EUR';
-
         const empresa = info.empresa || item.Empresa || '—';
 
-        // Especialidade via SubEmpID → lista carregada
+        // Obter especialidade
         let especialidade = '—';
         if (item.SubEmpID != null) {
           const esp = especialidadesList.find(e => String(e.subEmpId) === String(item.SubEmpID));
           especialidade = esp?.descricao || '—';
         }
-        if (especialidade === '—') especialidade = getEspecialidade(item) || '—';
+        if (especialidade === '—') especialidade = getEspecialidade(item, especialidadesList) || '—';
 
+        // Obter classe
         const classe = getClasse(item, classesList);
 
+        // Obter obra
         const obra = obrasMap[String(cab.ObraID)];
+        const obraId = String(cab.ObraID);
         const obraLabel = obra ? `${obra.codigo} — ${obra.nome}` : `Obra ${cab.ObraID}`;
 
-        const dataItem = new Date(cab.Data);
-        const dia = dataItem.getDate();
+        // Determinar chave de agrupamento
+        let grupoKey, grupoLabel, dadosGrupo;
+        
+        switch (agruparGradePor) {
+          case 'obra':
+            grupoKey = `obra_${obraId}`;
+            grupoLabel = obraLabel;
+            dadosGrupo = { nome: obraLabel, empresa, especialidade, classe, obraId };
+            break;
+          case 'empresa':
+            grupoKey = `empresa_${empresa}`;
+            grupoLabel = empresa;
+            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+            break;
+          case 'externo':
+            grupoKey = `externo_${nomeKey}`;
+            grupoLabel = nome;
+            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+            break;
+          case 'especialidade':
+            grupoKey = `especialidade_${especialidade}`;
+            grupoLabel = especialidade;
+            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+            break;
+          case 'classe':
+            grupoKey = `classe_${classe}`;
+            grupoLabel = classe;
+            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+            break;
+          case 'geral':
+          default:
+            grupoKey = `externo_${nomeKey}`;
+            grupoLabel = nome;
+            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+            break;
+        }
+
+        // Inicializar grupo se não existir
+        if (!mapGrupoParaDados.has(grupoKey)) {
+          mapGrupoParaDados.set(grupoKey, {
+            ...dadosGrupo,
+            moeda,
+            diasHoras: {},
+            diasValores: {},
+            obras: new Set([obraId])
+          });
+        }
+
+        const grupo = mapGrupoParaDados.get(grupoKey);
+        grupo.obras.add(obraId);
+
+        // Adicionar horas e valores do dia
+        const dia = new Date(cab.Data).getDate();
         const minutos = Number(item.NumHoras || 0);
         const valorDia = (minutos / 60) * valorHora;
 
-        let grupoKey = nome;
-        let grupoLabel = nome;
-        switch (agruparGradePor) {
-          case 'obra': grupoKey = grupoLabel = obraLabel; break;
-          case 'empresa': grupoKey = grupoLabel = empresa; break;
-          case 'externo': grupoKey = grupoLabel = nome; break;
-          case 'especialidade': grupoKey = grupoLabel = especialidade; break;
-          case 'classe': grupoKey = grupoLabel = classe; break;
-          case 'geral':
-          default: grupoKey = grupoLabel = nome; break;
-        }
-
-        const infoAtual = mapGrupoParaInfo.get(grupoKey) || {};
-        mapGrupoParaInfo.set(grupoKey, {
-          empresa,
-          especialidade,
-          classe,
-          nome: grupoLabel,
-          moeda
-        });
-
-        if (!mapGrupoParaHoras.has(grupoKey)) mapGrupoParaHoras.set(grupoKey, {});
-        mapGrupoParaHoras.get(grupoKey)[dia] = (mapGrupoParaHoras.get(grupoKey)[dia] || 0) + minutos;
-
-        if (!mapGrupoParaValores.has(grupoKey)) mapGrupoParaValores.set(grupoKey, {});
-        mapGrupoParaValores.get(grupoKey)[dia] = (mapGrupoParaValores.get(grupoKey)[dia] || 0) + valorDia;
+        grupo.diasHoras[dia] = (grupo.diasHoras[dia] || 0) + minutos;
+        grupo.diasValores[dia] = (grupo.diasValores[dia] || 0) + valorDia;
       });
     });
 
-    mapGrupoParaHoras.forEach((diasHoras, grupoKey) => {
-      const info = mapGrupoParaInfo.get(grupoKey) || {};
-      const diasValores = mapGrupoParaValores.get(grupoKey) || {};
+    // Converter Map para array
+    mapGrupoParaDados.forEach((grupo) => {
       externosProcessados.push({
-        nome: info.nome || grupoKey,
-        empresa: info.empresa || '—',
-        especialidade: info.especialidade || '—',
-        classe: info.classe || '—',
-        moeda: info.moeda || 'EUR',
-        diasHoras,
-        diasValores
+        nome: grupo.nome,
+        empresa: grupo.empresa,
+        especialidade: grupo.especialidade,
+        classe: grupo.classe,
+        moeda: grupo.moeda,
+        obraId: grupo.obraId,
+        obras: Array.from(grupo.obras),
+        diasHoras: grupo.diasHoras,
+        diasValores: grupo.diasValores
       });
     });
 
@@ -740,12 +769,12 @@ useEffect(() => {
 
 
 
-    // Recarregar grade quando agrupamento muda
+    // Recarregar grade quando agrupamento muda (sem resetar filtros)
     useEffect(() => {
         if (modalGradeVisible) {
             fetchPartesGrade();
         }
-    }, [agruparGradePor, modalGradeVisible]);
+    }, [agruparGradePor, modalGradeVisible, fetchPartesGrade]);
 
     const fecharGradePartes = () => {
         setModalGradeVisible(false);
@@ -755,12 +784,7 @@ useEffect(() => {
             anoAtual: new Date().getFullYear(),
             diasNoMes: new Date().getDate(),
         });
-        // Resetar filtros da grade
-        setEmpresaGradeFiltro('');
-        setExternoGradeFiltro('');
-        setEspecialidadeGradeFiltro('');
-        setClasseGradeFiltro('');
-        setAgruparGradePor('geral');
+        // Manter filtros para próxima abertura - não resetar
     };
 
     const getClasseDescricao = (classeId) => {
@@ -773,52 +797,123 @@ useEffect(() => {
         return esp?.descricao || '—';
     };
 
-    // Opções dos pickers na Grade Mensal
+    // Opções dos pickers na Grade Mensal - contextuais ao agrupamento
     const gradeOptions = useMemo(() => {
+        // Coletar dados dos registos ORIGINAIS antes do agrupamento
+        // Precisamos ir buscar diretamente às partes diárias para ter os dados corretos
         const empresas = new Set();
-        const externos = new Set();
+        const colaboradores = new Set();
         const especialidades = new Set();
         const classes = new Set();
+        const obrasSet = new Set();
 
-        (gradesMensais.externos || []).forEach(ext => {
-            if (ext.empresa && ext.empresa !== '—') empresas.add(ext.empresa);
-            if (ext.nome) externos.add(ext.nome);
-            if (ext.especialidade && ext.especialidade !== '—' && ext.especialidade.toLowerCase() !== 'maoobra') {
-                especialidades.add(ext.especialidade);
+        // Se tivermos dados agrupados, extrair as obras únicas
+        const allExternos = gradesMensais.externos || [];
+        allExternos.forEach(ext => {
+            // Adicionar obras (sempre relevante)
+            if (ext.obras && Array.isArray(ext.obras)) {
+                ext.obras.forEach(obraId => obrasSet.add(obraId));
+            } else if (ext.obraId) {
+                obrasSet.add(String(ext.obraId));
             }
-            if (ext.classe && ext.classe !== '—') {
-                classes.add(ext.classe);
+
+            // Só adicionar empresa se NÃO estiver agrupado por obra
+            // (pois quando agrupado por obra, ext.nome contém o nome da obra)
+            if (agruparGradePor !== 'obra') {
+                if (ext.empresa && ext.empresa !== '—') empresas.add(ext.empresa);
+                if (ext.nome) colaboradores.add(ext.nome);
+                if (ext.especialidade && ext.especialidade !== '—' && ext.especialidade.toLowerCase() !== 'maoobra') {
+                    especialidades.add(ext.especialidade);
+                }
+                if (ext.classe && ext.classe !== '—') {
+                    classes.add(ext.classe);
+                }
             }
         });
 
-        // Adicionar especialidades da lista carregada
-        especialidadesList.forEach(esp => {
-            if (esp.descricao) especialidades.add(esp.descricao);
-        });
+        // Para agrupamento por obra, precisamos obter colaboradores únicos de outra forma
+        if (agruparGradePor === 'obra') {
+            // Usar o mapa nomeToInfo que contém todos os colaboradores externos registados
+            Object.keys(nomeToInfo).forEach(nomeKey => {
+                const info = nomeToInfo[nomeKey];
+                if (info.empresa) empresas.add(info.empresa);
+            });
+            
+            // Usar os registos originais para obter nomes de colaboradores
+            registos.forEach(r => {
+                const nome = r?.funcionario || '';
+                if (nome) colaboradores.add(nome);
+            });
 
-        // Adicionar classes da lista carregada
-        classesList.forEach(cls => {
-            if (cls.descricao) classes.add(cls.descricao);
+            // Para especialidades e classes quando agrupado por obra,
+            // usar as listas carregadas
+            especialidadesList.forEach(esp => {
+                if (esp.descricao) especialidades.add(esp.descricao);
+            });
+            classesList.forEach(cls => {
+                if (cls.descricao) classes.add(cls.descricao);
+            });
+        }
+
+        // Converter obras em array com labels
+        const obras = [];
+        obrasSet.forEach(obraId => {
+            const obra = obrasMap[obraId];
+            if (obra && obra.nome) {
+                obras.push({ 
+                    id: obraId, 
+                    label: `${obra.codigo} - ${obra.nome}` 
+                });
+            }
         });
 
         return {
             empresas: ['', ...Array.from(empresas).sort()],
-            externos: ['', ...Array.from(externos).sort()],
+            externos: ['', ...Array.from(colaboradores).sort()],
             especialidades: ['', ...Array.from(especialidades).sort()],
             classes: ['', ...Array.from(classes).sort()],
+            obras: obras.sort((a, b) => a.label.localeCompare(b.label)),
         };
-    }, [gradesMensais.externos, especialidadesList, classesList]);
+    }, [gradesMensais.externos, obrasMap, agruparGradePor, nomeToInfo, registos, especialidadesList, classesList]);
 
     // Filtrar externos para a grade
     const externosFiltradosGrade = useMemo(() => {
         return gradesMensais.externos.filter(externo => {
-            const matchEmpresa = !empresaGradeFiltro || externo.empresa === empresaGradeFiltro;
-            const matchExterno = !externoGradeFiltro || externo.nome === externoGradeFiltro;
-            const matchEspecialidade = !especialidadeGradeFiltro || externo.especialidade === especialidadeGradeFiltro;
-            const matchClasse = !classeGradeFiltro || externo.classe === classeGradeFiltro;
-            return matchEmpresa && matchExterno && matchEspecialidade && matchClasse;
+            // Filtro de empresa
+            if (empresaGradeFiltro && externo.empresa !== empresaGradeFiltro) {
+                return false;
+            }
+
+            // Filtro de colaborador (nome)
+            if (externoGradeFiltro && externo.nome !== externoGradeFiltro) {
+                return false;
+            }
+
+            // Filtro de especialidade
+            if (especialidadeGradeFiltro && externo.especialidade !== especialidadeGradeFiltro) {
+                return false;
+            }
+
+            // Filtro de classe
+            if (classeGradeFiltro && externo.classe !== classeGradeFiltro) {
+                return false;
+            }
+
+            // Filtro de obra - verificar se o externo trabalhou nesta obra
+            if (obraGradeFiltro) {
+                // Se o externo tem array de obras, verificar se inclui a obra filtrada
+                if (externo.obras && Array.isArray(externo.obras)) {
+                    if (!externo.obras.includes(obraGradeFiltro)) {
+                        return false;
+                    }
+                } else if (externo.obraId && String(externo.obraId) !== String(obraGradeFiltro)) {
+                    return false;
+                }
+            }
+
+            return true;
         });
-    }, [gradesMensais.externos, empresaGradeFiltro, externoGradeFiltro, especialidadeGradeFiltro, classeGradeFiltro]);
+    }, [gradesMensais.externos, empresaGradeFiltro, externoGradeFiltro, especialidadeGradeFiltro, classeGradeFiltro, obraGradeFiltro]);
 
 
     // === RESUMO EXTERNOS: data sources
@@ -838,7 +933,7 @@ useEffect(() => {
             const map = {};
             obras.forEach(o => {
                 const key = String(o.id || o.ID);
-                map[key] = { codigo: o.codigo, nome: o.nome };
+                map[key] = {codigo: o.codigo, nome: o.nome };
             });
             setObrasMap(map);
         } catch { /* silencioso */ }
@@ -968,7 +1063,7 @@ setClassesList(items);
                 const emp = nomeToInfo[key]?.empresa || '—';
                 if (emp) empresas.add(emp);
                 if (it.Funcionario) externos.add(it.Funcionario);
-                
+
                 // Obter especialidade usando SubEmpID
                 let esp = '—';
                 if (it.SubEmpID != null) {
@@ -976,15 +1071,16 @@ setClassesList(items);
                     esp = espObj?.descricao || '—';
                 }
                 if (esp === '—') {
-                    esp = getEspecialidade(it);
-                }
-                
-                if (esp && esp !== '—' && esp.toLowerCase() !== 'maoobra') {
-                    especialidades.add(esp);
+                    esp = getEspecialidade(it, especialidadesList);
                 }
 
                 // Obter classe
                 const classe = getClasse(it, classesList);
+
+
+                if (esp && esp !== '—' && esp.toLowerCase() !== 'maoobra') {
+                    especialidades.add(esp);
+                }
 
                 if (classe && classe !== '—') {
                     classes.add(classe);
@@ -1013,7 +1109,7 @@ setClassesList(items);
     const passaFiltrosResumo = (it) => {
         const nome = it.Funcionario || '';
         const emp = nomeToInfo[normalizeName(nome)]?.empresa || '—';
-        
+
         // Obter especialidade corretamente usando SubEmpID
         let esp = '—';
         if (it.SubEmpID != null) {
@@ -1021,7 +1117,7 @@ setClassesList(items);
             esp = espObj?.descricao || '—';
         }
         if (esp === '—') {
-            esp = getEspecialidade(it);
+            esp = getEspecialidade(it, especialidadesList);
         }
 
         // Obter classe
@@ -1076,7 +1172,7 @@ setClassesList(items);
                 const nome = it.Funcionario || 'Externo';
                 const nomeKey = normalizeName(nome);
                 const emp = nomeToEmpresa[nomeKey] || nomeToInfo[nomeKey]?.empresa || '—';
-                
+
                 // Obter especialidade usando SubEmpID
                 let esp = '—';
                 if (it.SubEmpID != null) {
@@ -1084,7 +1180,7 @@ setClassesList(items);
                     esp = espObj?.descricao || '—';
                 }
                 if (esp === '—') {
-                    esp = getEspecialidade(it);
+                    esp = getEspecialidade(it, especialidadesList);
                 }
 
                 // Obter classe
@@ -1109,7 +1205,7 @@ setClassesList(items);
 
                 const minutos = Number(it.NumHoras || 0);
                 const info = nomeToInfo[nomeKey];
-                const moeda = info?.moeda || 'EUR';
+                const moeda = info ? (info.moeda || 'EUR') : 'EUR';
                 const valorMin = info ? (info.valorHora * (minutos / 60)) : 0;
 
                 const node = tree.get(pKey);
@@ -1407,7 +1503,7 @@ setClassesList(items);
                             <View style={styles.emptyStateContainer}>
                                 <View style={styles.emptyStateCard}>
                                     <LinearGradient
-                                        colors={['rgba(23, 146, 254, 0.1)', 'rgba(23, 146, 254, 0.05)']}
+                                        colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
                                         style={styles.emptyStateIcon}
                                     >
                                         <Ionicons name="people-outline" size={80} color="#1792FE" />
@@ -2045,8 +2141,7 @@ setClassesList(items);
                                 </TouchableOpacity>
                             </View>
                         </LinearGradient>
-                        
-{/* ↓↓↓ COLA A PARTIR DAQUI ↓↓↓ */}
+
 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
   <View style={{ padding: 20 }}>
 
@@ -2108,61 +2203,88 @@ setClassesList(items);
       </View>
     </View>
 
-    {/* Filtros da Grade */}
+    {/* Filtros da Grade - Mostrar apenas filtros relevantes para o agrupamento */}
     <View style={styles.controlSection}>
       <Text style={styles.controlSectionTitle}>Filtros de Pesquisa</Text>
       <View style={styles.advancedFilters}>
-        <View style={styles.filterDropdown}>
-          <Text style={styles.filterLabel}>Empresa</Text>
-          <View style={styles.modernPicker}>
-            <Picker selectedValue={empresaGradeFiltro} onValueChange={setEmpresaGradeFiltro} style={styles.pickerStyle}>
-              <Picker.Item label="🏢 Todas as empresas" value="" />
-              {gradeOptions.empresas.filter((e) => e !== "").map((e, idx) => (
-                <Picker.Item key={`emp-grade-${idx}`} label={`🏢 ${e}`} value={e} />
-              ))}
-            </Picker>
+        {/* Sempre mostrar filtro de Obra */}
+        {agruparGradePor !== 'obra' && (
+          <View style={styles.filterDropdown}>
+            <Text style={styles.filterLabel}>Obra</Text>
+            <View style={styles.modernPicker}>
+              <Picker selectedValue={obraGradeFiltro} onValueChange={setObraGradeFiltro} style={styles.pickerStyle}>
+                <Picker.Item label="🏗️ Todas as obras" value="" />
+                {gradeOptions.obras.map((obra, idx) => (
+                  <Picker.Item key={`obra-grade-${idx}`} label={`🏗️ ${obra.label}`} value={obra.id} />
+                ))}
+              </Picker>
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.filterDropdown}>
-          <Text style={styles.filterLabel}>Colaborador</Text>
-          <View style={styles.modernPicker}>
-            <Picker selectedValue={externoGradeFiltro} onValueChange={setExternoGradeFiltro} style={styles.pickerStyle}>
-              <Picker.Item label="👤 Todos os colaboradores" value="" />
-              {gradeOptions.externos.filter((e) => e !== "").map((e, idx) => (
-                <Picker.Item key={`ext-grade-${idx}`} label={`👤 ${e}`} value={e} />
-              ))}
-            </Picker>
+        {/* Mostrar filtro de Colaborador exceto quando agrupado por Colaborador */}
+        {agruparGradePor !== 'externo' && (
+          <View style={styles.filterDropdown}>
+            <Text style={styles.filterLabel}>Colaborador</Text>
+            <View style={styles.modernPicker}>
+              <Picker selectedValue={externoGradeFiltro} onValueChange={setExternoGradeFiltro} style={styles.pickerStyle}>
+                <Picker.Item label="👤 Todos os colaboradores" value="" />
+                {gradeOptions.externos.filter((e) => e !== "").map((e, idx) => (
+                  <Picker.Item key={`ext-grade-${idx}`} label={`👤 ${e}`} value={e} />
+                ))}
+              </Picker>
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.filterDropdown}>
-          <Text style={styles.filterLabel}>Especialidade</Text>
-          <View style={styles.modernPicker}>
-            <Picker
-              selectedValue={especialidadeGradeFiltro}
-              onValueChange={setEspecialidadeGradeFiltro}
-              style={styles.pickerStyle}
-            >
-              <Picker.Item label="⚒️ Todas as especialidades" value="" />
-              {gradeOptions.especialidades.filter((e) => e !== "").map((e, idx) => (
-                <Picker.Item key={`esp-grade-${idx}`} label={`⚒️ ${e}`} value={e} />
-              ))}
-            </Picker>
+        {/* Mostrar filtro de Empresa exceto quando agrupado por Empresa */}
+        {agruparGradePor !== 'empresa' && (
+          <View style={styles.filterDropdown}>
+            <Text style={styles.filterLabel}>Empresa</Text>
+            <View style={styles.modernPicker}>
+              <Picker selectedValue={empresaGradeFiltro} onValueChange={setEmpresaGradeFiltro} style={styles.pickerStyle}>
+                <Picker.Item label="🏢 Todas as empresas" value="" />
+                {gradeOptions.empresas.filter((e) => e !== "").map((e, idx) => (
+                  <Picker.Item key={`emp-grade-${idx}`} label={`🏢 ${e}`} value={e} />
+                ))}
+              </Picker>
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.filterDropdown}>
-          <Text style={styles.filterLabel}>Classe</Text>
-          <View style={styles.modernPicker}>
-            <Picker selectedValue={classeGradeFiltro} onValueChange={setClasseGradeFiltro} style={styles.pickerStyle}>
-              <Picker.Item label="📚 Todas as classes" value="" />
-              {gradeOptions.classes.filter((c) => c !== "").map((c, idx) => (
-                <Picker.Item key={`cls-grade-${idx}`} label={`📚 ${c}`} value={c} />
-              ))}
-            </Picker>
+        {/* Mostrar filtro de Especialidade exceto quando agrupado por Especialidade */}
+        {agruparGradePor !== 'especialidade' && (
+          <View style={styles.filterDropdown}>
+            <Text style={styles.filterLabel}>Especialidade</Text>
+            <View style={styles.modernPicker}>
+              <Picker
+                selectedValue={especialidadeGradeFiltro}
+                onValueChange={setEspecialidadeGradeFiltro}
+                style={styles.pickerStyle}
+              >
+                <Picker.Item label="⚒️ Todas as especialidades" value="" />
+                {gradeOptions.especialidades.filter((e) => e !== "").map((e, idx) => (
+                  <Picker.Item key={`esp-grade-${idx}`} label={`⚒️ ${e}`} value={e} />
+                ))}
+              </Picker>
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* Mostrar filtro de Classe exceto quando agrupado por Classe */}
+        {agruparGradePor !== 'classe' && (
+          <View style={styles.filterDropdown}>
+            <Text style={styles.filterLabel}>Classe</Text>
+            <View style={styles.modernPicker}>
+              <Picker selectedValue={classeGradeFiltro} onValueChange={setClasseGradeFiltro} style={styles.pickerStyle}>
+                <Picker.Item label="📚 Todas as classes" value="" />
+                {gradeOptions.classes.filter((c) => c !== "").map((c, idx) => (
+                  <Picker.Item key={`cls-grade-${idx}`} label={`📚 ${c}`} value={c} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        )}
       </View>
     </View>
 
@@ -2312,7 +2434,7 @@ setClassesList(items);
   </View>
 </ScrollView>
 
-                        
+
                     </SafeAreaView>
                 </Modal>
 
