@@ -767,7 +767,7 @@ const PartesDiariasJPA = ({ navigation }) => {
 
                 for (const envio of envios) {
                     try {
-                        const url = `http://localhost:3001/parteDiariaJPA/InsertParteDiariaItemJPA`;
+                        const url = `https://webapiprimavera.advir.pt/parteDiariaJPA/InsertParteDiariaItemJPA`;
 
                         console.log("Enviando para:", url);
                         console.log(
