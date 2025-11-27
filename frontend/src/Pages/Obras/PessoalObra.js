@@ -339,7 +339,7 @@ const PessoalObra = ({ route, navigation }) => {
                 dataAtual.setDate(dataAtual.getDate() + 1);
             }
 
-            // Agrupar por pessoa e dia
+            // Agrupar por pessoa e dia - APENAS dias com registos
             const agrupado = {};
             dadosPeriodo.forEach(r => {
                 const nome = r.User?.nome || r.nome || 'Desconhecido';
@@ -357,6 +357,9 @@ const PessoalObra = ({ route, navigation }) => {
                 }
                 agrupado[chave].eventos.push(r);
             });
+
+            // Filtrar apenas entradas que têm eventos reais
+            const agrupadoComRegistos = Object.values(agrupado).filter(pessoa => pessoa.eventos && pessoa.eventos.length > 0);
 
             // Criar workbook com formatação
             const workbook = XLSX.utils.book_new();
@@ -381,8 +384,16 @@ const PessoalObra = ({ route, navigation }) => {
                 'Observações'
             ]);
 
-            // Dados
-            Object.values(agrupado).sort((a, b) => {
+            // Verificar se há dados para exportar
+            if (agrupadoComRegistos.length === 0) {
+                alert('Não há registos de picagens para o período selecionado.');
+                setLoading(false);
+                setShowExportModal(false);
+                return;
+            }
+
+            // Dados - apenas pessoas e dias com picagens reais
+            agrupadoComRegistos.sort((a, b) => {
                 const dataComp = a.data.localeCompare(b.data);
                 return dataComp !== 0 ? dataComp : a.nome.localeCompare(b.nome);
             }).forEach(pessoa => {
