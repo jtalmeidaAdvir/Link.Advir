@@ -4,6 +4,7 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
     const [registosEditaveis, setRegistosEditaveis] = useState([]);
     const [registosOriginais, setRegistosOriginais] = useState([]);
     const [obras, setObras] = useState([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         console.log('Modal recebeu registo:', registo); // Debug
@@ -170,6 +171,8 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
             }
         }
 
+        setIsSaving(true);
+
         try {
             const token = secureStorage.getItem("loginToken");
 
@@ -211,6 +214,7 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
                 } else {
                     const errorData = await response.json();
                     alert(errorData.message || "Não foi possível editar os registos.");
+                    setIsSaving(false);
                     return;
                 }
             }
@@ -219,6 +223,8 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
         } catch (error) {
             console.error("Erro ao editar registos:", error);
             alert("Erro de rede ao editar registos.");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -504,12 +510,31 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
                 </div>
 
                 <div style={styles.modalButtons}>
-                    <button style={styles.cancelButton} onClick={onClose}>
+                    <button 
+                        style={styles.cancelButton} 
+                        onClick={onClose}
+                        disabled={isSaving}
+                    >
                         Cancelar
                     </button>
 
-                    <button style={styles.saveButton} onClick={handleSave}>
-                        💾 Salvar Alterações
+                    <button 
+                        style={{
+                            ...styles.saveButton,
+                            opacity: isSaving ? 0.7 : 1,
+                            cursor: isSaving ? 'not-allowed' : 'pointer'
+                        }} 
+                        onClick={handleSave}
+                        disabled={isSaving}
+                    >
+                        {isSaving ? (
+                            <>
+                                <span style={{ marginRight: '8px' }}>⏳</span>
+                                A guardar...
+                            </>
+                        ) : (
+                            <>💾 Salvar Alterações</>
+                        )}
                     </button>
                 </div>
             </div>
