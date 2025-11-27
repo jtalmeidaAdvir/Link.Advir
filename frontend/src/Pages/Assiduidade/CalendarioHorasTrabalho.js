@@ -1214,7 +1214,7 @@ const CalendarioHorasTrabalho = () => {
             }
             const h = Math.floor(minutosTotais / 60);
             const m = minutosTotais % 60;
-            resumoMap[dia.dia] = `${h}h${m > 0 ? ` ${m}min` : ''}`;
+            resumoMap[dia.dia] = `${h}h${m > 0 ? `${m}` : ''}`;
         });
 
         const ordenado = [...registosDia].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -2350,7 +2350,7 @@ const CalendarioHorasTrabalho = () => {
 
                                                     {resumo[dataFormatada] && !isFeriado && (
                                                         <span className="horas-dia">
-                                                            {resumo[dataFormatada].split('h')[0]}h
+                                                            {resumo[dataFormatada]}
                                                         </span>
                                                     )}
 
