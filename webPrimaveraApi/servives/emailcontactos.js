@@ -9,14 +9,14 @@ const sendEmailContactForm = async (req, res) => {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'noreply.advir@gmail.com',
-                pass: 'ihpgedswadmqtceh',
+                user: 'no.reply.advirplan@gmail.com',
+                pass: 'jkma hfwy bkxp dfzk',
             },
         });
 
 
             const mailOptions = {
-                from: 'noreply.advir@gmail.com',
+                from: 'no.reply.advirplan@gmail.com',
                 to: 'info@advir.pt',
                 subject: `Novo Contacto: ${nome} ${sobrenome}`,
                 html: `

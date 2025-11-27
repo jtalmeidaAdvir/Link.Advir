@@ -30,14 +30,14 @@ const sendEmail = async (req, res) => {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'noreply.advir@gmail.com',
-                pass: 'ihpgedswadmqtceh',
+                user: 'no.reply.advirplan@gmail.com',
+                pass: 'jkma hfwy bkxp dfzk',
             },
         });
 
 
         const mailOptions = {
-            from: 'noreply.advir@gmail.com',
+            from: 'no.reply.advirplan@gmail.com',
             to: `${emailDestinatario}`,
             ...(ccList.length ? { cc: ccList } : {}),
             subject: `Nova Intervenção: ${Pedido}  ${dadosIntervencao.processoID}/${dadosIntervencao.NumIntervencao}`,

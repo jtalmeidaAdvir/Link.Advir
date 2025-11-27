@@ -227,7 +227,7 @@ async function executarRelatorio(schedule) {
         for (const email of emails) {
             console.log(`📧 Enviando para: ${email}`);
             await transporter.sendMail({
-                from: "noreply.advir@gmail.com",
+                from: "no.reply.advirplan@gmail.com",
                 to: email,
                 subject: assunto,
                 html: dadosRelatorio,

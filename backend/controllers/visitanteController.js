@@ -148,7 +148,7 @@ const registarPontoVisitante = async (req, res) => {
         const icone = tipo === 'entrada' ? '🟢' : '🔴';
 
         const mailOptions = {
-          from: 'noreply.advir@gmail.com',
+          from: 'no.reply.advirplan@gmail.com',
           to: emailDestino,
           subject: `${icone} Registo de ${tipoTexto} - Visitante ${visitante.primeiroNome} ${visitante.ultimoNome}`,
           html: `

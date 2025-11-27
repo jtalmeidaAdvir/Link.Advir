@@ -20,13 +20,13 @@ const sendEmailExternos = async (req, res) => {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'noreply.advir@gmail.com',
-                pass: 'ihpgedswadmqtceh',
+                user: 'no.reply.advirplan@gmail.com',
+                pass: 'jkma hfwy bkxp dfzk',
             },
         });
 
         const mailOptions = {
-            from: remetente || 'noreply.advir@gmail.com',
+            from: remetente || 'no.reply.advirplan@gmail.com',
             to: emailDestinatario,
             subject: assunto,
             html: texto,

@@ -25,8 +25,8 @@ async function enviarEmailAprovacao({ id, titulo, responsavel }) {
         port: 587,
         secure: false,
         auth: {
-            user: "noreply.advir@gmail.com",
-            pass: "ihpgedswadmqtceh",
+            user: "no.reply.advirplan@gmail.com",
+            pass: "jkma hfwy bkxp dfzk",
         },
     });
 
@@ -39,7 +39,7 @@ async function enviarEmailAprovacao({ id, titulo, responsavel }) {
     });
 
     const info = await transporter.sendMail({
-        from: "noreply.advir@gmail.com",
+        from: "no.reply.advirplan@gmail.com",
         to: "pl@jpaconstrutora.com",
         subject: `✅ Concurso Aprovado - ${id}`,
         html: `

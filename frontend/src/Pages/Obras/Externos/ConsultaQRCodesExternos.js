@@ -285,7 +285,7 @@ const ConsultaQRCodesExternos = () => {
                     </body>
                     </html>
                 `,
-                remetente: 'noreply.advir@gmail.com'
+                remetente: 'no.reply.advirplan@gmail.com'
             };
 
             console.log('📧 Enviando email para:', emailPayload.emailDestinatario);
