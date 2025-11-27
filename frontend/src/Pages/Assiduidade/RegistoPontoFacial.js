@@ -402,10 +402,10 @@ const RegistoPontoFacial = (props) => {
 
       if (res.ok) {
         const actionText = tipo === "entrada" ? "Entrada" : "Saída";
-        const mensagemBoasVindas = obterMensagemAleatoria();
+        const mensagemApropriada = obterMensagemAleatoria(tipo);
         setModalData({
           type: "success",
-          message: mensagemBoasVindas,
+          message: mensagemApropriada,
           userName,
           action: actionText,
         });
@@ -584,10 +584,11 @@ const RegistoPontoFacial = (props) => {
       if (resAuto.ok) {
         const data = await resAuto.json().catch(() => ({}));
         const actionText = data?.action === "saida" ? "Saída" : "Entrada";
-        const mensagemBoasVindas = obterMensagemAleatoria();
+        const tipoRegisto = data?.action === "saida" ? "saida" : "entrada";
+        const mensagemApropriada = obterMensagemAleatoria(tipoRegisto);
         setModalData({
           type: "success",
-          message: mensagemBoasVindas,
+          message: mensagemApropriada,
           userName,
           action: actionText,
         });
@@ -718,7 +719,7 @@ const RegistoPontoFacial = (props) => {
     locationPromiseRef.current = null;
   };
 
-  // Mensagens de boas-vindas aleatórias
+  // Mensagens de boas-vindas aleatórias para ENTRADA
   const mensagensBoasVindas = [
     "Bem-vindo! Tenha um excelente dia de trabalho! 🌟",
     "Olá! Que hoje seja produtivo e positivo! 💪",
@@ -732,9 +733,24 @@ const RegistoPontoFacial = (props) => {
     "Seja bem-vindo! Vamos alcançar novos objetivos! 🏆"
   ];
 
-  const obterMensagemAleatoria = () => {
-    const indiceAleatorio = Math.floor(Math.random() * mensagensBoasVindas.length);
-    return mensagensBoasVindas[indiceAleatorio];
+  // Mensagens de despedida aleatórias para SAÍDA
+  const mensagensDespedida = [
+    "Até amanhã! Descanse bem! 👋",
+    "Bom descanso! Foi um ótimo dia de trabalho! 🌙",
+    "Até breve! Tenha uma excelente tarde/noite! ✨",
+    "Adeus! Obrigado pelo seu trabalho hoje! 🙏",
+    "Até logo! Aproveite o resto do dia! 🌅",
+    "Boa viagem! Até à próxima! 🚗",
+    "Tchau! Recarregue as energias! 💪",
+    "Até já! Foi um prazer tê-lo connosco hoje! 😊",
+    "Boa tarde/noite! Merece um bom descanso! 🌟",
+    "Até breve! Cuide-se! ❤️"
+  ];
+
+  const obterMensagemAleatoria = (tipo) => {
+    const mensagens = tipo === "entrada" ? mensagensBoasVindas : mensagensDespedida;
+    const indiceAleatorio = Math.floor(Math.random() * mensagens.length);
+    return mensagens[indiceAleatorio];
   };
 
   const handleFacialScanComplete = async (facialData) => {
@@ -1142,10 +1158,11 @@ const RegistoPontoFacial = (props) => {
 
       if (resRegisto.ok) {
         const result = await resRegisto.json();
-        const mensagemBoasVindas = obterMensagemAleatoria();
+        const tipoRegisto = result.action === "entrada" ? "entrada" : "saida";
+        const mensagemApropriada = obterMensagemAleatoria(tipoRegisto);
         setModalData({
           type: "success",
-          message: mensagemBoasVindas,
+          message: mensagemApropriada,
           userName: externo.nome,
           action: result.action === "entrada" ? "Entrada" : "Saída",
         });
