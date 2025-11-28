@@ -253,6 +253,7 @@ const GestaoTrabalhadoresExternos = () => {
     const [classeGradeFiltro, setClasseGradeFiltro] = useState('');
     const [agruparGradePor, setAgruparGradePor] = useState('geral');
     const [obraGradeFiltro, setObraGradeFiltro] = useState(''); // Estado adicionado para filtro de obra
+    const [modoVisualizacaoGrade, setModoVisualizacaoGrade] = useState('geral'); // 'geral' ou 'porColaborador'
 
     // Helper para requisições com retry
     const fetchComRetentativas = async (url, options, tentativas = 3, delay = 1000) => {
@@ -664,38 +665,54 @@ const fetchPartesGrade = useCallback(async () => {
         // Determinar chave de agrupamento
         let grupoKey, grupoLabel, dadosGrupo;
         
-        switch (agruparGradePor) {
-          case 'obra':
-            grupoKey = `obra_${obraId}`;
-            grupoLabel = obraLabel;
-            dadosGrupo = { nome: obraLabel, empresa, especialidade, classe, obraId };
-            break;
-          case 'empresa':
-            grupoKey = `empresa_${empresa}`;
-            grupoLabel = empresa;
-            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
-            break;
-          case 'externo':
-            grupoKey = `externo_${nomeKey}`;
-            grupoLabel = nome;
-            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
-            break;
-          case 'especialidade':
-            grupoKey = `especialidade_${especialidade}`;
-            grupoLabel = especialidade;
-            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
-            break;
-          case 'classe':
-            grupoKey = `classe_${classe}`;
-            grupoLabel = classe;
-            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
-            break;
-          case 'geral':
-          default:
-            grupoKey = `externo_${nomeKey}`;
-            grupoLabel = nome;
-            dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
-            break;
+        // 🔥 NOVA LÓGICA: Se modo visualização for 'porColaborador', agrupar por colaborador+obra
+        if (modoVisualizacaoGrade === 'porColaborador') {
+          grupoKey = `colaborador_obra_${nomeKey}_${obraId}`;
+          grupoLabel = `${nome} → ${obraLabel}`;
+          dadosGrupo = { 
+            nome: grupoLabel, 
+            colaborador: nome,
+            empresa, 
+            especialidade, 
+            classe, 
+            obraId,
+            obraLabel 
+          };
+        } else {
+          // Agrupamento normal
+          switch (agruparGradePor) {
+            case 'obra':
+              grupoKey = `obra_${obraId}`;
+              grupoLabel = obraLabel;
+              dadosGrupo = { nome: obraLabel, empresa, especialidade, classe, obraId };
+              break;
+            case 'empresa':
+              grupoKey = `empresa_${empresa}`;
+              grupoLabel = empresa;
+              dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+              break;
+            case 'externo':
+              grupoKey = `externo_${nomeKey}`;
+              grupoLabel = nome;
+              dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+              break;
+            case 'especialidade':
+              grupoKey = `especialidade_${especialidade}`;
+              grupoLabel = especialidade;
+              dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+              break;
+            case 'classe':
+              grupoKey = `classe_${classe}`;
+              grupoLabel = classe;
+              dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+              break;
+            case 'geral':
+            default:
+              grupoKey = `externo_${nomeKey}`;
+              grupoLabel = nome;
+              dadosGrupo = { nome: grupoLabel, empresa, especialidade, classe, obraId };
+              break;
+          }
         }
 
         // Inicializar grupo se não existir
@@ -726,11 +743,13 @@ const fetchPartesGrade = useCallback(async () => {
     mapGrupoParaDados.forEach((grupo) => {
       externosProcessados.push({
         nome: grupo.nome,
+        colaborador: grupo.colaborador,
         empresa: grupo.empresa,
         especialidade: grupo.especialidade,
         classe: grupo.classe,
         moeda: grupo.moeda,
         obraId: grupo.obraId,
+        obraLabel: grupo.obraLabel,
         obras: Array.from(grupo.obras),
         diasHoras: grupo.diasHoras,
         diasValores: grupo.diasValores
@@ -750,7 +769,7 @@ const fetchPartesGrade = useCallback(async () => {
   } finally {
     setGradeLoading(false);
   }
-}, [agruparGradePor, obrasMap, nomeToInfo, especialidadesList, classesList, mesSelecionado, anoSelecionado]);
+}, [agruparGradePor, modoVisualizacaoGrade, obrasMap, nomeToInfo, especialidadesList, classesList, mesSelecionado, anoSelecionado]);
 
 
 const abrirGradePartes = async () => {
@@ -765,7 +784,7 @@ useEffect(() => {
   if (modalGradeVisible) {
     fetchPartesGrade();
   }
-}, [mesSelecionado, anoSelecionado, modalGradeVisible, fetchPartesGrade]);
+}, [mesSelecionado, anoSelecionado, modoVisualizacaoGrade, modalGradeVisible, fetchPartesGrade]);
 
 
 
@@ -879,29 +898,32 @@ useEffect(() => {
     // Filtrar externos para a grade
     const externosFiltradosGrade = useMemo(() => {
         return gradesMensais.externos.filter(externo => {
-            // Filtro de empresa
+            // 🔥 MODO POR COLABORADOR: filtrar apenas por colaborador
+            if (modoVisualizacaoGrade === 'porColaborador') {
+                if (externoGradeFiltro && externo.colaborador !== externoGradeFiltro) {
+                    return false;
+                }
+                return true;
+            }
+
+            // MODO GERAL: aplicar todos os filtros
             if (empresaGradeFiltro && externo.empresa !== empresaGradeFiltro) {
                 return false;
             }
 
-            // Filtro de colaborador (nome)
             if (externoGradeFiltro && externo.nome !== externoGradeFiltro) {
                 return false;
             }
 
-            // Filtro de especialidade
             if (especialidadeGradeFiltro && externo.especialidade !== especialidadeGradeFiltro) {
                 return false;
             }
 
-            // Filtro de classe
             if (classeGradeFiltro && externo.classe !== classeGradeFiltro) {
                 return false;
             }
 
-            // Filtro de obra - verificar se o externo trabalhou nesta obra
             if (obraGradeFiltro) {
-                // Se o externo tem array de obras, verificar se inclui a obra filtrada
                 if (externo.obras && Array.isArray(externo.obras)) {
                     if (!externo.obras.includes(obraGradeFiltro)) {
                         return false;
@@ -913,7 +935,7 @@ useEffect(() => {
 
             return true;
         });
-    }, [gradesMensais.externos, empresaGradeFiltro, externoGradeFiltro, especialidadeGradeFiltro, classeGradeFiltro, obraGradeFiltro]);
+    }, [gradesMensais.externos, modoVisualizacaoGrade, empresaGradeFiltro, externoGradeFiltro, especialidadeGradeFiltro, classeGradeFiltro, obraGradeFiltro]);
 
 
     // === RESUMO EXTERNOS: data sources
@@ -2177,55 +2199,68 @@ setClassesList(items);
       </Text>
     </View>
 
-    {/* Agrupamento da Grade */}
+    {/* 🔥 NOVO: Modo de Visualização */}
     <View style={styles.controlSection}>
-      <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
+      <Text style={styles.controlSectionTitle}>Modo de Visualização</Text>
       <View style={styles.chipContainer}>
-        {[
-          { k: "geral", label: "Geral", icon: "grid-outline" },
-          { k: "obra", label: "Por Obra", icon: "business-outline" },
-          { k: "empresa", label: "Por Empresa", icon: "storefront-outline" },
-          { k: "externo", label: "Por Colaborador", icon: "person-outline" },
-          { k: "especialidade", label: "Por Especialidade", icon: "construct-outline" },
-          { k: "classe", label: "Por Classe", icon: "library-outline" },
-        ].map((op) => (
-          <TouchableOpacity
-            key={op.k}
-            onPress={() => setAgruparGradePor(op.k)}
-            style={[styles.chip, agruparGradePor === op.k && styles.chipActive]}
-          >
-            <Ionicons name={op.icon} size={14} color={agruparGradePor === op.k ? "#fff" : "#666"} />
-            <Text style={agruparGradePor === op.k ? styles.chipTextActive : styles.chipText}>
-              {op.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          onPress={() => setModoVisualizacaoGrade('geral')}
+          style={[styles.chip, modoVisualizacaoGrade === 'geral' && styles.chipActive]}
+        >
+          <Ionicons name="apps" size={14} color={modoVisualizacaoGrade === 'geral' ? "#fff" : "#666"} />
+          <Text style={modoVisualizacaoGrade === 'geral' ? styles.chipTextActive : styles.chipText}>
+            Vista Geral
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => setModoVisualizacaoGrade('porColaborador')}
+          style={[styles.chip, modoVisualizacaoGrade === 'porColaborador' && styles.chipActive]}
+        >
+          <Ionicons name="person-circle" size={14} color={modoVisualizacaoGrade === 'porColaborador' ? "#fff" : "#666"} />
+          <Text style={modoVisualizacaoGrade === 'porColaborador' ? styles.chipTextActive : styles.chipText}>
+            Por Colaborador (Todas as Obras)
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
 
-    {/* Filtros da Grade - Mostrar apenas filtros relevantes para o agrupamento */}
+    {/* Agrupamento da Grade - só mostrar se modo geral */}
+    {modoVisualizacaoGrade === 'geral' && (
+      <View style={styles.controlSection}>
+        <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
+        <View style={styles.chipContainer}>
+          {[
+            { k: "geral", label: "Geral", icon: "grid-outline" },
+            { k: "obra", label: "Por Obra", icon: "business-outline" },
+            { k: "empresa", label: "Por Empresa", icon: "storefront-outline" },
+            { k: "externo", label: "Por Colaborador", icon: "person-outline" },
+            { k: "especialidade", label: "Por Especialidade", icon: "construct-outline" },
+            { k: "classe", label: "Por Classe", icon: "library-outline" },
+          ].map((op) => (
+            <TouchableOpacity
+              key={op.k}
+              onPress={() => setAgruparGradePor(op.k)}
+              style={[styles.chip, agruparGradePor === op.k && styles.chipActive]}
+            >
+              <Ionicons name={op.icon} size={14} color={agruparGradePor === op.k ? "#fff" : "#666"} />
+              <Text style={agruparGradePor === op.k ? styles.chipTextActive : styles.chipText}>
+                {op.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    )}
+
+    {/* Filtros da Grade - Adaptar ao modo de visualização */}
     <View style={styles.controlSection}>
       <Text style={styles.controlSectionTitle}>Filtros de Pesquisa</Text>
       <View style={styles.advancedFilters}>
-        {/* Sempre mostrar filtro de Obra */}
-        {agruparGradePor !== 'obra' && (
+        {/* 🔥 MODO POR COLABORADOR: Mostrar apenas filtro de colaborador */}
+        {modoVisualizacaoGrade === 'porColaborador' ? (
           <View style={styles.filterDropdown}>
-            <Text style={styles.filterLabel}>Obra</Text>
-            <View style={styles.modernPicker}>
-              <Picker selectedValue={obraGradeFiltro} onValueChange={setObraGradeFiltro} style={styles.pickerStyle}>
-                <Picker.Item label="🏗️ Todas as obras" value="" />
-                {gradeOptions.obras.map((obra, idx) => (
-                  <Picker.Item key={`obra-grade-${idx}`} label={`🏗️ ${obra.label}`} value={obra.id} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-        )}
-
-        {/* Mostrar filtro de Colaborador exceto quando agrupado por Colaborador */}
-        {agruparGradePor !== 'externo' && (
-          <View style={styles.filterDropdown}>
-            <Text style={styles.filterLabel}>Colaborador</Text>
+            <Text style={styles.filterLabel}>👤 Selecionar Colaborador</Text>
             <View style={styles.modernPicker}>
               <Picker selectedValue={externoGradeFiltro} onValueChange={setExternoGradeFiltro} style={styles.pickerStyle}>
                 <Picker.Item label="👤 Todos os colaboradores" value="" />
@@ -2235,55 +2270,81 @@ setClassesList(items);
               </Picker>
             </View>
           </View>
-        )}
+        ) : (
+          <>
+            {/* MODO GERAL: Mostrar todos os filtros conforme agrupamento */}
+            {agruparGradePor !== 'obra' && (
+              <View style={styles.filterDropdown}>
+                <Text style={styles.filterLabel}>Obra</Text>
+                <View style={styles.modernPicker}>
+                  <Picker selectedValue={obraGradeFiltro} onValueChange={setObraGradeFiltro} style={styles.pickerStyle}>
+                    <Picker.Item label="🏗️ Todas as obras" value="" />
+                    {gradeOptions.obras.map((obra, idx) => (
+                      <Picker.Item key={`obra-grade-${idx}`} label={`🏗️ ${obra.label}`} value={obra.id} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            )}
 
-        {/* Mostrar filtro de Empresa exceto quando agrupado por Empresa */}
-        {agruparGradePor !== 'empresa' && (
-          <View style={styles.filterDropdown}>
-            <Text style={styles.filterLabel}>Empresa</Text>
-            <View style={styles.modernPicker}>
-              <Picker selectedValue={empresaGradeFiltro} onValueChange={setEmpresaGradeFiltro} style={styles.pickerStyle}>
-                <Picker.Item label="🏢 Todas as empresas" value="" />
-                {gradeOptions.empresas.filter((e) => e !== "").map((e, idx) => (
-                  <Picker.Item key={`emp-grade-${idx}`} label={`🏢 ${e}`} value={e} />
-                ))}
-              </Picker>
+            <View style={styles.filterDropdown}>
+              <Text style={styles.filterLabel}>Colaborador</Text>
+              <View style={styles.modernPicker}>
+                <Picker selectedValue={externoGradeFiltro} onValueChange={setExternoGradeFiltro} style={styles.pickerStyle}>
+                  <Picker.Item label="👤 Todos os colaboradores" value="" />
+                  {gradeOptions.externos.filter((e) => e !== "").map((e, idx) => (
+                    <Picker.Item key={`ext-grade-${idx}`} label={`👤 ${e}`} value={e} />
+                  ))}
+                </Picker>
+              </View>
             </View>
-          </View>
-        )}
 
-        {/* Mostrar filtro de Especialidade exceto quando agrupado por Especialidade */}
-        {agruparGradePor !== 'especialidade' && (
-          <View style={styles.filterDropdown}>
-            <Text style={styles.filterLabel}>Especialidade</Text>
-            <View style={styles.modernPicker}>
-              <Picker
-                selectedValue={especialidadeGradeFiltro}
-                onValueChange={setEspecialidadeGradeFiltro}
-                style={styles.pickerStyle}
-              >
-                <Picker.Item label="⚒️ Todas as especialidades" value="" />
-                {gradeOptions.especialidades.filter((e) => e !== "").map((e, idx) => (
-                  <Picker.Item key={`esp-grade-${idx}`} label={`⚒️ ${e}`} value={e} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-        )}
+            {agruparGradePor !== 'empresa' && (
+              <View style={styles.filterDropdown}>
+                <Text style={styles.filterLabel}>Empresa</Text>
+                <View style={styles.modernPicker}>
+                  <Picker selectedValue={empresaGradeFiltro} onValueChange={setEmpresaGradeFiltro} style={styles.pickerStyle}>
+                    <Picker.Item label="🏢 Todas as empresas" value="" />
+                    {gradeOptions.empresas.filter((e) => e !== "").map((e, idx) => (
+                      <Picker.Item key={`emp-grade-${idx}`} label={`🏢 ${e}`} value={e} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            )}
 
-        {/* Mostrar filtro de Classe exceto quando agrupado por Classe */}
-        {agruparGradePor !== 'classe' && (
-          <View style={styles.filterDropdown}>
-            <Text style={styles.filterLabel}>Classe</Text>
-            <View style={styles.modernPicker}>
-              <Picker selectedValue={classeGradeFiltro} onValueChange={setClasseGradeFiltro} style={styles.pickerStyle}>
-                <Picker.Item label="📚 Todas as classes" value="" />
-                {gradeOptions.classes.filter((c) => c !== "").map((c, idx) => (
-                  <Picker.Item key={`cls-grade-${idx}`} label={`📚 ${c}`} value={c} />
-                ))}
-              </Picker>
-            </View>
-          </View>
+            {agruparGradePor !== 'especialidade' && (
+              <View style={styles.filterDropdown}>
+                <Text style={styles.filterLabel}>Especialidade</Text>
+                <View style={styles.modernPicker}>
+                  <Picker
+                    selectedValue={especialidadeGradeFiltro}
+                    onValueChange={setEspecialidadeGradeFiltro}
+                    style={styles.pickerStyle}
+                  >
+                    <Picker.Item label="⚒️ Todas as especialidades" value="" />
+                    {gradeOptions.especialidades.filter((e) => e !== "").map((e, idx) => (
+                      <Picker.Item key={`esp-grade-${idx}`} label={`⚒️ ${e}`} value={e} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            )}
+
+            {agruparGradePor !== 'classe' && (
+              <View style={styles.filterDropdown}>
+                <Text style={styles.filterLabel}>Classe</Text>
+                <View style={styles.modernPicker}>
+                  <Picker selectedValue={classeGradeFiltro} onValueChange={setClasseGradeFiltro} style={styles.pickerStyle}>
+                    <Picker.Item label="📚 Todas as classes" value="" />
+                    {gradeOptions.classes.filter((c) => c !== "").map((c, idx) => (
+                      <Picker.Item key={`cls-grade-${idx}`} label={`📚 ${c}`} value={c} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            )}
+          </>
         )}
       </View>
     </View>
