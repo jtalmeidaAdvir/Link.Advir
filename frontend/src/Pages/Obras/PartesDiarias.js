@@ -208,9 +208,10 @@ const [linhaPessoalEquipAtual, setLinhaPessoalEquipAtual] = useState({
   obraId: "",
   dia: "",
   colaboradorId: "",
+  colaboradoresIds: [], // Array para múltiplos colaboradores
   horas: "",
   horaExtra: false,
-  categoria: "MaoObra",          // "MaoObra" | "Equipamentos"
+  categoria: "MaoObra",
   especialidadeCodigo: "",
   subEmpId: null,
   classeId: null,
@@ -238,6 +239,7 @@ const abrirModalPessoalEquip = () => {
     obraId: "",
     dia: "",
     colaboradorId: "",
+    colaboradoresIds: [], // Resetar para seleção múltipla
     horas: "",
     horaExtra: false,
     categoria: "MaoObra",
@@ -254,7 +256,7 @@ const [camposInvalidosPessoal, setCamposInvalidosPessoal] = useState(new Set());
 
 const adicionarLinhaPessoalEquip = async () => {
   const {
-    obraId, dia, colaboradorId, horas, categoria,
+    obraId, dia, colaboradorId, colaboradoresIds, horas, categoria,
     especialidadeCodigo, subEmpId, classeId, observacoes
   } = linhaPessoalEquipAtual;
 
@@ -272,10 +274,13 @@ const adicionarLinhaPessoalEquip = async () => {
     invalidos.add('dia');
   }
 
-  // ✅ VALIDAÇÃO OBRIGATÓRIA: Colaborador
-  if (!colaboradorId || colaboradorId === "") {
-    invalidos.add('colaboradorId');
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Colaborador(es)
+  // Verifica se há colaboradores selecionados no array
+  const selectedColaboradorId = colaboradoresIds && colaboradoresIds.length > 0 ? colaboradoresIds : [];
+  if (selectedColaboradorId.length === 0) {
+    invalidos.add('colaboradorId'); // Usamos a mesma chave para simplicidade
   }
+
 
   // ✅ VALIDAÇÃO OBRIGATÓRIA: Horas
   if (!horas || horas === "") {
@@ -321,87 +326,132 @@ const adicionarLinhaPessoalEquip = async () => {
   // Limpa marcações de erro
   setCamposInvalidosPessoal(new Set());
 
-  const col = colaboradoresDisponiveis.find(c => String(c.id) === String(colaboradorId));
-  if (!col || !col.codFuncionario) {
-    Alert.alert("Validação", "Colaborador inválido ou sem código de funcionário.");
-    return;
-  }
-
   const minutos = parseHorasToMinutos(horas);
   if (minutos <= 0) {
     Alert.alert("Validação", "Horas inválidas.");
     return;
   }
 
-  // Validar 8h normais por obra no mesmo dia
-  if (!linhaPessoalEquipAtual.horaExtra) {
-    const horasNaObraDia = linhasPessoalEquip
-      .filter(l => l.dia === dia &&
-                   l.colaboradorId === colaboradorId &&
-                   String(l.obraId) === String(obraId) &&
-                   !l.horaExtra)
-      .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
-
-    if (horasNaObraDia + minutos > 8 * 60) {
-      Alert.alert(
-        "Limite de Horas Excedido",
-        `Não é possível registar mais de 8 horas normais por dia nesta obra.\n\nJá registadas nesta obra: ${formatarHorasMinutos(horasNaObraDia)}\n\nPara mais horas, marque como "Hora Extra".`
-      );
-      return;
+  // Itera sobre os colaboradores selecionados (seja um ou múltiplos)
+  for (const colId of selectedColaboradorId) {
+    const col = colaboradoresDisponiveis.find(c => String(c.id) === String(colId));
+    if (!col || !col.codFuncionario) {
+      Alert.alert("Validação", `Colaborador inválido ou sem código de funcionário: ${col?.nome || colId}`);
+      continue; // Pula para o próximo colaborador
     }
 
-    // Validar 10h totais por dia (todas as obras)
-    const totalHorasDia = linhasPessoalEquip
-      .filter(l => l.dia === dia && l.colaboradorId === colaboradorId)
-      .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+    // Validar 8h normais por obra no mesmo dia
+    if (!linhaPessoalEquipAtual.horaExtra) {
+      const horasNaObraDia = linhasPessoalEquip
+        .filter(l => l.dia === dia &&
+                     l.colaboradorId === colId && // Verifica para o colaborador atual
+                     String(l.obraId) === String(obraId) &&
+                     !l.horaExtra)
+        .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
 
-    if (totalHorasDia + minutos > 10 * 60) {
-      Alert.alert(
-        "Limite de Horas Diário Excedido",
-        `Não é possível registar mais de 10 horas totais por dia.\n\nHoras totais já registadas no dia ${dia} (todas as obras): ${formatarHorasMinutos(totalHorasDia)}\n\nPara mais horas, marque como "Hora Extra".`
-      );
-      return;
+      if (horasNaObraDia + minutos > 8 * 60) {
+        Alert.alert(
+          "Limite de Horas Excedido",
+          `Não é possível registar mais de 8 horas normais por dia nesta obra para ${col.nome}.\n\nJá registadas nesta obra: ${formatarHorasMinutos(horasNaObraDia)}\n\nPara mais horas, marque como "Hora Extra".`
+        );
+        return; // Interrompe o loop se exceder o limite
+      }
+
+      // Validar 10h totais por dia (todas as obras)
+      const totalHorasDia = linhasPessoalEquip
+        .filter(l => l.dia === dia && l.colaboradorId === colId) // Verifica para o colaborador atual
+        .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+
+      if (totalHorasDia + minutos > 10 * 60) {
+        Alert.alert(
+          "Limite de Horas Diário Excedido",
+          `Não é possível registar mais de 10 horas totais por dia para ${col.nome}.\n\nHoras totais já registadas no dia ${dia} (todas as obras): ${formatarHorasMinutos(totalHorasDia)}\n\nPara mais horas, marque como "Hora Extra".`
+        );
+        return; // Interrompe o loop se exceder o limite
+      }
     }
-  }
 
-  const lista = categoria === "Equipamentos" ? equipamentosList : especialidadesList;
-  const sel   = lista.find(x => x.codigo === especialidadeCodigo);
+    const lista = categoria === "Equipamentos" ? equipamentosList : especialidadesList;
+    const sel   = lista.find(x => x.codigo === especialidadeCodigo);
 
-  const novaLinha = {
-    key: `${obraId}-${dia}-${colaboradorId}-${Date.now()}`,
-    obraId: Number(obraId),
-    dia: Number(dia),
-    colaboradorId: Number(colaboradorId),
-    colaboradorNome: col.nome,
-    codFuncionario: String(col.codFuncionario),
-    horas,            // string original (ex.: "2:30")
-    horasMin: minutos,
-    horaExtra: !!linhaPessoalEquipAtual.horaExtra,
-    categoria,
-    especialidadeCodigo,
-    especialidadeDesc: sel?.descricao ?? "",
-    subEmpId: sel?.subEmpId ?? null,
-    classeId: categoria === "Equipamentos" ? -1 : (classeId || null),
-    observacoes: observacoes || "",
-  };
+    const novaLinha = {
+      key: `${obraId}-${dia}-${colId}-${Date.now()}`, // Chave única para cada linha/colaborador
+      obraId: Number(obraId),
+      dia: Number(dia),
+      colaboradorId: Number(colId), // Guarda o ID do colaborador individual
+      colaboradorNome: col.nome,
+      codFuncionario: String(col.codFuncionario),
+      horas,            // string original (ex.: "2:30")
+      horasMin: minutos,
+      horaExtra: !!linhaPessoalEquipAtual.horaExtra,
+      categoria,
+      especialidadeCodigo,
+      especialidadeDesc: sel?.descricao ?? "",
+      subEmpId: sel?.subEmpId ?? null,
+      classeId: categoria === "Equipamentos" ? -1 : (classeId || null),
+      observacoes: observacoes || "",
+    };
 
-  setLinhasPessoalEquip(prev => [...prev, novaLinha]);
+    setLinhasPessoalEquip(prev => [...prev, novaLinha]);
 
-  // ✅ ATUALIZAR A GRADE PRINCIPAL
-  setDadosProcessados(prev => {
-    const itemKey = `${colaboradorId}-${obraId}`;
-    const itemExistente = prev.find(it =>
-      it.userId === Number(colaboradorId) && it.obraId === Number(obraId)
-    );
+    // ✅ ATUALIZAR A GRADE PRINCIPAL
+    setDadosProcessados(prev => {
+      const itemKey = `${colId}-${obraId}`; // Chave para agrupar por colaborador e obra
+      const itemExistente = prev.find(it =>
+        it.userId === Number(colId) && it.obraId === Number(obraId)
+      );
 
-    if (itemExistente) {
-      // Atualizar item existente
-      return prev.map(it => {
-        if (it.userId === Number(colaboradorId) && it.obraId === Number(obraId)) {
-          const horasAtuais = it.horasPorDia[dia] || 0;
-          const novasEspecialidades = [...(it.especialidades || [])];
+      if (itemExistente) {
+        // Atualizar item existente
+        return prev.map(it => {
+          if (it.userId === Number(colId) && it.obraId === Number(obraId)) {
+            const horasAtuais = it.horasPorDia[dia] || 0;
+            const novasEspecialidades = [...(it.especialidades || [])];
 
-          novasEspecialidades.push({
+            novasEspecialidades.push({
+              dia: Number(dia),
+              especialidade: especialidadeCodigo,
+              categoria,
+              horas: minutos / 60,
+              subEmpId,
+              horaExtra: !!linhaPessoalEquipAtual.horaExtra,
+              classeId,
+              observacoes: observacoes || "",
+              obraId: Number(obraId)
+            });
+
+            return {
+              ...it,
+              horasPorDia: {
+                ...it.horasPorDia,
+                [dia]: horasAtuais + minutos
+              },
+              especialidades: novasEspecialidades
+            };
+          }
+          return it;
+        });
+      } else {
+        // Criar novo item
+        const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(obraId)) || {
+          nome: `Obra ${obraId}`,
+          codigo: `OBR${String(obraId).padStart(3, "0")}`
+        };
+
+        const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+        baseHoras[dia] = minutos;
+
+        return [...prev, {
+          id: itemKey,
+          userId: Number(colId),
+          userName: col.nome,
+          codFuncionario: String(col.codFuncionario),
+          obraId: Number(obraId),
+          obraNome: obraMeta.nome,
+          obraCodigo: obraMeta.codigo,
+          horasPorDia: baseHoras,
+          horasOriginais: {},
+          especialidades: [{
             dia: Number(dia),
             especialidade: especialidadeCodigo,
             categoria,
@@ -411,66 +461,25 @@ const adicionarLinhaPessoalEquip = async () => {
             classeId,
             observacoes: observacoes || "",
             obraId: Number(obraId)
-          });
+          }],
+          isOriginal: false
+        }];
+      }
+    });
 
-          return {
-            ...it,
-            horasPorDia: {
-              ...it.horasPorDia,
-              [dia]: horasAtuais + minutos
-            },
-            especialidades: novasEspecialidades
-          };
-        }
-        return it;
-      });
-    } else {
-      // Criar novo item
-      const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(obraId)) || {
-        nome: `Obra ${obraId}`,
-        codigo: `OBR${String(obraId).padStart(3, "0")}`
-      };
+    // Marcar dia como editado manualmente
+    setDiasEditadosManualmente(prev => {
+      const s = new Set(prev);
+      s.add(`${colId}-${obraId}-${dia}`);
+      return s;
+    });
+  } // Fim do loop sobre colaboradores
 
-      const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
-      baseHoras[dia] = minutos;
-
-      return [...prev, {
-        id: itemKey,
-        userId: Number(colaboradorId),
-        userName: col.nome,
-        codFuncionario: String(col.codFuncionario),
-        obraId: Number(obraId),
-        obraNome: obraMeta.nome,
-        obraCodigo: obraMeta.codigo,
-        horasPorDia: baseHoras,
-        horasOriginais: {},
-        especialidades: [{
-          dia: Number(dia),
-          especialidade: especialidadeCodigo,
-          categoria,
-          horas: minutos / 60,
-          subEmpId,
-          horaExtra: !!linhaPessoalEquipAtual.horaExtra,
-          classeId,
-          observacoes: observacoes || "",
-          obraId: Number(obraId)
-        }],
-        isOriginal: false
-      }];
-    }
-  });
-
-  // Marcar dia como editado manualmente
-  setDiasEditadosManualmente(prev => {
-    const s = new Set(prev);
-    s.add(`${colaboradorId}-${obraId}-${dia}`);
-    return s;
-  });
-
-  // reset campos variáveis
+  // Reset campos variáveis após processar todos os colaboradores
     setLinhaPessoalEquipAtual(p => ({
       ...p,
-      colaboradorId: "",
+      colaboradorId: "", // Limpa o campo de colaborador simples
+      colaboradoresIds: [], // Limpa a seleção múltipla
       horas: "",
       horaExtra: false,
       especialidadeCodigo: "",
@@ -574,10 +583,11 @@ const submeterPessoalEquip = async () => {
     // Fechar modal e limpar dados
     setModalPessoalEquipVisible(false);
     setLinhasPessoalEquip([]);
-    setLinhaPessoalEquipAtual({
+    setLinhaPessoalEquipAtual({ // Resetar para estado inicial com seleção múltipla
       obraId: "",
       dia: "",
-      colaboradorId: "",
+      colaboradorId: "", // Campo simples para caso de um colaborador
+      colaboradoresIds: [], // Array para seleção múltipla
       horas: "",
       horaExtra: false,
       categoria: "MaoObra",
@@ -4389,7 +4399,7 @@ for (const l of linhasParaSubmeter) {
                                                         .filter(l => String(l.trabalhadorId) === String(trabalhadorId) &&
                                                                    l.dia === dia &&
                                                                    !l.horaExtra)
-                                                        .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+                                                        .reduce((total, l) => total + parseHorasToMinutos(l.horas), 0);
 
                                                     if (outras + minutos > 10*60) {
                                                         Alert.alert("Limite de Horas Excedido",
@@ -4588,16 +4598,23 @@ for (const l of linhasParaSubmeter) {
           </Text>
         </LinearGradient>
 
-        <ScrollView style={styles.externosModalBody} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+        <ScrollView 
+          style={styles.externosModalBody} 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={{ paddingBottom: 30 }}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.externosFormCard}>
             <Text style={styles.externosFormTitle}>
               <Ionicons name="document-text" size={16} color="#1792FE" /> Novo Registo
             </Text>
 
             {/* Obra & Dia */}
-            <View style={styles.externosFormGrid}>
-              <View style={styles.externosInputGroup}>
-                <Text style={styles.externosInputLabel}><Ionicons name="business" size={14} color="#666" /> Obra *</Text>
+            <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.externosInputLabel}>
+                  <Ionicons name="business" size={14} color="#666" /> Obra *
+                </Text>
                 <View style={[
                   styles.externosPickerWrapper,
                   camposInvalidosPessoal.has('obraId') && { borderColor: '#dc3545', borderWidth: 2 }
@@ -4616,15 +4633,16 @@ for (const l of linhasParaSubmeter) {
                   >
                     <Picker.Item label="— Selecionar obra —" value="" />
                     {obrasParaPickers.map(o => (
-
                       <Picker.Item key={o.id} label={`${o.codigo ? `${o.codigo} — ` : ""}${o.nome}`} value={o.id} />
                     ))}
                   </Picker>
                 </View>
               </View>
 
-              <View style={styles.externosInputGroup}>
-                <Text style={styles.externosInputLabel}><Ionicons name="calendar" size={14} color="#666" /> Dia *</Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.externosInputLabel}>
+                  <Ionicons name="calendar" size={14} color="#666" /> Dia *
+                </Text>
                 <View style={[
                   styles.externosPickerWrapper,
                   camposInvalidosPessoal.has('dia') && { borderColor: '#dc3545', borderWidth: 2 }
@@ -4648,40 +4666,11 @@ for (const l of linhasParaSubmeter) {
               </View>
             </View>
 
-            {/* Colaborador interno */}
-            <View style={styles.externosInputGroup}>
-              <Text style={styles.externosInputLabel}><Ionicons name="person" size={14} color="#666" /> Colaborador *</Text>
-              <View style={[
-                styles.externosPickerWrapper,
-                camposInvalidosPessoal.has('colaboradorId') && { borderColor: '#dc3545', borderWidth: 2 }
-              ]}>
-                <Picker
-                  selectedValue={linhaPessoalEquipAtual.colaboradorId}
-                  onValueChange={(v) => {
-                    setLinhaPessoalEquipAtual(p => ({...p, colaboradorId: v}));
-                    setCamposInvalidosPessoal(prev => {
-                      const novo = new Set(prev);
-                      novo.delete('colaboradorId');
-                      return novo;
-                    });
-                  }}
-                  style={styles.externosPicker}
-                >
-                  <Picker.Item label="— Selecionar colaborador —" value="" />
-                  {colaboradoresDisponiveis.map(c => (
-                    <Picker.Item
-                      key={c.id}
-                      label={`${c.nome}${c.codFuncionario ? ` [${String(c.codFuncionario).padStart(3,"0")}]` : ""}`}
-                      value={c.id}
-                    />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-
             {/* Categoria */}
-            <View style={styles.externosInputGroup}>
-              <Text style={styles.externosInputLabel}><Ionicons name="layers" size={14} color="#666" /> Categoria *</Text>
+            <View style={{ marginBottom: 20 }}>
+              <Text style={styles.externosInputLabel}>
+                <Ionicons name="layers" size={14} color="#666" /> Categoria *
+              </Text>
               <View style={styles.externosCategoryButtons}>
                 {[{label:"Mão de Obra", value:"MaoObra", icon:"people"},
                   {label:"Equipamentos", value:"Equipamentos", icon:"construct"}].map(opt => (
@@ -4720,8 +4709,155 @@ for (const l of linhasParaSubmeter) {
               </View>
             </View>
 
+            {/* Colaborador interno - Seleção Múltipla */}
+            {linhaPessoalEquipAtual.categoria !== "Equipamentos" && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={styles.externosInputLabel}>
+                  <Ionicons name="people" size={14} color="#666" /> Colaborador(es) *
+                  {linhaPessoalEquipAtual.colaboradoresIds && linhaPessoalEquipAtual.colaboradoresIds.length > 0 && (
+                    <Text style={{ color: '#1792FE', fontWeight: 'bold' }}>
+                      {' '}({linhaPessoalEquipAtual.colaboradoresIds.length} selecionado{linhaPessoalEquipAtual.colaboradoresIds.length !== 1 ? 's' : ''})
+                    </Text>
+                  )}
+                </Text>
+                <View style={[
+                  {
+                    backgroundColor: '#fff',
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#dee2e6',
+                    maxHeight: 200,
+                    overflow: 'hidden',
+                    elevation: 1,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 2,
+                  },
+                  camposInvalidosPessoal.has('colaboradorId') && { borderColor: '#dc3545', borderWidth: 2 }
+                ]}>
+                  <ScrollView 
+                    style={{ maxHeight: 200 }} 
+                    nestedScrollEnabled={true}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    {colaboradoresDisponiveis.map((c, index) => {
+                      const isSelected = linhaPessoalEquipAtual.colaboradoresIds?.includes(String(c.id));
+                      return (
+                        <TouchableOpacity
+                          key={c.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingVertical: 10,
+                            paddingHorizontal: 12,
+                            borderBottomWidth: index < colaboradoresDisponiveis.length - 1 ? 1 : 0,
+                            borderBottomColor: '#f0f0f0',
+                            backgroundColor: isSelected ? '#e7f3ff' : '#fff',
+                          }}
+                          onPress={() => {
+                            const colabId = String(c.id);
+                            const currentIds = linhaPessoalEquipAtual.colaboradoresIds || [];
+                            
+                            let newIds;
+                            if (currentIds.includes(colabId)) {
+                              newIds = currentIds.filter(id => id !== colabId);
+                            } else {
+                              newIds = [...currentIds, colabId];
+                            }
+                            
+                            setLinhaPessoalEquipAtual(p => ({
+                              ...p,
+                              colaboradoresIds: newIds,
+                            }));
+                            
+                            setCamposInvalidosPessoal(prev => {
+                              const novo = new Set(prev);
+                              novo.delete('colaboradorId');
+                              return novo;
+                            });
+                          }}
+                        >
+                          <Ionicons
+                            name={isSelected ? "checkbox" : "square-outline"}
+                            size={22}
+                            color={isSelected ? "#1792FE" : "#999"}
+                            style={{ marginRight: 10 }}
+                          />
+                          <Text style={{
+                            fontSize: 13,
+                            color: isSelected ? '#1792FE' : '#333',
+                            fontWeight: isSelected ? '600' : '400',
+                            flex: 1,
+                          }}>
+                            {c.nome}
+                            {c.codFuncionario && (
+                              <Text style={{ color: '#666', fontSize: 11, fontWeight: '400' }}>
+                                {' '}[{String(c.codFuncionario).padStart(3, "0")}]
+                              </Text>
+                            )}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+                
+                {/* Tags de colaboradores selecionados */}
+                {linhaPessoalEquipAtual.colaboradoresIds && linhaPessoalEquipAtual.colaboradoresIds.length > 0 && (
+                  <View style={{ 
+                    marginTop: 8, 
+                    padding: 12, 
+                    backgroundColor: '#f8f9fa', 
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#e0e0e0',
+                  }}>
+                    <Text style={{ fontSize: 12, color: '#666', marginBottom: 8, fontWeight: '600' }}>
+                      Selecionados:
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {linhaPessoalEquipAtual.colaboradoresIds.map(colabId => {
+                        const colab = colaboradoresDisponiveis.find(c => String(c.id) === colabId);
+                        if (!colab) return null;
+                        return (
+                          <View 
+                            key={colabId}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: '#1792FE',
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              borderRadius: 16,
+                              elevation: 1,
+                            }}
+                          >
+                            <Text style={{ color: '#fff', fontSize: 11, marginRight: 6, fontWeight: '600' }}>
+                              {colab.nome}
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setLinhaPessoalEquipAtual(p => ({
+                                  ...p,
+                                  colaboradoresIds: p.colaboradoresIds.filter(id => id !== colabId),
+                                }));
+                              }}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                              <Ionicons name="close-circle" size={16} color="#fff" />
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Especialidade / Equipamento */}
-            <View style={styles.externosInputGroup}>
+            <View style={{ marginBottom: 20 }}>
               <Text style={styles.externosInputLabel}>
                 <Ionicons name={linhaPessoalEquipAtual.categoria === "Equipamentos" ? "construct" : "hammer"} size={14} color="#666" />{" "}
                 {linhaPessoalEquipAtual.categoria === "Equipamentos" ? "Equipamento" : "Especialidade"} *
@@ -4736,7 +4872,6 @@ for (const l of linhasParaSubmeter) {
                     const lista = linhaPessoalEquipAtual.categoria === "Equipamentos" ? equipamentosList : especialidadesList;
                     const sel = lista.find(x => x.codigo === cod);
 
-                    // ✅ SEMPRE null para Mão de Obra, -1 para Equipamentos
                     const novaClasse = linhaPessoalEquipAtual.categoria === "Equipamentos" ? -1 : null;
 
                     setLinhaPessoalEquipAtual(p => ({
@@ -4762,8 +4897,10 @@ for (const l of linhasParaSubmeter) {
             </View>
 
             {/* Classe */}
-            <View style={styles.externosInputGroup}>
-              <Text style={styles.externosInputLabel}><Ionicons name="library" size={14} color="#666" /> Classe *</Text>
+            <View style={{ marginBottom: 20 }}>
+              <Text style={styles.externosInputLabel}>
+                <Ionicons name="library" size={14} color="#666" /> Classe *
+              </Text>
               <View style={[
                 styles.externosPickerWrapper,
                 camposInvalidosPessoal.has('classeId') && { borderColor: '#dc3545', borderWidth: 2 }
@@ -4789,8 +4926,8 @@ for (const l of linhasParaSubmeter) {
             </View>
 
             {/* Horas + Extra */}
-            <View style={styles.externosFormGrid}>
-              <View style={[styles.externosInputGroup, { flex: 2 }]}>
+            <View style={{ marginBottom: 20 }}>
+              <View style={{ marginBottom: 16 }}>
                 <Text style={styles.externosInputLabel}>
                   <Ionicons name="time" size={14} color="#666" /> {getUnidadeLabel(linhaPessoalEquipAtual.especialidadeCodigo, linhaPessoalEquipAtual.categoria)} *
                 </Text>
@@ -4806,9 +4943,11 @@ for (const l of linhasParaSubmeter) {
                       novo.delete('horas');
                       return novo;
                     });
-                    const { colaboradorId, dia, obraId } = linhaPessoalEquipAtual;
-                    if (!colaboradorId || !dia || !obraId) {
-                      Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador.");
+                    const { colaboradorId, colaboradoresIds, dia, obraId } = linhaPessoalEquipAtual;
+                    const selectedColId = colaboradoresIds && colaboradoresIds.length > 0 ? colaboradoresIds[0] : (colaboradorId ? [colaboradorId] : []);
+
+                    if (selectedColId.length === 0 || !dia || !obraId) {
+                      Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador(es).");
                       return;
                     }
                     const minutos = parseHorasToMinutos(v);
@@ -4817,12 +4956,15 @@ for (const l of linhasParaSubmeter) {
                       return;
                     }
                     if (!linhaPessoalEquipAtual.horaExtra) {
-                      const outras = linhasPessoalEquip
-                        .filter(l => l.dia === dia && l.colaboradorId === colaboradorId && !l.horaExtra)
+                      const totalHorasDia = linhasPessoalEquip
+                        .filter(l => l.dia === dia &&
+                                   l.colaboradorId === selectedColId[0] &&
+                                   !l.horaExtra)
                         .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
-                      if (outras + minutos > 8*60 && v !== "") {
+
+                      if (totalHorasDia + minutos > 10 * 60 && v !== "") {
                         Alert.alert("Limite de Horas Excedido",
-                          `Não é possível registar mais de 8 horas normais por dia.\n\nJá registadas: ${formatarHorasMinutos(outras)}\n\nPara mais horas, marque como "Hora Extra".`
+                          `Não é possível registar mais de 10 horas normais por dia para ${colaboradoresDisponiveis.find(c => String(c.id) === selectedColId[0])?.nome || 'este colaborador'}.\n\nJá registadas: ${formatarHorasMinutos(totalHorasDia)}\n\nPara mais horas, marque como "Hora Extra".`
                         );
                         return;
                       }
@@ -4842,8 +4984,10 @@ for (const l of linhasParaSubmeter) {
                 />
               </View>
 
-              <View style={[styles.externosInputGroup, { flex: 1 }]}>
-                <Text style={styles.externosInputLabel}><Ionicons name="flash" size={14} color="#666" /> Extra</Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.externosInputLabel}>
+                  <Ionicons name="flash" size={14} color="#666" /> Hora Extra
+                </Text>
                 <TouchableOpacity
                   style={[styles.externosCheckboxContainer, linhaPessoalEquipAtual.horaExtra && styles.externosCheckboxContainerActive]}
                   onPress={() => setLinhaPessoalEquipAtual(p => ({...p, horaExtra: !p.horaExtra}))}
@@ -4855,13 +4999,14 @@ for (const l of linhasParaSubmeter) {
             </View>
 
             {/* Observações */}
-            <View style={styles.externosInputGroup}>
+            <View style={{ marginBottom: 20 }}>
               <Text style={styles.externosInputLabel}>
                 <Ionicons name="chatbubble-ellipses" size={14} color="#666" /> Observações{linhaPessoalEquipAtual.classeId === -1 ? ' *' : ''}
               </Text>
               <TextInput
                 style={[
                   styles.externosTextInput,
+                  { minHeight: 80 },
                   camposInvalidosPessoal.has('observacoes') && { borderColor: '#dc3545', borderWidth: 2 }
                 ]}
                 value={linhaPessoalEquipAtual.observacoes}
@@ -4875,7 +5020,7 @@ for (const l of linhasParaSubmeter) {
                 }}
                 placeholder={linhaPessoalEquipAtual.classeId === -1 ? "Obrigatório para classe Indiferenciada" : "Notas adicionais"}
                 multiline
-                numberOfLines={2}
+                numberOfLines={3}
                 textAlignVertical="top"
               />
             </View>
@@ -5107,7 +5252,10 @@ for (const l of linhasParaSubmeter) {
                                                                     })()}
                                                                     {submetido && (
                                                                         <Ionicons
-
+                                                                            name="checkmark-circle"
+                                                                            size={12}
+                                                                            color="#28a745"
+                                                                            style={styles.cellCheckmark}
                                                                         />
                                                                     )}
                                                                 </TouchableOpacity>
@@ -5396,7 +5544,10 @@ for (const l of linhasParaSubmeter) {
                                                                 })()}
                                                                 {submetido && (
                                                                     <Ionicons
-
+                                                                        name="checkmark-circle"
+                                                                        size={12}
+                                                                        color="#28a745"
+                                                                        style={styles.cellCheckmark}
                                                                     />
                                                                 )}
                                                             </TouchableOpacity>
