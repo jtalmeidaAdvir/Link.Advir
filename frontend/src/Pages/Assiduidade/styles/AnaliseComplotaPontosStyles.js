@@ -257,6 +257,12 @@ export const styles = StyleSheet.create({
         fontSize: 9,
         color: "#666",
     },
+    totalSubTextExtra: {
+        fontSize: 8,
+        color: "#28a745",
+        fontWeight: "bold",
+        marginTop: 2,
+    },
     cellEmpty: {
         backgroundColor: "#f8f9fa",
     },
