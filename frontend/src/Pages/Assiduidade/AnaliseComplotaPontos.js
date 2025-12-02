@@ -76,11 +76,14 @@ const AnaliseComplotaPontos = () => {
             const set = new Set();
 
             lista.forEach(item => {
-                if (item.Data) {
-                    const d = new Date(item.Data);
+                // A API retorna com a chave "Feriado", não "Data"
+                const dataFeriado = item.Feriado || item.Data;
+                if (dataFeriado) {
+                    const d = new Date(dataFeriado);
                     if (!isNaN(d.getTime())) {
                         const iso = fmtLocal(d);
                         set.add(iso);
+                        console.log(`   📅 Feriado adicionado: ${iso} (${item.Ano || d.getFullYear()})`);
                     }
                 }
             });
@@ -134,12 +137,22 @@ const AnaliseComplotaPontos = () => {
 
             const data = await res.json();
             console.log(`✅ [FERIADOS] Dados recebidos:`, data?.DataSet?.Table?.length || 0, 'registos');
+            console.log(`📦 [FERIADOS] Payload completo:`, JSON.stringify(data?.DataSet?.Table?.slice(0, 3), null, 2));
             
             const listaISO = normalizarFeriados(data);
             console.log(`✅ [FERIADOS] Total de feriados carregados: ${listaISO.size}`);
             
             if (listaISO.size > 0) {
-                console.log(`📋 [FERIADOS] Lista de feriados:`, Array.from(listaISO).sort());
+                const feriadosArray = Array.from(listaISO).sort();
+                console.log(`📋 [FERIADOS] Lista completa de feriados:`, feriadosArray);
+                console.log(`📋 [FERIADOS] Feriados de ${mesSelecionado}/${anoSelecionado}:`, 
+                    feriadosArray.filter(f => {
+                        const [ano, mes] = f.split('-').map(Number);
+                        return ano === anoSelecionado && mes === mesSelecionado;
+                    })
+                );
+            } else {
+                console.warn(`⚠️ [FERIADOS] NENHUM feriado foi carregado!`);
             }
             
             // ✅ IMPORTANTE: Atualizar state E ref
@@ -165,14 +178,14 @@ const AnaliseComplotaPontos = () => {
         }
     };
 
-    // ✅ CORRIGIDO: Carregar faltas com retorno garantido
-    const carregarFaltas = async (utilizadoresParam = null) => {
+    // ✅ CORRIGIDO: Carregar faltas com GARANTIA de carregamento completo de TODOS os utilizadores
+    const carregarFaltas = async (utilizadoresParam = null, tentativaGlobal = 1, maxTentativasGlobais = 3) => {
         try {
             const painelAdminToken = secureStorage.getItem("painelAdminToken");
             const urlempresa = secureStorage.getItem("urlempresa");
             const loginToken = secureStorage.getItem("loginToken");
 
-            console.log("🔍 [FALTAS] Iniciando carregamento de faltas...");
+            console.log(`\n🔍 [FALTAS] Iniciando carregamento (tentativa global ${tentativaGlobal}/${maxTentativasGlobais})...`);
 
             if (!painelAdminToken || !urlempresa || !loginToken) {
                 console.warn("❌ [FALTAS] Tokens não encontrados");
@@ -183,7 +196,7 @@ const AnaliseComplotaPontos = () => {
 
             const utilizadoresParaProcessar = utilizadoresParam || utilizadores;
 
-            console.log("🔍 [FALTAS] Utilizadores a processar:", utilizadoresParaProcessar.length);
+            console.log(`📊 [FALTAS] Total de utilizadores: ${utilizadoresParaProcessar.length}`);
 
             if (utilizadoresParaProcessar.length === 0) {
                 console.warn("⚠️ [FALTAS] Nenhum utilizador disponível");
@@ -192,8 +205,12 @@ const AnaliseComplotaPontos = () => {
                 return [];
             }
 
-            const promises = utilizadoresParaProcessar.map(async (user) => {
+            // ✅ Função para carregar faltas de UM utilizador com retry individual
+            const carregarFaltasUtilizador = async (user, tentativa = 1, maxTentativas = 3) => {
                 try {
+                    console.log(`   🔄 [${user.nome}] Carregando faltas (tentativa ${tentativa}/${maxTentativas})...`);
+
+                    // Passo 1: Obter codFuncionario
                     const resCodFuncionario = await fetch(
                         `https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`,
                         {
@@ -206,16 +223,22 @@ const AnaliseComplotaPontos = () => {
                     );
 
                     if (!resCodFuncionario.ok) {
-                        return [];
+                        throw new Error(`Falha ao obter codFuncionario: ${resCodFuncionario.status}`);
                     }
 
                     const dataCodFuncionario = await resCodFuncionario.json();
                     const codFuncionario = dataCodFuncionario.codFuncionario;
 
                     if (!codFuncionario) {
-                        return [];
+                        console.log(`   ℹ️ [${user.nome}] Sem codFuncionario - retornando array vazio`);
+                        return {
+                            success: true,
+                            user: user.nome,
+                            faltas: []
+                        };
                     }
 
+                    // Passo 2: Buscar faltas na API Primavera
                     const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
 
                     const res = await fetch(urlFaltas, {
@@ -226,44 +249,104 @@ const AnaliseComplotaPontos = () => {
                         },
                     });
 
-                    if (res.ok) {
-                        const data = await res.json();
-                        const faltasUsuario = data?.DataSet?.Table || [];
-
-                        if (faltasUsuario.length > 0) {
-                            const faltasComUserId = faltasUsuario.map((falta) => ({
-                                ...falta,
-                                userId: user.id,
-                                nomeUsuario: user.nome,
-                                codFuncionarioUsado: codFuncionario,
-                            }));
-
-                            return faltasComUserId;
-                        }
+                    if (!res.ok) {
+                        throw new Error(`API retornou ${res.status}`);
                     }
 
-                    return [];
-                } catch (error) {
-                    console.error(`❌ [FALTAS] Erro ao carregar faltas para ${user.nome}:`, error);
-                    return [];
-                }
-            });
+                    const data = await res.json();
+                    const faltasUsuario = data?.DataSet?.Table || [];
 
-            const resultados = await Promise.all(promises);
-            const faltasTotal = resultados.flat();
+                    const faltasComUserId = faltasUsuario.map((falta) => ({
+                        ...falta,
+                        userId: user.id,
+                        nomeUsuario: user.nome,
+                        codFuncionarioUsado: codFuncionario,
+                    }));
+
+                    console.log(`   ✅ [${user.nome}] ${faltasComUserId.length} faltas carregadas com sucesso`);
+
+                    return {
+                        success: true,
+                        user: user.nome,
+                        faltas: faltasComUserId
+                    };
+
+                } catch (error) {
+                    console.error(`   ❌ [${user.nome}] Erro (tentativa ${tentativa}): ${error.message}`);
+
+                    // Retry se ainda houver tentativas
+                    if (tentativa < maxTentativas) {
+                        console.log(`   ⏳ [${user.nome}] Aguardando 2s antes de tentar novamente...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        return carregarFaltasUtilizador(user, tentativa + 1, maxTentativas);
+                    }
+
+                    // Se esgotaram as tentativas, retornar falha
+                    return {
+                        success: false,
+                        user: user.nome,
+                        faltas: [],
+                        error: error.message
+                    };
+                }
+            };
+
+            // ✅ Carregar faltas de TODOS os utilizadores
+            console.log(`\n🚀 [FALTAS] Iniciando carregamento paralelo de ${utilizadoresParaProcessar.length} utilizadores...`);
             
-            console.log("✅ [FALTAS] Total de faltas carregadas:", faltasTotal.length);
+            const resultados = await Promise.all(
+                utilizadoresParaProcessar.map(user => carregarFaltasUtilizador(user))
+            );
+
+            // ✅ VALIDAÇÃO CRÍTICA: Verificar se TODOS foram bem-sucedidos
+            const falhados = resultados.filter(r => !r.success);
+            
+            if (falhados.length > 0) {
+                console.error(`\n❌ [FALTAS] FALHA: ${falhados.length} utilizadores não foram carregados com sucesso:`);
+                falhados.forEach(f => {
+                    console.error(`   ❌ ${f.user}: ${f.error}`);
+                });
+
+                // Se ainda houver tentativas globais, tentar novamente TUDO
+                if (tentativaGlobal < maxTentativasGlobais) {
+                    console.log(`\n⏳ [FALTAS] Aguardando 3s antes de tentar carregar TUDO novamente...`);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    return carregarFaltas(utilizadoresParam, tentativaGlobal + 1, maxTentativasGlobais);
+                }
+
+                // Se esgotaram as tentativas, lançar erro
+                throw new Error(`Falha ao carregar faltas de ${falhados.length} utilizadores após ${maxTentativasGlobais} tentativas globais`);
+            }
+
+            // ✅ SUCESSO: Todos os utilizadores foram carregados
+            const faltasTotal = resultados.flatMap(r => r.faltas);
+            
+            console.log(`\n✅ [FALTAS] SUCESSO COMPLETO!`);
+            console.log(`   📊 Total de utilizadores processados: ${resultados.length}`);
+            console.log(`   📋 Total de faltas carregadas: ${faltasTotal.length}`);
+            
+            // Mostrar resumo por utilizador
+            const comFaltas = resultados.filter(r => r.faltas.length > 0);
+            if (comFaltas.length > 0) {
+                console.log(`   👥 Utilizadores com faltas (${comFaltas.length}):`);
+                comFaltas.forEach(r => {
+                    console.log(`      • ${r.user}: ${r.faltas.length} faltas`);
+                });
+            } else {
+                console.log(`   ℹ️ Nenhum utilizador tem faltas registadas`);
+            }
             
             // ✅ IMPORTANTE: Atualizar state E ref
             setFaltas(faltasTotal);
             faltasRef.current = faltasTotal;
             
             return faltasTotal;
+
         } catch (error) {
-            console.error("❌ [FALTAS] Erro ao carregar faltas:", error);
+            console.error(`\n❌ [FALTAS] ERRO CRÍTICO no carregamento:`, error.message);
             setFaltas([]);
             faltasRef.current = [];
-            return [];
+            throw error; // Propagar erro para tratamento superior
         }
     };
 
@@ -274,18 +357,23 @@ const AnaliseComplotaPontos = () => {
         carregarDadosIniciais();
     }, []);
 
-    // ✅ CORRIGIDO: Recarregar ao mudar filtros
+    // ✅ CORRIGIDO: Recarregar ao mudar filtros com debounce
     useEffect(() => {
         if (dadosCarregados.inicial && utilizadores.length > 0) {
             console.log(`🔄 [CHANGE] Detectada mudança de período ou obra`);
             console.log(`📋 [CHANGE] Novo período: ${mesSelecionado}/${anoSelecionado}`);
             console.log(`📋 [CHANGE] Obra: ${obraSelecionada || 'Todas'}`);
             
-            recarregarDadosPeriodo();
+            // Pequeno debounce para evitar múltiplos recarregamentos
+            const timer = setTimeout(() => {
+                recarregarDadosPeriodo();
+            }, 300);
+            
+            return () => clearTimeout(timer);
         }
     }, [obraSelecionada, mesSelecionado, anoSelecionado]);
 
-    // ✅ NOVO: Função principal de recarregamento com ordem garantida
+    // ✅ CORRIGIDO: Função principal de recarregamento com validação rigorosa
     const recarregarDadosPeriodo = async () => {
         console.log(`\n${"=".repeat(60)}`);
         console.log(`🔄 [RELOAD] INICIANDO RECARREGAMENTO COMPLETO FORÇADO`);
@@ -295,40 +383,62 @@ const AnaliseComplotaPontos = () => {
 
         setLoading(true);
 
-        // ✅ LIMPEZA FORÇADA: Limpar TODOS os dados anteriores antes de recarregar
-        console.log(`🧹 [CLEANUP] Limpando dados anteriores...`);
+        // ✅ LIMPEZA FORÇADA TOTAL
+        console.log(`🧹 [CLEANUP] Limpando TODOS os dados anteriores...`);
         setDadosGrade([]);
         setFeriados(new Set());
         feriadosRef.current = new Set();
         setFaltas([]);
         faltasRef.current = [];
-        console.log(`✅ [CLEANUP] Dados anteriores limpos`);
+        console.log(`✅ [CLEANUP] Dados anteriores completamente limpos`);
 
         try {
-            // ✅ PASSO 1: Carregar FERIADOS (OBRIGATÓRIO - SEMPRE)
-            console.log(`\n📌 PASSO 1/3: Carregando FERIADOS (recarregamento forçado)...`);
+            // ✅ PASSO 1: FERIADOS - COM VALIDAÇÃO RIGOROSA
+            console.log(`\n📌 PASSO 1/3: Carregando FERIADOS...`);
             const feriadosCarregados = await carregarFeriados();
-            console.log(`✅ PASSO 1/3 CONCLUÍDO: ${feriadosCarregados.size} feriados carregados`);
-
+            
             // Validação obrigatória
-            if (!feriadosCarregados) {
-                throw new Error("Feriados não foram carregados corretamente");
+            if (!feriadosCarregados || !(feriadosCarregados instanceof Set)) {
+                throw new Error("❌ CRÍTICO: Feriados não retornaram um Set válido");
             }
-            if (feriadosCarregados.size === 0) {
-                console.warn(`⚠️ [VALIDAÇÃO] Nenhum feriado encontrado - continuando sem feriados`);
+            
+            // Aguardar sincronização do state
+            await new Promise(resolve => {
+                setFeriados(feriadosCarregados);
+                feriadosRef.current = feriadosCarregados;
+                setTimeout(resolve, 100); // Pequena pausa para garantir state update
+            });
+            
+            console.log(`✅ PASSO 1/3 CONCLUÍDO: ${feriadosCarregados.size} feriados carregados e sincronizados`);
+            console.log(`🔍 [VALIDAÇÃO] feriadosRef.current.size: ${feriadosRef.current.size}`);
+
+            // ✅ PASSO 2: FALTAS - COM VALIDAÇÃO RIGOROSA E RETRY
+            console.log(`\n📌 PASSO 2/3: Carregando FALTAS...`);
+            
+            let faltasCarregadas;
+            try {
+                faltasCarregadas = await carregarFaltas();
+            } catch (error) {
+                console.error(`❌ [RELOAD] FALHA CRÍTICA ao carregar faltas:`, error.message);
+                throw new Error(`Não foi possível carregar todas as faltas: ${error.message}`);
             }
-
-            // ✅ PASSO 2: Carregar FALTAS (OBRIGATÓRIO - SEMPRE)
-            console.log(`\n📌 PASSO 2/3: Carregando FALTAS (recarregamento forçado)...`);
-            const faltasCarregadas = await carregarFaltas();
-            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasCarregadas.length} faltas carregadas`);
-
+            
             // Validação obrigatória
-            if (!faltasCarregadas) {
-                throw new Error("Faltas não foram carregadas corretamente");
+            if (!faltasCarregadas || !Array.isArray(faltasCarregadas)) {
+                throw new Error("❌ CRÍTICO: Faltas não retornaram um array válido");
             }
+            
+            // Aguardar sincronização do state
+            await new Promise(resolve => {
+                setFaltas(faltasCarregadas);
+                faltasRef.current = faltasCarregadas;
+                setTimeout(resolve, 100); // Pequena pausa para garantir state update
+            });
+            
+            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasCarregadas.length} faltas carregadas e sincronizadas`);
+            console.log(`🔍 [VALIDAÇÃO] faltasRef.current.length: ${faltasRef.current.length}`);
 
-            // Log detalhado de faltas por utilizador
+            // Log detalhado de faltas
             if (faltasCarregadas.length > 0) {
                 const faltasPorUser = {};
                 faltasCarregadas.forEach(f => {
@@ -338,25 +448,55 @@ const AnaliseComplotaPontos = () => {
                     faltasPorUser[f.nomeUsuario]++;
                 });
                 console.log(`📊 [FALTAS] Distribuição por utilizador:`, faltasPorUser);
+            } else {
+                console.log(`ℹ️ [FALTAS] Nenhuma falta registada para o período`);
             }
 
-            // ✅ PASSO 3: Gerar GRADE com PONTOS FICTÍCIOS (OBRIGATÓRIO - SEMPRE)
-            console.log(`\n📌 PASSO 3/3: Gerando GRADE com PONTOS FICTÍCIOS (usando dados validados)...`);
-            await gerarGradeComDadosValidados(feriadosCarregados, faltasCarregadas);
+            // ✅ VALIDAÇÃO FINAL ANTES DE GERAR GRADE
+            console.log(`\n🔍 [PRÉ-GRADE] Validação final dos dados carregados:`);
+            console.log(`   - Feriados (Set): ${feriadosRef.current.size} elementos`);
+            console.log(`   - Faltas (Array): ${faltasRef.current.length} elementos`);
+            console.log(`   - Utilizadores: ${utilizadores.length} elementos`);
+
+            if (!feriadosRef.current || !faltasRef.current) {
+                throw new Error("❌ CRÍTICO: Refs não foram sincronizadas corretamente");
+            }
+
+            // ✅ ATUALIZAR FLAGS DE CARREGAMENTO
+            setDadosCarregados({
+                feriados: true,
+                faltas: true,
+                horarios: true,
+                inicial: true
+            });
+
+            // ✅ PASSO 3: GERAR GRADE - SÓ APÓS VALIDAÇÃO COMPLETA
+            console.log(`\n📌 PASSO 3/3: Gerando GRADE com dados VALIDADOS...`);
+            await gerarGradeComDadosValidados(feriadosRef.current, faltasRef.current);
             console.log(`✅ PASSO 3/3 CONCLUÍDO: Grade gerada com pontos fictícios`);
 
             console.log(`\n${"=".repeat(60)}`);
             console.log(`✅ [RELOAD] RECARREGAMENTO COMPLETO FINALIZADO COM SUCESSO`);
-            console.log(`   - Feriados: ${feriadosCarregados.size}`);
-            console.log(`   - Faltas: ${faltasCarregadas.length}`);
-            console.log(`   - Utilizadores na grade: ${dadosGrade.length || 'processando...'}`);
+            console.log(`   - Feriados: ${feriadosRef.current.size}`);
+            console.log(`   - Faltas: ${faltasRef.current.length}`);
+            console.log(`   - Grade: ${dadosGrade.length} utilizadores`);
             console.log(`${"=".repeat(60)}\n`);
 
         } catch (error) {
             console.error("❌ [RELOAD] Erro ao recarregar dados:", error);
-            Alert.alert("Erro", "Erro ao recarregar dados do período");
-            // Garantir que os dados ficam limpos em caso de erro
+            Alert.alert("Erro", `Erro ao recarregar dados: ${error.message}`);
+            // Garantir limpeza completa em caso de erro
             setDadosGrade([]);
+            setFeriados(new Set());
+            feriadosRef.current = new Set();
+            setFaltas([]);
+            faltasRef.current = [];
+            setDadosCarregados({
+                feriados: false,
+                faltas: false,
+                horarios: false,
+                inicial: false
+            });
         } finally {
             setLoading(false);
         }
@@ -391,16 +531,22 @@ const AnaliseComplotaPontos = () => {
 
         // Filtrar feriados para o mês/ano selecionado
         const feriadosDoMes = new Set();
+        console.log(`🔍 [GRADE] Filtrando feriados para ${mesSelecionado}/${anoSelecionado}...`);
+        console.log(`🔍 [GRADE] Total de feriados disponíveis: ${feriadosValidados.size}`);
+        
         feriadosValidados.forEach(feriadoISO => {
-            const [ano, mes] = feriadoISO.split('-').map(Number);
+            const [ano, mes, dia] = feriadoISO.split('-').map(Number);
             if (ano === anoSelecionado && mes === mesSelecionado) {
                 feriadosDoMes.add(feriadoISO);
+                console.log(`   ✓ Feriado encontrado para o mês: Dia ${dia}/${mes}/${ano}`);
             }
         });
         
-        console.log(`📋 [GRADE] Feriados do mês: ${feriadosDoMes.size}`);
+        console.log(`📋 [GRADE] Feriados do mês ${mesSelecionado}/${anoSelecionado}: ${feriadosDoMes.size}`);
         if (feriadosDoMes.size > 0) {
-            console.log(`📋 [GRADE] Lista:`, Array.from(feriadosDoMes));
+            console.log(`📋 [GRADE] Lista completa:`, Array.from(feriadosDoMes).sort());
+        } else {
+            console.warn(`⚠️ [GRADE] NENHUM feriado encontrado para ${mesSelecionado}/${anoSelecionado}!`);
         }
 
         const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
@@ -433,6 +579,10 @@ const AnaliseComplotaPontos = () => {
                 // ✅ Verificar se é feriado
                 const dataISO = fmtLocal(dataAtual);
                 const isFeriado = feriadosValidados.has(dataISO);
+                
+                if (isFeriado) {
+                    console.log(`   🎉 [FERIADO DETECTADO] ${user.nome} - Dia ${dia}/${mesSelecionado}/${anoSelecionado} (${dataISO})`);
+                }
 
                 // ✅ Verificar faltas do dia para este utilizador
                 const faltasDoDia = faltasDoUser.filter((falta) => {
@@ -595,11 +745,20 @@ const AnaliseComplotaPontos = () => {
             console.log(`\n${"━".repeat(60)}`);
             console.log(`📌 PASSO 2/3: Carregando FALTAS...`);
             console.log(`${"━".repeat(60)}`);
-            const faltasIniciais = await carregarFaltas(utilizadoresComHorario);
-            if (!faltasIniciais) {
-                throw new Error("Faltas não foram carregadas corretamente");
+            
+            let faltasIniciais;
+            try {
+                faltasIniciais = await carregarFaltas(utilizadoresComHorario);
+            } catch (error) {
+                console.error(`❌ [INIT] FALHA CRÍTICA ao carregar faltas:`, error.message);
+                throw new Error(`Não foi possível carregar todas as faltas no carregamento inicial: ${error.message}`);
             }
-            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasIniciais.length} faltas carregadas`);
+            
+            if (!faltasIniciais || !Array.isArray(faltasIniciais)) {
+                throw new Error("Faltas não foram carregadas corretamente - retorno inválido");
+            }
+            
+            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasIniciais.length} faltas carregadas de TODOS os ${utilizadoresComHorario.length} utilizadores`);
 
             // Marcar carregamento inicial como concluído
             setDadosCarregados({
@@ -1413,25 +1572,21 @@ const AnaliseComplotaPontos = () => {
                             <Text style={styles.gradeTitle}>
                                 Grade Mensal - {meses[mesSelecionado - 1]}{" "}
                                 {anoSelecionado} - {obraSelecionada ? obras.find(o => o.id.toString() === obraSelecionada)?.nome : "Todas as Obras"} ({dadosGrade.length}{" "}
-                                utilizadores)
+                                utilizadores) | Feriados: {feriadosRef.current.size} | Faltas: {faltasRef.current.length}
                             </Text>
                             <View style={styles.buttonGroup}>
                                 <TouchableOpacity
                                     style={styles.refreshButton}
-                                    onPress={() => {
-                                        Alert.alert(
-                                            "Atualizar Dados",
-                                            "Deseja recarregar os dados?",
-                                            [
-                                                { text: "Cancelar", style: "cancel" },
-                                                { text: "Sim, atualizar", onPress: () => recarregarDadosPeriodo() },
-                                            ],
-                                        );
+                                    onPress={async () => {
+                                        console.log(`🔄 [BTN-ATUALIZAR] Botão Atualizar pressionado`);
+                                        
+                                        // Recarregar imediatamente sem confirmação para debug
+                                        await recarregarDadosPeriodo();
                                     }}
                                     disabled={loading}
                                 >
                                     <LinearGradient
-                                        colors={["#007bff", "#0056b3"]}
+                                        colors={loading ? ["#6c757d", "#495057"] : ["#007bff", "#0056b3"]}
                                         style={styles.refreshButtonGradient}
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 0 }}
@@ -1441,7 +1596,9 @@ const AnaliseComplotaPontos = () => {
                                             size={18}
                                             color="#fff"
                                         />
-                                        <Text style={styles.refreshButtonText}>Atualizar</Text>
+                                        <Text style={styles.refreshButtonText}>
+                                            {loading ? "A carregar..." : "Atualizar"}
+                                        </Text>
                                     </LinearGradient>
                                 </TouchableOpacity>
 
