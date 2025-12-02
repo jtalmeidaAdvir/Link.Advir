@@ -242,6 +242,16 @@ export const styles = StyleSheet.create({
         color: "#333",
         lineHeight: 10,
     },
+    extraHoursIndicator: {
+        fontSize: 6,
+        textAlign: "center",
+        color: "#ff9800",
+        fontWeight: "bold",
+        marginTop: 2,
+        backgroundColor: "rgba(255, 152, 0, 0.1)",
+        borderRadius: 2,
+        paddingHorizontal: 1,
+    },
     totalCell: {
         width: 80,
         padding: 8,
