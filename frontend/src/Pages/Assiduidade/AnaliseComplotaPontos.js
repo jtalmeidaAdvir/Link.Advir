@@ -27,18 +27,23 @@ const AnaliseComplotaPontos = () => {
         new Date().getFullYear(),
     );
     const [dadosGrade, setDadosGrade] = useState([]);
-    
+
     // ✅ NOVO: Estados para faltas e feriados com refs para acesso síncrono
     const [faltas, setFaltas] = useState([]);
     const [feriados, setFeriados] = useState(new Set());
     const faltasRef = useRef([]);
     const feriadosRef = useRef(new Set());
-    
+
+    // ✅ NOVO: Estados e refs para horas extras
+    const [horasExtras, setHorasExtras] = useState([]);
+    const horasExtrasRef = useRef([]);
+
     // ✅ NOVO: Flags de carregamento
     const [dadosCarregados, setDadosCarregados] = useState({
         feriados: false,
         faltas: false,
         horarios: false,
+        horasExtras: false,
         inicial: false
     });
 
@@ -138,14 +143,14 @@ const AnaliseComplotaPontos = () => {
             const data = await res.json();
             console.log(`✅ [FERIADOS] Dados recebidos:`, data?.DataSet?.Table?.length || 0, 'registos');
             console.log(`📦 [FERIADOS] Payload completo:`, JSON.stringify(data?.DataSet?.Table?.slice(0, 3), null, 2));
-            
+
             const listaISO = normalizarFeriados(data);
             console.log(`✅ [FERIADOS] Total de feriados carregados: ${listaISO.size}`);
-            
+
             if (listaISO.size > 0) {
                 const feriadosArray = Array.from(listaISO).sort();
                 console.log(`📋 [FERIADOS] Lista completa de feriados:`, feriadosArray);
-                console.log(`📋 [FERIADOS] Feriados de ${mesSelecionado}/${anoSelecionado}:`, 
+                console.log(`📋 [FERIADOS] Feriados de ${mesSelecionado}/${anoSelecionado}:`,
                     feriadosArray.filter(f => {
                         const [ano, mes] = f.split('-').map(Number);
                         return ano === anoSelecionado && mes === mesSelecionado;
@@ -154,11 +159,11 @@ const AnaliseComplotaPontos = () => {
             } else {
                 console.warn(`⚠️ [FERIADOS] NENHUM feriado foi carregado!`);
             }
-            
+
             // ✅ IMPORTANTE: Atualizar state E ref
             setFeriados(listaISO);
             feriadosRef.current = listaISO;
-            
+
             return listaISO;
 
         } catch (err) {
@@ -178,7 +183,7 @@ const AnaliseComplotaPontos = () => {
         }
     };
 
-    // ✅ CORRIGIDO: Carregar faltas com GARANTIA de carregamento completo de TODOS os utilizadores
+    // ✅ CORRIGIDO: Carregar faltas E HORAS EXTRAS do endpoint mensal unificado
     const carregarFaltas = async (utilizadoresParam = null, tentativaGlobal = 1, maxTentativasGlobais = 3) => {
         try {
             const painelAdminToken = secureStorage.getItem("painelAdminToken");
@@ -191,7 +196,9 @@ const AnaliseComplotaPontos = () => {
                 console.warn("❌ [FALTAS] Tokens não encontrados");
                 setFaltas([]);
                 faltasRef.current = [];
-                return [];
+                setHorasExtras([]);
+                horasExtrasRef.current = [];
+                return { faltas: [], horasExtras: [] };
             }
 
             const utilizadoresParaProcessar = utilizadoresParam || utilizadores;
@@ -202,13 +209,15 @@ const AnaliseComplotaPontos = () => {
                 console.warn("⚠️ [FALTAS] Nenhum utilizador disponível");
                 setFaltas([]);
                 faltasRef.current = [];
-                return [];
+                setHorasExtras([]);
+                horasExtrasRef.current = [];
+                return { faltas: [], horasExtras: [] };
             }
 
-            // ✅ Função para carregar faltas de UM utilizador com retry individual
+            // ✅ Função para carregar faltas E HORAS EXTRAS de UM utilizador com retry individual
             const carregarFaltasUtilizador = async (user, tentativa = 1, maxTentativas = 3) => {
                 try {
-                    console.log(`   🔄 [${user.nome}] Carregando faltas (tentativa ${tentativa}/${maxTentativas})...`);
+                    console.log(`   🔄 [${user.nome}] Carregando faltas/horas extras (tentativa ${tentativa}/${maxTentativas})...`);
 
                     // Passo 1: Obter codFuncionario
                     const resCodFuncionario = await fetch(
@@ -230,18 +239,19 @@ const AnaliseComplotaPontos = () => {
                     const codFuncionario = dataCodFuncionario.codFuncionario;
 
                     if (!codFuncionario) {
-                        console.log(`   ℹ️ [${user.nome}] Sem codFuncionario - retornando array vazio`);
+                        console.log(`   ℹ️ [${user.nome}] Sem codFuncionario - retornando arrays vazios`);
                         return {
                             success: true,
                             user: user.nome,
-                            faltas: []
+                            faltas: [],
+                            horasExtras: []
                         };
                     }
 
-                    // Passo 2: Buscar faltas na API Primavera
-                    const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
+                    // Passo 2: Buscar dados do mês na API Primavera (faltas + horas extras)
+                    const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
 
-                    const res = await fetch(urlFaltas, {
+                    const res = await fetch(urlFaltasMensal, {
                         headers: {
                             Authorization: `Bearer ${painelAdminToken}`,
                             urlempresa: urlempresa,
@@ -253,22 +263,74 @@ const AnaliseComplotaPontos = () => {
                         throw new Error(`API retornou ${res.status}`);
                     }
 
-                    const data = await res.json();
-                    const faltasUsuario = data?.DataSet?.Table || [];
+                    const dataFaltas = await res.json();
+                    const faltasUtilizador = [];
+                    const horasExtrasUtilizador = [];
 
-                    const faltasComUserId = faltasUsuario.map((falta) => ({
-                        ...falta,
-                        userId: user.id,
-                        nomeUsuario: user.nome,
-                        codFuncionarioUsado: codFuncionario,
-                    }));
+                    if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
+                        console.warn(`⚠️ [FALTAS] Formato de resposta inválido para ${user.nome}`);
+                    } else {
+                        const listaMes = dataFaltas.DataSet.Table;
+                        console.log(`📊 [FALTAS] Total de registos no mês ${mesSelecionado}: ${listaMes.length}`);
 
-                    console.log(`   ✅ [${user.nome}] ${faltasComUserId.length} faltas carregadas com sucesso`);
+                        // Processar dados do mês - separar faltas e horas extras
+                        listaMes.forEach(item => {
+                            // ✅ VERIFICAR SE É FALTA (tem Funcionario2 e Falta1)
+                            const funcionarioFalta = item.Funcionario2;
+                            if (funcionarioFalta === codFuncionario && item.Falta1) {
+                                const dataFalta = item.Data2;
+                                if (dataFalta) {
+                                    const dataObj = new Date(dataFalta);
+                                    if (dataObj.getFullYear() === parseInt(anoSelecionado)) {
+                                        faltasUtilizador.push({
+                                            Funcionario: funcionarioFalta,
+                                            Data: dataFalta,
+                                            Falta: item.Falta1,
+                                            Horas: item.Horas,
+                                            HorasFalta: item.HorasFalta,
+                                            Tempo: item.Tempo1,
+                                            TempoFalta: item.TempoFalta,
+                                            userId: user.id,
+                                            nomeUsuario: user.nome,
+                                            codFuncionarioUsado: codFuncionario
+                                        });
+                                    }
+                                }
+                            }
 
+                            // ✅ VERIFICAR SE É HORA EXTRA (tem Funcionario e HoraExtra)
+                            const funcionarioHE = item.Funcionario;
+                            if (funcionarioHE === codFuncionario && item.HoraExtra) {
+                                const dataHE = item.Data;
+                                if (dataHE) {
+                                    const dataObj = new Date(dataHE);
+                                    if (dataObj.getFullYear() === parseInt(anoSelecionado)) {
+                                        horasExtrasUtilizador.push({
+                                            Funcionario: funcionarioHE,
+                                            Data: dataHE,
+                                            HoraExtra: item.HoraExtra,
+                                            Tempo: item.Tempo,
+                                            TempoExtra: item.TempoExtra,
+                                            Horas: item.Tempo || item.TempoExtra,
+                                            IdFuncRemCBL: item.idFuncRemCBL,
+                                            userId: user.id,
+                                            nomeUsuario: user.nome,
+                                            codFuncionarioUsado: codFuncionario
+                                        });
+                                    }
+                                }
+                            }
+                        });
+
+                        console.log(`✅ [FALTAS] ${user.nome}: ${faltasUtilizador.length} faltas e ${horasExtrasUtilizador.length} horas extras para ${mesSelecionado}/${anoSelecionado}`);
+                    }
+
+                    // Combinar faltas e horas extras no resultado
                     return {
                         success: true,
                         user: user.nome,
-                        faltas: faltasComUserId
+                        faltas: faltasUtilizador,
+                        horasExtras: horasExtrasUtilizador
                     };
 
                 } catch (error) {
@@ -286,6 +348,7 @@ const AnaliseComplotaPontos = () => {
                         success: false,
                         user: user.nome,
                         faltas: [],
+                        horasExtras: [],
                         error: error.message
                     };
                 }
@@ -293,14 +356,14 @@ const AnaliseComplotaPontos = () => {
 
             // ✅ Carregar faltas de TODOS os utilizadores
             console.log(`\n🚀 [FALTAS] Iniciando carregamento paralelo de ${utilizadoresParaProcessar.length} utilizadores...`);
-            
+
             const resultados = await Promise.all(
                 utilizadoresParaProcessar.map(user => carregarFaltasUtilizador(user))
             );
 
             // ✅ VALIDAÇÃO CRÍTICA: Verificar se TODOS foram bem-sucedidos
             const falhados = resultados.filter(r => !r.success);
-            
+
             if (falhados.length > 0) {
                 console.error(`\n❌ [FALTAS] FALHA: ${falhados.length} utilizadores não foram carregados com sucesso:`);
                 falhados.forEach(f => {
@@ -320,11 +383,13 @@ const AnaliseComplotaPontos = () => {
 
             // ✅ SUCESSO: Todos os utilizadores foram carregados
             const faltasTotal = resultados.flatMap(r => r.faltas);
-            
+            const horasExtrasTotal = resultados.flatMap(r => r.horasExtras);
+
             console.log(`\n✅ [FALTAS] SUCESSO COMPLETO!`);
             console.log(`   📊 Total de utilizadores processados: ${resultados.length}`);
             console.log(`   📋 Total de faltas carregadas: ${faltasTotal.length}`);
-            
+            console.log(`   📋 Total de horas extras carregadas: ${horasExtrasTotal.length}`);
+
             // Mostrar resumo por utilizador
             const comFaltas = resultados.filter(r => r.faltas.length > 0);
             if (comFaltas.length > 0) {
@@ -335,20 +400,38 @@ const AnaliseComplotaPontos = () => {
             } else {
                 console.log(`   ℹ️ Nenhum utilizador tem faltas registadas`);
             }
-            
+
+            // Mostrar resumo de horas extras por utilizador
+            const comHorasExtras = resultados.filter(r => r.horasExtras.length > 0);
+            if (comHorasExtras.length > 0) {
+                console.log(`   👥 Utilizadores com horas extras (${comHorasExtras.length}):`);
+                comHorasExtras.forEach(r => {
+                    console.log(`      • ${r.user}: ${r.horasExtras.length} registos de horas extras`);
+                });
+            } else {
+                console.log(`   ℹ️ Nenhum utilizador tem horas extras registadas`);
+            }
+
             // ✅ IMPORTANTE: Atualizar state E ref
             setFaltas(faltasTotal);
             faltasRef.current = faltasTotal;
-            
-            return faltasTotal;
+            setHorasExtras(horasExtrasTotal); // Atualizar também o estado das horas extras
+            horasExtrasRef.current = horasExtrasTotal; // E a ref
+
+            return { faltas: faltasTotal, horasExtras: horasExtrasTotal }; // Retornar ambos os arrays
 
         } catch (error) {
             console.error(`\n❌ [FALTAS] ERRO CRÍTICO no carregamento:`, error.message);
             setFaltas([]);
             faltasRef.current = [];
+            setHorasExtras([]);
+            horasExtrasRef.current = [];
             throw error; // Propagar erro para tratamento superior
         }
     };
+
+    
+
 
     const [horariosUtilizadores, setHorariosUtilizadores] = useState({});
     const horariosRef = useRef({});
@@ -363,12 +446,12 @@ const AnaliseComplotaPontos = () => {
             console.log(`🔄 [CHANGE] Detectada mudança de período ou obra`);
             console.log(`📋 [CHANGE] Novo período: ${mesSelecionado}/${anoSelecionado}`);
             console.log(`📋 [CHANGE] Obra: ${obraSelecionada || 'Todas'}`);
-            
+
             // Pequeno debounce para evitar múltiplos recarregamentos
             const timer = setTimeout(() => {
                 recarregarDadosPeriodo();
             }, 300);
-            
+
             return () => clearTimeout(timer);
         }
     }, [obraSelecionada, mesSelecionado, anoSelecionado]);
@@ -390,75 +473,67 @@ const AnaliseComplotaPontos = () => {
         feriadosRef.current = new Set();
         setFaltas([]);
         faltasRef.current = [];
+        setHorasExtras([]); // Limpar também horas extras
+        horasExtrasRef.current = []; // Limpar ref de horas extras
         console.log(`✅ [CLEANUP] Dados anteriores completamente limpos`);
 
         try {
             // ✅ PASSO 1: FERIADOS - COM VALIDAÇÃO RIGOROSA
             console.log(`\n📌 PASSO 1/3: Carregando FERIADOS...`);
             const feriadosCarregados = await carregarFeriados();
-            
+
             // Validação obrigatória
             if (!feriadosCarregados || !(feriadosCarregados instanceof Set)) {
                 throw new Error("❌ CRÍTICO: Feriados não retornaram um Set válido");
             }
-            
+
             // Aguardar sincronização do state
             await new Promise(resolve => {
                 setFeriados(feriadosCarregados);
                 feriadosRef.current = feriadosCarregados;
                 setTimeout(resolve, 100); // Pequena pausa para garantir state update
             });
-            
+
             console.log(`✅ PASSO 1/3 CONCLUÍDO: ${feriadosCarregados.size} feriados carregados e sincronizados`);
             console.log(`🔍 [VALIDAÇÃO] feriadosRef.current.size: ${feriadosRef.current.size}`);
 
-            // ✅ PASSO 2: FALTAS - COM VALIDAÇÃO RIGOROSA E RETRY
-            console.log(`\n📌 PASSO 2/3: Carregando FALTAS...`);
-            
-            let faltasCarregadas;
+            // ✅ PASSO 2: FALTAS E HORAS EXTRAS - COM VALIDAÇÃO RIGOROSA
+            console.log(`\n📌 PASSO 2/3: Carregando FALTAS e HORAS EXTRAS...`);
+
+            let faltasEHorasExtrasCarregadas;
             try {
-                faltasCarregadas = await carregarFaltas();
+                faltasEHorasExtrasCarregadas = await carregarFaltas();
             } catch (error) {
-                console.error(`❌ [RELOAD] FALHA CRÍTICA ao carregar faltas:`, error.message);
-                throw new Error(`Não foi possível carregar todas as faltas: ${error.message}`);
+                console.error(`❌ [RELOAD] FALHA CRÍTICA ao carregar faltas/horas extras:`, error.message);
+                throw new Error(`Não foi possível carregar todas as faltas e horas extras: ${error.message}`);
             }
-            
+
             // Validação obrigatória
-            if (!faltasCarregadas || !Array.isArray(faltasCarregadas)) {
-                throw new Error("❌ CRÍTICO: Faltas não retornaram um array válido");
+            if (!faltasEHorasExtrasCarregadas || !faltasEHorasExtrasCarregadas.faltas || !Array.isArray(faltasEHorasExtrasCarregadas.faltas) || !faltasEHorasExtrasCarregadas.horasExtras || !Array.isArray(faltasEHorasExtrasCarregadas.horasExtras)) {
+                throw new Error("❌ CRÍTICO: Faltas ou Horas Extras não retornaram arrays válidos");
             }
-            
+
             // Aguardar sincronização do state
             await new Promise(resolve => {
-                setFaltas(faltasCarregadas);
-                faltasRef.current = faltasCarregadas;
+                setFaltas(faltasEHorasExtrasCarregadas.faltas);
+                faltasRef.current = faltasEHorasExtrasCarregadas.faltas;
+                setHorasExtras(faltasEHorasExtrasCarregadas.horasExtras);
+                horasExtrasRef.current = faltasEHorasExtrasCarregadas.horasExtras;
                 setTimeout(resolve, 100); // Pequena pausa para garantir state update
             });
-            
-            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasCarregadas.length} faltas carregadas e sincronizadas`);
-            console.log(`🔍 [VALIDAÇÃO] faltasRef.current.length: ${faltasRef.current.length}`);
 
-            // Log detalhado de faltas
-            if (faltasCarregadas.length > 0) {
-                const faltasPorUser = {};
-                faltasCarregadas.forEach(f => {
-                    if (!faltasPorUser[f.nomeUsuario]) {
-                        faltasPorUser[f.nomeUsuario] = 0;
-                    }
-                    faltasPorUser[f.nomeUsuario]++;
-                });
-                console.log(`📊 [FALTAS] Distribuição por utilizador:`, faltasPorUser);
-            } else {
-                console.log(`ℹ️ [FALTAS] Nenhuma falta registada para o período`);
-            }
+            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasEHorasExtrasCarregadas.faltas.length} faltas e ${faltasEHorasExtrasCarregadas.horasExtras.length} horas extras carregadas e sincronizadas`);
+            console.log(`🔍 [VALIDAÇÃO] faltasRef.current.length: ${faltasRef.current.length}`);
+            console.log(`🔍 [VALIDAÇÃO] horasExtrasRef.current.length: ${horasExtrasRef.current.length}`);
 
             // ✅ VALIDAÇÃO FINAL ANTES DE GERAR GRADE
             console.log(`\n🔍 [PRÉ-GRADE] Validação final dos dados carregados:`);
             console.log(`   - Feriados (Set): ${feriadosRef.current.size} elementos`);
             console.log(`   - Faltas (Array): ${faltasRef.current.length} elementos`);
+            console.log(`   - Horas Extras (Array): ${horasExtrasRef.current.length} elementos`);
             console.log(`   - Utilizadores: ${utilizadores.length} elementos`);
 
-            if (!feriadosRef.current || !faltasRef.current) {
+            if (!feriadosRef.current || !faltasRef.current || !horasExtrasRef.current) {
                 throw new Error("❌ CRÍTICO: Refs não foram sincronizadas corretamente");
             }
 
@@ -467,18 +542,20 @@ const AnaliseComplotaPontos = () => {
                 feriados: true,
                 faltas: true,
                 horarios: true,
+                horasExtras: true,
                 inicial: true
             });
 
             // ✅ PASSO 3: GERAR GRADE - SÓ APÓS VALIDAÇÃO COMPLETA
             console.log(`\n📌 PASSO 3/3: Gerando GRADE com dados VALIDADOS...`);
-            await gerarGradeComDadosValidados(feriadosRef.current, faltasRef.current);
+            await gerarGradeComDadosValidados(feriadosRef.current, faltasRef.current, horasExtrasRef.current);
             console.log(`✅ PASSO 3/3 CONCLUÍDO: Grade gerada com pontos fictícios`);
 
             console.log(`\n${"=".repeat(60)}`);
             console.log(`✅ [RELOAD] RECARREGAMENTO COMPLETO FINALIZADO COM SUCESSO`);
             console.log(`   - Feriados: ${feriadosRef.current.size}`);
             console.log(`   - Faltas: ${faltasRef.current.length}`);
+            console.log(`   - Horas Extras: ${horasExtrasRef.current.length}`);
             console.log(`   - Grade: ${dadosGrade.length} utilizadores`);
             console.log(`${"=".repeat(60)}\n`);
 
@@ -491,10 +568,13 @@ const AnaliseComplotaPontos = () => {
             feriadosRef.current = new Set();
             setFaltas([]);
             faltasRef.current = [];
+            setHorasExtras([]);
+            horasExtrasRef.current = [];
             setDadosCarregados({
                 feriados: false,
                 faltas: false,
                 horarios: false,
+                horasExtras: false,
                 inicial: false
             });
         } finally {
@@ -503,11 +583,12 @@ const AnaliseComplotaPontos = () => {
     };
 
     // ✅ NOVO: Gerar grade com dados já validados (recebe os dados como parâmetro)
-    const gerarGradeComDadosValidados = async (feriadosValidados, faltasValidadas) => {
+    const gerarGradeComDadosValidados = async (feriadosValidados, faltasValidadas, horasExtrasValidadas) => {
         console.log(`\n🔍 [GRADE] Iniciando geração da grade...`);
         console.log(`📊 [GRADE] Dados recebidos:`);
         console.log(`   - Feriados: ${feriadosValidados.size} registos`);
         console.log(`   - Faltas: ${faltasValidadas.length} registos`);
+        console.log(`   - Horas Extras: ${horasExtrasValidadas.length} registos`);
         console.log(`   - Utilizadores: ${utilizadores.length}`);
         console.log(`   - Período: ${mesSelecionado}/${anoSelecionado}`);
 
@@ -520,7 +601,7 @@ const AnaliseComplotaPontos = () => {
         });
 
         console.log(`📋 [GRADE] Faltas filtradas para ${mesSelecionado}/${anoSelecionado}: ${faltasDoMes.length}`);
-        
+
         if (faltasDoMes.length > 0) {
             console.log(`📋 [GRADE] Detalhes das faltas do mês:`);
             faltasDoMes.forEach(f => {
@@ -533,7 +614,7 @@ const AnaliseComplotaPontos = () => {
         const feriadosDoMes = new Set();
         console.log(`🔍 [GRADE] Filtrando feriados para ${mesSelecionado}/${anoSelecionado}...`);
         console.log(`🔍 [GRADE] Total de feriados disponíveis: ${feriadosValidados.size}`);
-        
+
         feriadosValidados.forEach(feriadoISO => {
             const [ano, mes, dia] = feriadoISO.split('-').map(Number);
             if (ano === anoSelecionado && mes === mesSelecionado) {
@@ -541,13 +622,23 @@ const AnaliseComplotaPontos = () => {
                 console.log(`   ✓ Feriado encontrado para o mês: Dia ${dia}/${mes}/${ano}`);
             }
         });
-        
+
         console.log(`📋 [GRADE] Feriados do mês ${mesSelecionado}/${anoSelecionado}: ${feriadosDoMes.size}`);
         if (feriadosDoMes.size > 0) {
             console.log(`📋 [GRADE] Lista completa:`, Array.from(feriadosDoMes).sort());
         } else {
             console.warn(`⚠️ [GRADE] NENHUM feriado encontrado para ${mesSelecionado}/${anoSelecionado}!`);
         }
+
+        // Filtrar horas extras para o mês/ano selecionado
+        const horasExtrasDoMes = horasExtrasValidadas.filter(he => {
+            const dataHE = new Date(he.Data);
+            const mesData = dataHE.getMonth() + 1;
+            const anoData = dataHE.getFullYear();
+            return mesData === mesSelecionado && anoData === anoSelecionado;
+        });
+
+        console.log(`📋 [GRADE] Horas Extras filtradas para ${mesSelecionado}/${anoSelecionado}: ${horasExtrasDoMes.length}`);
 
         const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
         const hoje = new Date();
@@ -561,14 +652,31 @@ const AnaliseComplotaPontos = () => {
                 diasTrabalhados: 0,
                 faltasTotal: 0,
                 feriadosTotal: 0,
+                horasExtrasTotal: 0, // Adicionar total de horas extras
             };
 
             // Faltas deste utilizador no mês
             const faltasDoUser = faltasDoMes.filter(f => f.userId === user.id);
-            
+
             if (faltasDoUser.length > 0) {
                 console.log(`👤 [GRADE] ${user.nome}: ${faltasDoUser.length} faltas no mês`);
             }
+
+            // Horas extras deste utilizador no mês
+            const horasExtrasDoUser = horasExtrasDoMes.filter(he => {
+                // Ajustar a lógica de correspondência se o campo 'Funcionario' não for o ID direto
+                // Assumindo que 'he.Funcionario' pode ser o nome ou código do funcionário
+                return he.Funcionario === user.nome || he.Funcionario === user.codFuncionario;
+            });
+
+            if (horasExtrasDoUser.length > 0) {
+                console.log(`👤 [GRADE] ${user.nome}: ${horasExtrasDoUser.length} registos de horas extras no mês`);
+                horasExtrasDoUser.forEach(he => {
+                    dadosUsuario.horasExtrasTotal += parseFloat(he.Horas); // Somar as horas extras
+                });
+                console.log(`   -> Total de horas extras: ${dadosUsuario.horasExtrasTotal.toFixed(2)}h`);
+            }
+
 
             for (let dia = 1; dia <= diasDoMes; dia++) {
                 const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, dia);
@@ -579,7 +687,7 @@ const AnaliseComplotaPontos = () => {
                 // ✅ Verificar se é feriado
                 const dataISO = fmtLocal(dataAtual);
                 const isFeriado = feriadosValidados.has(dataISO);
-                
+
                 if (isFeriado) {
                     console.log(`   🎉 [FERIADO DETECTADO] ${user.nome} - Dia ${dia}/${mesSelecionado}/${anoSelecionado} (${dataISO})`);
                 }
@@ -599,9 +707,10 @@ const AnaliseComplotaPontos = () => {
                     faltas: faltasDoDia,
                     temFalta: faltasDoDia.length > 0,
                     trabalhou: false,
+                    horasExtras: 0, // Adicionar campo para horas extras do dia
                 };
 
-                // ✅ PRIORIDADE 1: FALTAS (verificar PRIMEIRO - OBRIGATÓRIO)
+                // ✅ PRIORIDADE 1: FALTAS
                 if (faltasDoDia.length > 0) {
                     estatisticasDia.trabalhou = false;
                     estatisticasDia.temFalta = true;
@@ -609,7 +718,7 @@ const AnaliseComplotaPontos = () => {
                     dadosUsuario.faltasTotal++;
                     console.log(`   ⚠️ Dia ${dia}: FALTA`);
                 }
-                // ✅ PRIORIDADE 2: FERIADOS (verificar SEGUNDO - OBRIGATÓRIO)
+                // ✅ PRIORIDADE 2: FERIADOS
                 else if (isFeriado) {
                     estatisticasDia.trabalhou = false;
                     dadosUsuario.feriadosTotal++;
@@ -623,7 +732,7 @@ const AnaliseComplotaPontos = () => {
                 else if (isFutureDate) {
                     estatisticasDia.trabalhou = false;
                 }
-                // ✅ PRIORIDADE 5: DIA ÚTIL -> GERAR HORÁRIO ESPERADO (ÚLTIMO)
+                // ✅ PRIORIDADE 5: DIA ÚTIL -> GERAR HORÁRIO ESPERADO E VERIFICAR HORAS EXTRAS
                 else {
                     const isHoje = dataAtual.toDateString() === hoje.toDateString();
                     const horaAtual = isHoje
@@ -634,30 +743,46 @@ const AnaliseComplotaPontos = () => {
                     Object.assign(estatisticasDia, pontosFicticios);
                     estatisticasDia.trabalhou = true;
 
+                    // Verificar se há horas extras para este dia específico
+                    const horasExtrasDia = horasExtrasDoUser.find(he => {
+                        const dataHE = new Date(he.Data);
+                        return dataHE.getDate() === dia;
+                    });
+
+                    if (horasExtrasDia) {
+                        estatisticasDia.horasExtras = parseFloat(horasExtrasDia.Horas);
+                        console.log(`   ➕ Dia ${dia}: ${estatisticasDia.horasExtras.toFixed(2)}h de Horas Extras`);
+                    }
+
                     if (pontosFicticios.temSaida) {
                         const horasDia = horariosRef.current[user.id]?.horasPorDia || 8;
                         dadosUsuario.totalHorasMes += horasDia;
                         dadosUsuario.diasTrabalhados++;
                     } else {
-                        dadosUsuario.diasTrabalhados += 0.5;
+                        dadosUsuario.diasTrabalhados += 0.5; // Considera meio dia se não houver saída completa
                     }
                 }
 
                 dadosUsuario.estatisticasDias[dia] = estatisticasDia;
             }
 
+            // Adicionar horas extras ao total do mês do utilizador
+            dadosUsuario.totalHorasMes += dadosUsuario.horasExtrasTotal;
+
             dadosGradeTemp.push(dadosUsuario);
         });
 
         console.log(`\n📊 [GRADE] RESUMO FINAL:`);
         console.log(`   - Utilizadores processados: ${dadosGradeTemp.length}`);
-        
+
         const totalFaltas = dadosGradeTemp.reduce((sum, u) => sum + u.faltasTotal, 0);
         const totalFeriados = dadosGradeTemp.reduce((sum, u) => sum + u.feriadosTotal, 0);
-        
+        const totalHorasExtras = dadosGradeTemp.reduce((sum, u) => sum + u.horasExtrasTotal, 0);
+
         console.log(`   - Total faltas na grade: ${totalFaltas}`);
         console.log(`   - Total feriados na grade: ${totalFeriados}`);
-        
+        console.log(`   - Total Horas Extras na grade: ${totalHorasExtras.toFixed(2)}h`);
+
         // Listar utilizadores com faltas
         const usersComFaltas = dadosGradeTemp.filter(u => u.faltasTotal > 0);
         if (usersComFaltas.length > 0) {
@@ -666,6 +791,16 @@ const AnaliseComplotaPontos = () => {
                 console.log(`      • ${u.utilizador.nome}: ${u.faltasTotal} faltas`);
             });
         }
+
+        // Listar utilizadores com horas extras
+        const usersComHorasExtras = dadosGradeTemp.filter(u => u.horasExtrasTotal > 0);
+        if (usersComHorasExtras.length > 0) {
+            console.log(`   - Utilizadores com horas extras:`);
+            usersComHorasExtras.forEach(u => {
+                console.log(`      • ${u.utilizador.nome}: ${u.horasExtrasTotal.toFixed(2)}h`);
+            });
+        }
+
 
         setDadosGrade(dadosGradeTemp);
     };
@@ -684,6 +819,8 @@ const AnaliseComplotaPontos = () => {
         feriadosRef.current = new Set();
         setFaltas([]);
         faltasRef.current = [];
+        setHorasExtras([]); // Limpar horas extras
+        horasExtrasRef.current = []; // Limpar ref de horas extras
         console.log(`✅ [INIT-CLEANUP] Estados iniciais limpos`);
 
         try {
@@ -741,30 +878,31 @@ const AnaliseComplotaPontos = () => {
             }
             console.log(`✅ PASSO 1/3 CONCLUÍDO: ${feriadosIniciais.size} feriados carregados`);
 
-            // ✅ PASSO 2: CARREGAR FALTAS (OBRIGATÓRIO - SEMPRE SEGUNDO)
+            // ✅ PASSO 2: CARREGAR FALTAS E HORAS EXTRAS (OBRIGATÓRIO - SEMPRE SEGUNDO)
             console.log(`\n${"━".repeat(60)}`);
-            console.log(`📌 PASSO 2/3: Carregando FALTAS...`);
+            console.log(`📌 PASSO 2/3: Carregando FALTAS e HORAS EXTRAS...`);
             console.log(`${"━".repeat(60)}`);
-            
-            let faltasIniciais;
+
+            let faltasEHorasExtrasIniciais;
             try {
-                faltasIniciais = await carregarFaltas(utilizadoresComHorario);
+                faltasEHorasExtrasIniciais = await carregarFaltas(utilizadoresComHorario);
             } catch (error) {
-                console.error(`❌ [INIT] FALHA CRÍTICA ao carregar faltas:`, error.message);
-                throw new Error(`Não foi possível carregar todas as faltas no carregamento inicial: ${error.message}`);
+                console.error(`❌ [INIT] FALHA CRÍTICA ao carregar faltas/horas extras:`, error.message);
+                throw new Error(`Não foi possível carregar todas as faltas e horas extras no carregamento inicial: ${error.message}`);
             }
-            
-            if (!faltasIniciais || !Array.isArray(faltasIniciais)) {
-                throw new Error("Faltas não foram carregadas corretamente - retorno inválido");
+
+            if (!faltasEHorasExtrasIniciais || !Array.isArray(faltasEHorasExtrasIniciais.faltas) || !Array.isArray(faltasEHorasExtrasIniciais.horasExtras)) {
+                throw new Error("Faltas ou Horas Extras não foram carregadas corretamente - retorno inválido");
             }
-            
-            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasIniciais.length} faltas carregadas de TODOS os ${utilizadoresComHorario.length} utilizadores`);
+
+            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasEHorasExtrasIniciais.faltas.length} faltas e ${faltasEHorasExtrasIniciais.horasExtras.length} horas extras carregadas de TODOS os ${utilizadoresComHorario.length} utilizadores`);
 
             // Marcar carregamento inicial como concluído
             setDadosCarregados({
                 feriados: true,
                 faltas: true,
                 horarios: true,
+                horasExtras: true,
                 inicial: true
             });
 
@@ -776,7 +914,8 @@ const AnaliseComplotaPontos = () => {
                 utilizadoresComHorario,
                 horariosMap,
                 feriadosIniciais,
-                faltasIniciais
+                faltasEHorasExtrasIniciais.faltas,
+                faltasEHorasExtrasIniciais.horasExtras // Passar horas extras
             );
             console.log(`✅ PASSO 3/3 CONCLUÍDO: Grade gerada com pontos fictícios`);
 
@@ -785,8 +924,9 @@ const AnaliseComplotaPontos = () => {
             console.log(`   - Obras: ${obrasData.length}`);
             console.log(`   - Utilizadores: ${utilizadoresComHorario.length}`);
             console.log(`   - Feriados: ${feriadosIniciais.size}`);
-            console.log(`   - Faltas: ${faltasIniciais.length}`);
-            console.log(`   - ORDEM GARANTIDA: Feriados → Faltas → Pontos Fictícios`);
+            console.log(`   - Faltas: ${faltasEHorasExtrasIniciais.faltas.length}`);
+            console.log(`   - Horas Extras: ${faltasEHorasExtrasIniciais.horasExtras.length}`);
+            console.log(`   - ORDEM GARANTIDA: Feriados → Faltas/Horas Extras → Pontos Fictícios`);
             console.log(`${"=".repeat(60)}\n`);
 
         } catch (error) {
@@ -798,17 +938,20 @@ const AnaliseComplotaPontos = () => {
             feriadosRef.current = new Set();
             setFaltas([]);
             faltasRef.current = [];
+            setHorasExtras([]);
+            horasExtrasRef.current = [];
         } finally {
             setLoading(false);
         }
     };
 
     // ✅ NOVO: Versão especial para carregamento inicial (recebe todos os dados como parâmetro)
-    const gerarGradeComDadosValidadosInicial = async (utilizadoresList, horariosMap, feriadosSet, faltasList) => {
+    const gerarGradeComDadosValidadosInicial = async (utilizadoresList, horariosMap, feriadosSet, faltasList, horasExtrasList) => {
         console.log(`🔍 [GRADE-INIT] Gerando grade inicial...`);
         console.log(`   - Utilizadores: ${utilizadoresList.length}`);
         console.log(`   - Feriados: ${feriadosSet.size}`);
         console.log(`   - Faltas: ${faltasList.length}`);
+        console.log(`   - Horas Extras: ${horasExtrasList.length}`);
 
         // Filtrar faltas para o mês/ano selecionado
         const faltasDoMes = faltasList.filter((falta) => {
@@ -819,6 +962,17 @@ const AnaliseComplotaPontos = () => {
         });
 
         console.log(`📋 [GRADE-INIT] Faltas do mês: ${faltasDoMes.length}`);
+
+        // Filtrar horas extras para o mês/ano selecionado
+        const horasExtrasDoMes = horasExtrasList.filter(he => {
+            const dataHE = new Date(he.Data);
+            const mesData = dataHE.getMonth() + 1;
+            const anoData = dataHE.getFullYear();
+            return mesData === mesSelecionado && anoData === anoSelecionado;
+        });
+
+        console.log(`📋 [GRADE-INIT] Horas Extras do mês: ${horasExtrasDoMes.length}`);
+
 
         const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
         const hoje = new Date();
@@ -832,9 +986,19 @@ const AnaliseComplotaPontos = () => {
                 diasTrabalhados: 0,
                 faltasTotal: 0,
                 feriadosTotal: 0,
+                horasExtrasTotal: 0, // Adicionar total de horas extras
             };
 
             const faltasDoUser = faltasDoMes.filter(f => f.userId === user.id);
+            const horasExtrasDoUser = horasExtrasDoMes.filter(he => {
+                return he.Funcionario === user.nome || he.Funcionario === user.codFuncionario;
+            });
+
+            if (horasExtrasDoUser.length > 0) {
+                 horasExtrasDoUser.forEach(he => {
+                    dadosUsuario.horasExtrasTotal += parseFloat(he.Horas);
+                });
+            }
 
             for (let dia = 1; dia <= diasDoMes; dia++) {
                 const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, dia);
@@ -859,6 +1023,7 @@ const AnaliseComplotaPontos = () => {
                     faltas: faltasDoDia,
                     temFalta: faltasDoDia.length > 0,
                     trabalhou: false,
+                    horasExtras: 0, // Horas extras do dia
                 };
 
                 // ✅ PRIORIDADE 1: FALTAS
@@ -892,6 +1057,16 @@ const AnaliseComplotaPontos = () => {
                     Object.assign(estatisticasDia, pontosFicticios);
                     estatisticasDia.trabalhou = true;
 
+                    // Verificar horas extras para o dia específico
+                    const horasExtrasDia = horasExtrasDoUser.find(he => {
+                        const dataHE = new Date(he.Data);
+                        return dataHE.getDate() === dia;
+                    });
+
+                    if (horasExtrasDia) {
+                        estatisticasDia.horasExtras = parseFloat(horasExtrasDia.Horas);
+                    }
+
                     if (pontosFicticios.temSaida) {
                         const horasDia = horariosMap[user.id]?.horasPorDia || 8;
                         dadosUsuario.totalHorasMes += horasDia;
@@ -904,6 +1079,9 @@ const AnaliseComplotaPontos = () => {
                 dadosUsuario.estatisticasDias[dia] = estatisticasDia;
             }
 
+            // Adicionar horas extras ao total do mês do utilizador
+            dadosUsuario.totalHorasMes += dadosUsuario.horasExtrasTotal;
+
             dadosGradeTemp.push(dadosUsuario);
         });
 
@@ -911,87 +1089,9 @@ const AnaliseComplotaPontos = () => {
         setDadosGrade(dadosGradeTemp);
     };
 
-    // ✅ Versão que recebe horários como parâmetro (para carregamento inicial)
-    const gerarPontosFicticiosComHorario = (userId, dia, isHoje, horaAtual, horariosMap) => {
-        const horarioUser = horariosMap[userId];
-
-        const horarioFinal = horarioUser || {
-            horaEntrada: "08:00",
-            horaSaida: "17:00",
-            intervaloAlmoco: 1.00,
-            horasPorDia: 8.00,
-        };
-
-        const parseHora = (horaStr) => {
-            if (!horaStr) return { h: 0, m: 0 };
-            const partes = String(horaStr).split(':');
-            return {
-                h: parseInt(partes[0], 10) || 0,
-                m: parseInt(partes[1], 10) || 0
-            };
-        };
-
-        const paraMinutos = (h, m) => h * 60 + m;
-
-        const paraHora = (minutos) => {
-            const h = Math.floor(minutos / 60);
-            const m = minutos % 60;
-            return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-        };
-
-        const aplicarVariacao = (minutos) => {
-            const variacao = Math.floor(Math.random() * 11) - 5;
-            return Math.max(0, minutos + variacao);
-        };
-
-        const entradaBase = parseHora(horarioFinal.horaEntrada);
-        const saidaBase = parseHora(horarioFinal.horaSaida);
-
-        const minutosEntradaBase = paraMinutos(entradaBase.h, entradaBase.m);
-        const minutosSaidaBase = paraMinutos(saidaBase.h, saidaBase.m);
-
-        const minutosEntradaVariada = aplicarVariacao(minutosEntradaBase);
-        const minutosSaidaVariada = aplicarVariacao(minutosSaidaBase);
-
-        const horaEntrada = paraHora(minutosEntradaVariada);
-        const horaSaida = paraHora(minutosSaidaVariada);
-
-        const intervaloMinutos = Math.floor(horarioFinal.intervaloAlmoco * 60);
-        const minutosTrabalho = minutosSaidaVariada - minutosEntradaVariada - intervaloMinutos;
-        const minutosAteAlmoco = Math.floor(minutosTrabalho / 2);
-
-        const minutosSaidaAlmoco = minutosEntradaVariada + minutosAteAlmoco;
-        const saidaAlmoco = paraHora(aplicarVariacao(minutosSaidaAlmoco));
-
-        const minutosEntradaAlmoco = minutosSaidaAlmoco + intervaloMinutos;
-        const entradaAlmoco = paraHora(aplicarVariacao(minutosEntradaAlmoco));
-
-        let mostrarSaida = true;
-        let mostrarAlmoco = true;
-
-        if (isHoje && horaAtual) {
-            const [horaAtualH, horaAtualM] = horaAtual.split(":").map(Number);
-            const minutosAtuais = horaAtualH * 60 + horaAtualM;
-
-            mostrarAlmoco = minutosAtuais >= minutosEntradaAlmoco;
-            mostrarSaida = minutosAtuais >= minutosSaidaVariada;
-        }
-
-        const horasPorDia = parseFloat(horarioFinal.horasPorDia) || 8.0;
-
-        return {
-            horaEntrada: horaEntrada,
-            horaSaida: mostrarSaida ? horaSaida : null,
-            saidaAlmoco: mostrarAlmoco ? saidaAlmoco : null,
-            entradaAlmoco: mostrarAlmoco ? entradaAlmoco : null,
-            totalHoras: mostrarSaida ? horasPorDia : null,
-            temSaida: mostrarSaida,
-        };
-    };
-
     const extrairHoraMinuto = (horaStr) => {
         if (!horaStr) return null;
-        
+
         if (typeof horaStr === 'string' && (horaStr.includes('T') || horaStr.includes('-'))) {
             try {
                 const data = new Date(horaStr);
@@ -1003,12 +1103,12 @@ const AnaliseComplotaPontos = () => {
                 return null;
             }
         }
-        
+
         const partes = String(horaStr).split(':');
         if (partes.length >= 2) {
             return `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
         }
-        
+
         return null;
     };
 
@@ -1036,7 +1136,7 @@ const AnaliseComplotaPontos = () => {
                         if (planoHorario && planoHorario.ativo === true && horarioData) {
                             const horaEntrada = extrairHoraMinuto(horarioData.horaEntrada) || "08:00";
                             const horaSaida = extrairHoraMinuto(horarioData.horaSaida) || "17:00";
-                            
+
                             return {
                                 user: user,
                                 userId: user.id,
@@ -1103,6 +1203,58 @@ const AnaliseComplotaPontos = () => {
         }
     };
 
+    const gerarPontosFicticiosComHorario = (userId, dia, isHoje, horaAtual, horariosMap) => {
+        const horario = horariosMap[userId] || {
+            horaEntrada: "08:00",
+            horaSaida: "17:00",
+            intervaloAlmoco: 1.00,
+            horasPorDia: 8.00
+        };
+
+        const pontos = {
+            horaEntrada: horario.horaEntrada,
+            saidaAlmoco: null,
+            entradaAlmoco: null,
+            horaSaida: null,
+            temSaida: false,
+            totalHoras: null
+        };
+
+        // Se for hoje e ainda não passou da hora de entrada, não mostrar ponto
+        if (isHoje && horaAtual < horario.horaEntrada) {
+            return pontos;
+        }
+
+        // Calcular horários de almoço
+        const [entradaH, entradaM] = horario.horaEntrada.split(':').map(Number);
+        const [saidaH, saidaM] = horario.horaSaida.split(':').map(Number);
+        
+        const minutosEntrada = entradaH * 60 + entradaM;
+        const minutosSaida = saidaH * 60 + saidaM;
+        const totalMinutos = minutosSaida - minutosEntrada;
+        const metadeMinutos = Math.floor(totalMinutos / 2);
+        
+        const minutosSaidaAlmoco = minutosEntrada + metadeMinutos;
+        const saidaAlmocoH = Math.floor(minutosSaidaAlmoco / 60);
+        const saidaAlmocoM = minutosSaidaAlmoco % 60;
+        pontos.saidaAlmoco = `${String(saidaAlmocoH).padStart(2, '0')}:${String(saidaAlmocoM).padStart(2, '0')}`;
+
+        const minutosIntervalo = horario.intervaloAlmoco * 60;
+        const minutosEntradaAlmoco = minutosSaidaAlmoco + minutosIntervalo;
+        const entradaAlmocoH = Math.floor(minutosEntradaAlmoco / 60);
+        const entradaAlmocoM = minutosEntradaAlmoco % 60;
+        pontos.entradaAlmoco = `${String(entradaAlmocoH).padStart(2, '0')}:${String(entradaAlmocoM).padStart(2, '0')}`;
+
+        // Se for dia passado ou hoje após hora de saída, mostrar saída
+        if (!isHoje || (isHoje && horaAtual >= horario.horaSaida)) {
+            pontos.horaSaida = horario.horaSaida;
+            pontos.temSaida = true;
+            pontos.totalHoras = horario.horasPorDia;
+        }
+
+        return pontos;
+    };
+
     const gerarPontosFicticios = (userId, dia, isHoje, horaAtual) => {
         return gerarPontosFicticiosComHorario(userId, dia, isHoje, horaAtual, horariosRef.current);
     };
@@ -1148,6 +1300,11 @@ const AnaliseComplotaPontos = () => {
                     cellValue += `\n${estatisticas.horaSaida}`;
                 } else {
                     cellValue += `\n---`;
+                }
+
+                // Adicionar indicador de horas extras se existir
+                if (estatisticas.horasExtras && estatisticas.horasExtras > 0) {
+                    cellValue += `\n+${estatisticas.horasExtras.toFixed(1)}h`;
                 }
             }
 
@@ -1204,7 +1361,7 @@ const AnaliseComplotaPontos = () => {
                 headerRow.push(`${dia}\n${diaSemana}`);
             });
 
-            headerRow.push("TOTAL\nHORAS", "DIAS\nTRABALHADOS", "TOTAL\nFALTAS", "TOTAL\nFERIADOS");
+            headerRow.push("TOTAL\nHORAS", "DIAS\nTRABALHADOS", "TOTAL\nFALTAS", "TOTAL\nFERIADOS", "TOTAL\nHORAS EXTRAS");
             dadosExport.push(headerRow);
 
             dadosGrade.forEach((dadosUsuario) => {
@@ -1242,7 +1399,8 @@ const AnaliseComplotaPontos = () => {
                     `${dadosUsuario.totalHorasMes}h`,
                     `${dadosUsuario.diasTrabalhados} dias`,
                     `${dadosUsuario.faltasTotal} faltas`,
-                    `${dadosUsuario.feriadosTotal} feriados`
+                    `${dadosUsuario.feriadosTotal} feriados`,
+                    `${dadosUsuario.horasExtrasTotal.toFixed(2)}h extras`
                 );
 
                 dadosExport.push(row);
@@ -1255,6 +1413,7 @@ const AnaliseComplotaPontos = () => {
             const totalDiasTodos = dadosGrade.reduce((sum, user) => sum + user.diasTrabalhados, 0);
             const totalFaltasTodos = dadosGrade.reduce((sum, user) => sum + user.faltasTotal, 0);
             const totalFeriadosTodos = dadosGrade.reduce((sum, user) => sum + user.feriadosTotal, 0);
+            const totalHorasExtrasTodos = dadosGrade.reduce((sum, user) => sum + user.horasExtrasTotal, 0);
             const mediaHorasPorFuncionario = (totalHorasTodos / dadosGrade.length).toFixed(1);
             const mediaDiasPorFuncionario = (totalDiasTodos / dadosGrade.length).toFixed(1);
 
@@ -1263,18 +1422,20 @@ const AnaliseComplotaPontos = () => {
 
             const resumoRow = Array(dias.length + 1).fill("");
             resumoRow[0] = "TOTAIS GERAIS:";
-            resumoRow[resumoRow.length - 4] = `${totalHorasTodos}h`;
-            resumoRow[resumoRow.length - 3] = `${totalDiasTodos} dias`;
-            resumoRow[resumoRow.length - 2] = `${totalFaltasTodos} faltas`;
-            resumoRow[resumoRow.length - 1] = `${totalFeriadosTodos} feriados`;
+            resumoRow[resumoRow.length - 5] = `${totalHorasTodos}h`;
+            resumoRow[resumoRow.length - 4] = `${totalDiasTodos} dias`;
+            resumoRow[resumoRow.length - 3] = `${totalFaltasTodos} faltas`;
+            resumoRow[resumoRow.length - 2] = `${totalFeriadosTodos} feriados`;
+            resumoRow[resumoRow.length - 1] = `${totalHorasExtrasTodos.toFixed(2)}h extras`;
             dadosExport.push(resumoRow);
 
             const mediaRow = Array(dias.length + 1).fill("");
             mediaRow[0] = "MÉDIAS POR FUNCIONÁRIO:";
-            mediaRow[mediaRow.length - 4] = `${mediaHorasPorFuncionario}h`;
-            mediaRow[mediaRow.length - 3] = `${mediaDiasPorFuncionario} dias`;
-            mediaRow[mediaRow.length - 2] = `${(totalFaltasTodos / dadosGrade.length).toFixed(1)} faltas`;
-            mediaRow[mediaRow.length - 1] = `${(totalFeriadosTodos / dadosGrade.length).toFixed(1)} feriados`;
+            mediaRow[mediaRow.length - 5] = `${mediaHorasPorFuncionario}h`;
+            mediaRow[mediaRow.length - 4] = `${mediaDiasPorFuncionario} dias`;
+            mediaRow[mediaRow.length - 3] = `${(totalFaltasTodos / dadosGrade.length).toFixed(1)} faltas`;
+            mediaRow[mediaRow.length - 2] = `${(totalFeriadosTodos / dadosGrade.length).toFixed(1)} feriados`;
+            mediaRow[mediaRow.length - 1] = `${(totalHorasExtrasTodos / dadosGrade.length).toFixed(2)}h extras`;
             dadosExport.push(mediaRow);
 
             dadosExport.push([""]);
@@ -1303,11 +1464,24 @@ const AnaliseComplotaPontos = () => {
                 dadosExport.push([`${index + 1}. ${user.utilizador.nome}`, "", "", "", `${user.totalHorasMes}h`]);
             });
 
+            const funcionariosComMaisHorasExtras = dadosGrade
+                .sort((a, b) => b.horasExtrasTotal - a.horasExtrasTotal)
+                .slice(0, 5);
+
+             if (funcionariosComMaisHorasExtras.length > 0) {
+                dadosExport.push([""]);
+                dadosExport.push(["🚀 TOP 5 - FUNCIONÁRIOS COM MAIS HORAS EXTRAS:"]);
+                funcionariosComMaisHorasExtras.forEach((user, index) => {
+                    dadosExport.push([`${index + 1}. ${user.utilizador.nome}`, "", "", "", `${user.horasExtrasTotal.toFixed(2)}h extras`]);
+                });
+            }
+
+
             const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
 
             const colWidths = [{ wch: 25 }];
             dias.forEach(() => colWidths.push({ wch: 14 }));
-            colWidths.push({ wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 });
+            colWidths.push({ wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 });
 
             worksheet["!cols"] = colWidths;
 
@@ -1323,10 +1497,11 @@ const AnaliseComplotaPontos = () => {
                 ["INDICADORES PRINCIPAIS:"],
                 [""],
                 ["👥 Total de Funcionários:", dadosGrade.length],
-                ["⏰ Total de Horas Trabalhadas:", `${totalHorasTodos}h`],
+                ["⏰ Total de Horas Trabalhadas (incl. extras):", `${totalHorasTodos}h`],
                 ["📅 Total de Dias Trabalhados:", totalDiasTodos],
                 ["❌ Total de Faltas:", totalFaltasTodos],
                 ["🎉 Total de Feriados:", totalFeriadosTodos],
+                ["🚀 Total de Horas Extras:", `${totalHorasExtrasTodos.toFixed(2)}h`],
                 [""],
                 ["MÉDIAS:"],
                 [""],
@@ -1334,6 +1509,7 @@ const AnaliseComplotaPontos = () => {
                 ["📅 Dias por Funcionário:", `${mediaDiasPorFuncionario} dias`],
                 ["❌ Faltas por Funcionário:", `${(totalFaltasTodos / dadosGrade.length).toFixed(1)}`],
                 ["🎉 Feriados por Funcionário:", `${(totalFeriadosTodos / dadosGrade.length).toFixed(1)}`],
+                ["🚀 Horas Extras por Funcionário:", `${(totalHorasExtrasTodos / dadosGrade.length).toFixed(2)}h`],
                 [""],
                 ["TAXA DE ASSIDUIDADE:"],
                 [""],
@@ -1399,18 +1575,21 @@ const AnaliseComplotaPontos = () => {
                             style={[styles.dayCell, getCellStyle(estatisticas)]}
                             onPress={() => {
                                 if (estatisticas && estatisticas.trabalhou) {
-                                    Alert.alert(
-                                        "Detalhes do Dia",
-                                        `Funcionário: ${dadosUsuario.utilizador.nome}\n` +
-                                            `Dia: ${dia}/${mesSelecionado}/${anoSelecionado}\n` +
-                                            `Entrada: ${estatisticas.horaEntrada}\n` +
-                                            (estatisticas.saidaAlmoco ? `Saída Almoço: ${estatisticas.saidaAlmoco}\n` : "") +
-                                            (estatisticas.entradaAlmoco ? `Entrada Almoço: ${estatisticas.entradaAlmoco}\n` : "") +
-                                            `Saída: ${estatisticas.horaSaida || "Em curso"}\n` +
-                                            (estatisticas.totalHoras
-                                                ? `Total Horas: ${estatisticas.totalHoras}h`
-                                                : "Dia em curso"),
-                                    );
+                                    let mensagem = `Funcionário: ${dadosUsuario.utilizador.nome}\n` +
+                                        `Dia: ${dia}/${mesSelecionado}/${anoSelecionado}\n` +
+                                        `Entrada: ${estatisticas.horaEntrada}\n` +
+                                        (estatisticas.saidaAlmoco ? `Saída Almoço: ${estatisticas.saidaAlmoco}\n` : "") +
+                                        (estatisticas.entradaAlmoco ? `Entrada Almoço: ${estatisticas.entradaAlmoco}\n` : "") +
+                                        `Saída: ${estatisticas.horaSaida || "Em curso"}\n` +
+                                        (estatisticas.totalHoras
+                                            ? `Total Horas: ${estatisticas.totalHoras}h`
+                                            : "Dia em curso");
+
+                                    if (estatisticas.horasExtras && estatisticas.horasExtras > 0) {
+                                        mensagem += `\n\n⚡ Horas Extras: ${estatisticas.horasExtras.toFixed(2)}h`;
+                                    }
+
+                                    Alert.alert("Detalhes do Dia", mensagem);
                                 } else if (estatisticas && estatisticas.temFalta) {
                                     Alert.alert(
                                         "Detalhes do Dia",
@@ -1442,6 +1621,11 @@ const AnaliseComplotaPontos = () => {
                     <Text style={styles.totalSubText}>
                         {dadosUsuario.diasTrabalhados} dias
                     </Text>
+                    {dadosUsuario.horasExtrasTotal > 0 && (
+                        <Text style={styles.totalSubTextExtra}>
+                            +{dadosUsuario.horasExtrasTotal.toFixed(2)}h extras
+                        </Text>
+                    )}
                 </View>
             </View>
         );
@@ -1572,14 +1756,14 @@ const AnaliseComplotaPontos = () => {
                             <Text style={styles.gradeTitle}>
                                 Grade Mensal - {meses[mesSelecionado - 1]}{" "}
                                 {anoSelecionado} - {obraSelecionada ? obras.find(o => o.id.toString() === obraSelecionada)?.nome : "Todas as Obras"} ({dadosGrade.length}{" "}
-                                utilizadores) | Feriados: {feriadosRef.current.size} | Faltas: {faltasRef.current.length}
+                                utilizadores) | Feriados: {feriadosRef.current.size} | Faltas: {faltasRef.current.length} | Horas Extras: {horasExtrasRef.current.length}
                             </Text>
                             <View style={styles.buttonGroup}>
                                 <TouchableOpacity
                                     style={styles.refreshButton}
                                     onPress={async () => {
                                         console.log(`🔄 [BTN-ATUALIZAR] Botão Atualizar pressionado`);
-                                        
+
                                         // Recarregar imediatamente sem confirmação para debug
                                         await recarregarDadosPeriodo();
                                     }}

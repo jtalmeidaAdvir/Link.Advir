@@ -275,6 +275,9 @@ export const styles = StyleSheet.create({
     cellWeekend: {
         backgroundColor: "#e2e3e5",
     },
+    cellFeriado: {
+        backgroundColor: "#fff3cd",
+    },
     cellFuture: {
         backgroundColor: "#f8f9fa",
         opacity: 0.5,
