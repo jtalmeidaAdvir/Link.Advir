@@ -2229,7 +2229,7 @@ const RegistosPorUtilizador = () => {
                     const resListar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-
+                    
                     if (!resListar.ok) {
                         console.error(`Erro ao obter registos para eliminação do dia ${dia} do utilizador ${userId}`);
                         totalErros++;
@@ -2603,6 +2603,11 @@ const RegistosPorUtilizador = () => {
             // Processar cada data
             for (const dataAtualFormatada of datasParaProcessar) {
                 try {
+                    // Verificar se é fim de semana ANTES de criar o payload
+                    const dataObj = new Date(dataAtualFormatada);
+                    const diaSemana = dataObj.getDay();
+                    const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+
                     // 1. Integrar diretamente no ERP (sem pedido intermédio)
                     if (painelToken && urlempresa) {
                         const dadosERP = {
@@ -2617,7 +2622,7 @@ const RegistosPorUtilizador = () => {
                             ExcluiEstat: 0,
                             Observacoes: faltaIntervalo ? 'Registado via interface de administração (intervalo)' : 'Registado via interface de administração',
                             CalculoFalta: 1,
-                            DescontaSubsAlim: descontaAlimentacao ? 1 : 0,
+                            DescontaSubsAlim: (descontaAlimentacao && !isFimDeSemana) ? 1 : 0,
                             DataProc: null,
                             NumPeriodoProcessado: 0,
                             JaProcessado: 0,
@@ -2663,11 +2668,6 @@ const RegistosPorUtilizador = () => {
                         if (resERP.ok) {
                             faltasRegistadas++;
                             //console.log(`✅ Falta registada para ${dataAtualFormatada}`);
-
-                            // Verificar se é fim de semana
-                            const dataObj = new Date(dataAtualFormatada);
-                            const diaSemana = dataObj.getDay();
-                            const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
 
                             // Se a falta desconta alimentação E NÃO é fim de semana, criar automaticamente a falta F40
                             if (descontaAlimentacao && !isFimDeSemana) {
@@ -2969,7 +2969,7 @@ const RegistosPorUtilizador = () => {
         mensagemConfirmacao += `\nTipo de falta: ${tiposFaltas[tipoFaltaSelecionadoBulk] || tipoFaltaSelecionadoBulk}\n`;
         mensagemConfirmacao += `Duração: ${duracaoFaltaBulk}\n`;
         if (descontaAlimentacao) {
-            mensagemConfirmacao += `\n⚠️ Nota: Esta falta desconta alimentação, será criada automaticamente uma falta F40 para cada dia.\n`;
+            mensagemConfirmacao += `\n⚠️ Nota: Esta falta desconta alimentação, será criada automaticamente uma falta F40 para cada dia útil (exceto fins de semana).\n`;
         }
         mensagemConfirmacao += `\nTotal: ${selectedCells.length} faltas\n\nDeseja continuar?`;
 
@@ -3004,6 +3004,11 @@ const RegistosPorUtilizador = () => {
                     try {
                         const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
+                        // Verificar se é fim de semana
+                        const dataObj = new Date(dataFormatada);
+                        const diaSemana = dataObj.getDay();
+                        const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+
                         const dadosERP = {
                             Funcionario: funcionarioId,
                             Data: new Date(dataFormatada).toISOString(),
@@ -3016,7 +3021,7 @@ const RegistosPorUtilizador = () => {
                             ExcluiEstat: 0,
                             Observacoes: 'Registado em bloco via interface de administração',
                             CalculoFalta: 1,
-                            DescontaSubsAlim: descontaAlimentacao ? 1 : 0,
+                            DescontaSubsAlim: (descontaAlimentacao && !isFimDeSemana) ? 1 : 0,
                             DataProc: null,
                             NumPeriodoProcessado: 0,
                             JaProcessado: 0,
@@ -3054,8 +3059,8 @@ const RegistosPorUtilizador = () => {
                             faltasRegistadas++;
                             //console.log(`✅ Falta registada: ${funcionarioId} - dia ${dia}`);
 
-                            // Se desconta alimentação, criar F40 automaticamente
-                            if (descontaAlimentacao) {
+                            // Se desconta alimentação E NÃO é fim de semana, criar F40 automaticamente
+                            if (descontaAlimentacao && !isFimDeSemana) {
                                 const dadosF40 = {
                                     Funcionario: funcionarioId,
                                     Data: new Date(dataFormatada).toISOString(),
@@ -3412,6 +3417,7 @@ const RegistosPorUtilizador = () => {
                         </>
                     )}
 
+                    
                     {viewMode === 'grade' && (
                         <>
                             <button
@@ -4442,7 +4448,7 @@ const RegistosPorUtilizador = () => {
                                                     placeholder="Ex: 2 (para 2 horas)"
                                                 />
                                             </div>
-
+                                            
                                             {tipoHoraExtraSelecionadoBulk && tiposHorasExtras[tipoHoraExtraSelecionadoBulk] && (
                                                 <div style={{
                                                     ...styles.selectedCellsContainer,
@@ -5401,7 +5407,7 @@ const RegistosPorUtilizador = () => {
                                             {eventos.length} registo{eventos.length !== 1 ? 's' : ''}
                                         </span>
                                     </div>
-
+                                    
                                     <div style={styles.eventsList}>
                                         {eventos
                                             .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))

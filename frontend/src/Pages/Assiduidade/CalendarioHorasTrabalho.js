@@ -504,7 +504,12 @@ const CalendarioHorasTrabalho = () => {
 
                 alert('Pedido de falta submetido com sucesso para aprovação.');
 
-                if (novaFalta.DescontaAlimentacao) {
+                // Verificar se é fim de semana
+                const dataFaltaObj = new Date(dataFalta);
+                const diaSemana = dataFaltaObj.getDay();
+                const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+
+                if (novaFalta.DescontaAlimentacao && !isFimDeSemana) {
                     const dadosF40 = {
                         ...dadosPrincipal,
                         falta: 'F40',
@@ -541,7 +546,7 @@ const CalendarioHorasTrabalho = () => {
                     estadoAprovacao: 'Pendente'
                 }];
 
-                if (novaFalta.DescontaAlimentacao) {
+                if (novaFalta.DescontaAlimentacao && !isFimDeSemana) {
                     novosPedidosPendentes.push({
                         id: Date.now() + 1,
                         tipoPedido: 'FALTA',

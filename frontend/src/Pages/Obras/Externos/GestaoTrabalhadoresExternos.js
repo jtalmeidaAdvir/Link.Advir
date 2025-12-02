@@ -561,7 +561,7 @@ const GestaoTrabalhadoresExternos = () => {
                 await fetchRegistos();
                 Alert.alert('Sucesso', 'Registo ativado.');
             } catch (e) {
-                Alert.Alert.alert('Erro', e.message);
+                Alert.alert('Erro', e.message);
             }
         },
         'Ativar',
@@ -664,19 +664,19 @@ const fetchPartesGrade = useCallback(async () => {
 
         // Determinar chave de agrupamento
         let grupoKey, grupoLabel, dadosGrupo;
-        
+
         // 🔥 NOVA LÓGICA: Se modo visualização for 'porColaborador', agrupar por colaborador+obra
         if (modoVisualizacaoGrade === 'porColaborador') {
           grupoKey = `colaborador_obra_${nomeKey}_${obraId}`;
           grupoLabel = `${nome} → ${obraLabel}`;
-          dadosGrupo = { 
-            nome: grupoLabel, 
+          dadosGrupo = {
+            nome: grupoLabel,
             colaborador: nome,
-            empresa, 
-            especialidade, 
-            classe, 
+            empresa,
+            especialidade,
+            classe,
             obraId,
-            obraLabel 
+            obraLabel
           };
         } else {
           // Agrupamento normal
@@ -786,7 +786,15 @@ useEffect(() => {
   }
 }, [mesSelecionado, anoSelecionado, modoVisualizacaoGrade, modalGradeVisible, fetchPartesGrade]);
 
-
+    // Limpar filtros quando muda o modo de visualização
+    useEffect(() => {
+        // Resetar todos os filtros quando muda entre Vista Geral e Por Colaborador
+        setExternoGradeFiltro('');
+        setEmpresaGradeFiltro('');
+        setEspecialidadeGradeFiltro('');
+        setClasseGradeFiltro('');
+        setObraGradeFiltro('');
+    }, [modoVisualizacaoGrade]);
 
     // Recarregar grade quando agrupamento muda (sem resetar filtros)
     useEffect(() => {
@@ -836,9 +844,15 @@ useEffect(() => {
                 obrasSet.add(String(ext.obraId));
             }
 
-            // Só adicionar empresa se NÃO estiver agrupado por obra
-            // (pois quando agrupado por obra, ext.nome contém o nome da obra)
-            if (agruparGradePor !== 'obra') {
+            // No modo por colaborador, usar SEMPRE o campo colaborador (sem a seta da obra)
+            if (modoVisualizacaoGrade === 'porColaborador') {
+                // Garantir que usamos apenas o nome do colaborador, não o label completo com obra
+                if (ext.colaborador) {
+                    colaboradores.add(ext.colaborador);
+                }
+            } else if (agruparGradePor !== 'obra') {
+                // Só adicionar empresa se NÃO estiver agrupado por obra
+                // (pois quando agrupado por obra, ext.nome contém o nome da obra)
                 if (ext.empresa && ext.empresa !== '—') empresas.add(ext.empresa);
                 if (ext.nome) colaboradores.add(ext.nome);
                 if (ext.especialidade && ext.especialidade !== '—' && ext.especialidade.toLowerCase() !== 'maoobra') {
@@ -857,7 +871,7 @@ useEffect(() => {
                 const info = nomeToInfo[nomeKey];
                 if (info.empresa) empresas.add(info.empresa);
             });
-            
+
             // Usar os registos originais para obter nomes de colaboradores
             registos.forEach(r => {
                 const nome = r?.funcionario || '';
@@ -879,9 +893,9 @@ useEffect(() => {
         obrasSet.forEach(obraId => {
             const obra = obrasMap[obraId];
             if (obra && obra.nome) {
-                obras.push({ 
-                    id: obraId, 
-                    label: `${obra.codigo} - ${obra.nome}` 
+                obras.push({
+                    id: obraId,
+                    label: `${obra.codigo} - ${obra.nome}`
                 });
             }
         });
@@ -893,15 +907,18 @@ useEffect(() => {
             classes: ['', ...Array.from(classes).sort()],
             obras: obras.sort((a, b) => a.label.localeCompare(b.label)),
         };
-    }, [gradesMensais.externos, obrasMap, agruparGradePor, nomeToInfo, registos, especialidadesList, classesList]);
+    }, [gradesMensais.externos, obrasMap, agruparGradePor, modoVisualizacaoGrade, nomeToInfo, registos, especialidadesList, classesList]);
 
     // Filtrar externos para a grade
     const externosFiltradosGrade = useMemo(() => {
         return gradesMensais.externos.filter(externo => {
-            // 🔥 MODO POR COLABORADOR: filtrar apenas por colaborador
+            // 🔥 MODO POR COLABORADOR: filtrar APENAS por colaborador usando o campo correto
             if (modoVisualizacaoGrade === 'porColaborador') {
-                if (externoGradeFiltro && externo.colaborador !== externoGradeFiltro) {
-                    return false;
+                if (externoGradeFiltro) {
+                    // Usar SEMPRE o campo colaborador (sem a obra), nunca o nome completo
+                    if (externo.colaborador !== externoGradeFiltro) {
+                        return false;
+                    }
                 }
                 return true;
             }
@@ -1132,7 +1149,7 @@ setClassesList(items);
         const nome = it.Funcionario || '';
         const emp = nomeToInfo[normalizeName(nome)]?.empresa || '—';
 
-        // Obter especialidade corretamente usando SubEmpID
+        // Obter especialidade usando SubEmpID
         let esp = '—';
         if (it.SubEmpID != null) {
             const espObj = especialidadesList.find(e => String(e.subEmpId) === String(it.SubEmpID));
@@ -1257,7 +1274,7 @@ setClassesList(items);
             .sort((a, b) => b.sort - a.sort);
 
         return arr;
-    }, [resumoDocs, granularidade, agruparPor, obrasMap, nomeToEmpresa, nomeToInfo, dataInicio, dataFim, empresaResumoFiltro, externoResumoFiltro, especialidadeResumoFiltro,classeResumoFiltro,            // <-- ADICIONAR
+    }, [resumoDocs, granularidade, agruparPor, obrasMap, nomeToEmpresa, nomeToInfo, dataInicio, dataFim, empresaResumoFiltro, externoResumoFiltro, especialidadeResumoFiltro,classeResumoFiltro,
   classesList , especialidadesList]);
 
     // Render cards
@@ -2212,7 +2229,7 @@ setClassesList(items);
             Vista Geral
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           onPress={() => setModoVisualizacaoGrade('porColaborador')}
           style={[styles.chip, modoVisualizacaoGrade === 'porColaborador' && styles.chipActive]}
@@ -2383,9 +2400,20 @@ setClassesList(items);
         <View>
           {/* Cabeçalho dos dias */}
           <View style={styles.gradeMensalTableHeader}>
-            <View style={[styles.gradeMensalHeaderCell, styles.gradeMensalNomeCell]}>
-              <Text style={styles.gradeMensalHeaderText}>Nome</Text>
-            </View>
+            {modoVisualizacaoGrade === 'porColaborador' ? (
+              <>
+                <View style={[styles.gradeMensalNomeCell, {width: 180, minWidth: 180, maxWidth: 180, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'flex-start'}]}>
+                  <Text style={styles.gradeMensalHeaderText}>Colaborador</Text>
+                </View>
+                <View style={[styles.gradeMensalNomeCell, {width: 200, minWidth: 200, maxWidth: 200, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'flex-start'}]}>
+                  <Text style={styles.gradeMensalHeaderText}>Obra</Text>
+                </View>
+              </>
+            ) : (
+              <View style={[styles.gradeMensalNomeCell, {width: 250, minWidth: 250, maxWidth: 250, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'flex-start'}]}>
+                <Text style={styles.gradeMensalHeaderText}>Nome</Text>
+              </View>
+            )}
             {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map((dia) => {
               const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
               const isFds = data.getDay() === 0 || data.getDay() === 6;
@@ -2418,11 +2446,26 @@ setClassesList(items);
                 key={externo.nome}
                 style={[styles.gradeMensalRow, idx % 2 === 0 && styles.gradeMensalRowPar]}
               >
-                <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell]}>
-                  <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
-                    {externo.nome}
-                  </Text>
-                </View>
+                {modoVisualizacaoGrade === 'porColaborador' ? (
+                  <>
+                    <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell, {width: 180, minWidth: 180, maxWidth: 180, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'flex-start'}]}>
+                      <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
+                        {externo.colaborador || externo.nome}
+                      </Text>
+                    </View>
+                    <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell, {width: 200, minWidth: 200, maxWidth: 200, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'flex-start'}]}>
+                      <Text style={styles.gradeMensalNomeText} numberOfLines={2}>
+                        {externo.obraLabel || '—'}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell, {width: 250, minWidth: 250, maxWidth: 250, paddingHorizontal: 12, justifyContent: 'center', alignItems: 'flex-start'}]}>
+                    <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
+                      {externo.nome}
+                    </Text>
+                  </View>
+                )}
 
                 {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map((dia) => {
                   const minutos = externo.diasHoras[dia] || 0;

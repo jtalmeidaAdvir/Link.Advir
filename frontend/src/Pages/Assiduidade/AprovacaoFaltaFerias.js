@@ -597,6 +597,11 @@ const AprovacaoFaltaFerias = () => {
         }
 
         try {
+            // Verificar se é fim de semana
+            const dataObj = new Date(novaFaltaEquipa.Data);
+            const diaSemana = dataObj.getDay();
+            const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+
             // 1. Inserir falta diretamente no ERP
             const dadosERP = {
                 Funcionario: codFuncionario,
@@ -610,7 +615,7 @@ const AprovacaoFaltaFerias = () => {
                 ExcluiEstat: 0,
                 Observacoes: novaFaltaEquipa.Observacoes,
                 CalculoFalta: 1,
-                DescontaSubsAlim: novaFaltaEquipa.DescontaAlimentacao ? 1 : 0,
+                DescontaSubsAlim: (novaFaltaEquipa.DescontaAlimentacao && !isFimDeSemana) ? 1 : 0,
                 DataProc: null,
                 NumPeriodoProcessado: 0,
                 JaProcessado: 0,

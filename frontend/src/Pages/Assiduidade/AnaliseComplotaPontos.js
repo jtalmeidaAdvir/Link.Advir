@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { secureStorage } from '../../utils/secureStorage';
 import {
     View,
@@ -27,7 +27,20 @@ const AnaliseComplotaPontos = () => {
         new Date().getFullYear(),
     );
     const [dadosGrade, setDadosGrade] = useState([]);
+    
+    // ✅ NOVO: Estados para faltas e feriados com refs para acesso síncrono
     const [faltas, setFaltas] = useState([]);
+    const [feriados, setFeriados] = useState(new Set());
+    const faltasRef = useRef([]);
+    const feriadosRef = useRef(new Set());
+    
+    // ✅ NOVO: Flags de carregamento
+    const [dadosCarregados, setDadosCarregados] = useState({
+        feriados: false,
+        faltas: false,
+        horarios: false,
+        inicial: false
+    });
 
     const meses = [
         "Janeiro",
@@ -48,8 +61,7 @@ const AnaliseComplotaPontos = () => {
         { length: 10 },
         (_, i) => new Date().getFullYear() - 5 + i,
     );
-    // Formata YYYY-MM-DD em “local” (sem UTC / sem Z)
-    // Formata YYYY-MM-DD em "local"
+
     const fmtLocal = (d) => {
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -57,110 +69,479 @@ const AnaliseComplotaPontos = () => {
         return `${y}-${m}-${day}`;
     };
 
-    const obterDiasComRegistosPorUtilizador = async (
-        obraId,
-        ano,
-        mes,
-        utilizadores,
-    ) => {
-        const token = secureStorage.getItem("loginToken");
+    // ✅ Função para normalizar feriados
+    const normalizarFeriados = (data) => {
+        try {
+            const lista = data?.DataSet?.Table || [];
+            const set = new Set();
 
-        const dataInicio = new Date(ano, mes - 1, 1);
-        const dataFim = new Date(ano, mes, 0);
-        const di = fmtLocal(dataInicio);
-        const df = fmtLocal(dataFim);
+            lista.forEach(item => {
+                if (item.Data) {
+                    const d = new Date(item.Data);
+                    if (!isNaN(d.getTime())) {
+                        const iso = fmtLocal(d);
+                        set.add(iso);
+                    }
+                }
+            });
 
-        const pedidos = utilizadores.map(async (u) => {
-            try {
-                const url = new URL(
-                    `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo`,
-                );
+            console.log(`✅ [FERIADOS] ${set.size} feriados normalizados`);
+            return set;
+        } catch (err) {
+            console.error('❌ [FERIADOS] Erro ao normalizar:', err);
+            return new Set();
+        }
+    };
 
-                // ✅ Envia snake_case e camelCase para compatibilidade
-                url.searchParams.set("user_id", String(u.id));
-                url.searchParams.set("userId", String(u.id));
+    // ✅ CORRIGIDO: Carregar feriados com retry e retorno garantido
+    const carregarFeriados = async (tentativa = 1, maxTentativas = 3) => {
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
 
-                if (obraId) {
-                    url.searchParams.set("obra_id", String(obraId));
-                    url.searchParams.set("obraId", String(obraId));
+        console.log(`🔍 [FERIADOS] Carregando feriados (tentativa ${tentativa}/${maxTentativas})...`);
+
+        if (!painelAdminToken || !urlempresa) {
+            console.warn('⚠️ [FERIADOS] Token ou URL da empresa não encontrados');
+            const emptySet = new Set();
+            setFeriados(emptySet);
+            feriadosRef.current = emptySet;
+            return emptySet;
+        }
+
+        try {
+            const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/Feriados`, {
+                headers: {
+                    'Authorization': `Bearer ${painelAdminToken}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log(`🔍 [FERIADOS] Response status: ${res.status}`);
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error(`❌ [FERIADOS] Erro na resposta: ${errorText}`);
+
+                if (res.status === 409 && tentativa < maxTentativas) {
+                    console.log(`⏳ [FERIADOS] Erro 409. Aguardando 2s antes da próxima tentativa...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return carregarFeriados(tentativa + 1, maxTentativas);
                 }
 
-                url.searchParams.set("data_inicio", di);
-                url.searchParams.set("data_fim", df);
-                url.searchParams.set("dataInicio", di);
-                url.searchParams.set("dataFim", df);
-
-                const res = await fetch(url.toString(), {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-
-                if (!res.ok) {
-                    const txt = await res.text().catch(() => "");
-                    console.warn(
-                        `[listar-por-user-periodo] ${res.status} ${res.statusText} · ${url}`,
-                    );
-                    console.log(`Body: ${txt}`);
-                    return { userId: u.id, dias: new Set() };
-                    // Se quiseres ser mais agressivo: aqui podias fazer uma segunda tentativa sem obra_id.
-                }
-
-                const lista = await res.json();
-                const dias = new Set(
-                    (Array.isArray(lista) ? lista : [])
-                        .map((r) => {
-                            const d = new Date(
-                                r.data ||
-                                    r.dataHora ||
-                                    r.createdAt ||
-                                    r.updatedAt,
-                            );
-                            return isNaN(d) ? null : d.getDate();
-                        })
-                        .filter(Boolean),
-                );
-
-                return { userId: u.id, dias };
-            } catch (e) {
-                console.error(
-                    `Erro a obter dias com registos para user ${u.id}:`,
-                    e,
-                );
-                return { userId: u.id, dias: new Set() };
+                throw new Error(`HTTP ${res.status}: ${errorText}`);
             }
-        });
 
-        const resultados = await Promise.all(pedidos);
-        return resultados.reduce((acc, cur) => {
-            acc[cur.userId] = cur.dias;
-            return acc;
-        }, {});
+            const data = await res.json();
+            console.log(`✅ [FERIADOS] Dados recebidos:`, data?.DataSet?.Table?.length || 0, 'registos');
+            
+            const listaISO = normalizarFeriados(data);
+            console.log(`✅ [FERIADOS] Total de feriados carregados: ${listaISO.size}`);
+            
+            if (listaISO.size > 0) {
+                console.log(`📋 [FERIADOS] Lista de feriados:`, Array.from(listaISO).sort());
+            }
+            
+            // ✅ IMPORTANTE: Atualizar state E ref
+            setFeriados(listaISO);
+            feriadosRef.current = listaISO;
+            
+            return listaISO;
+
+        } catch (err) {
+            console.error(`❌ [FERIADOS] Erro ao carregar (tentativa ${tentativa}):`, err);
+
+            if (tentativa < maxTentativas && !err.message.includes('TypeError: Failed to fetch')) {
+                console.log(`⏳ [FERIADOS] Tentando novamente em 3s...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                return carregarFeriados(tentativa + 1, maxTentativas);
+            }
+
+            console.warn('⚠️ [FERIADOS] Usando conjunto vazio como fallback');
+            const emptySet = new Set();
+            setFeriados(emptySet);
+            feriadosRef.current = emptySet;
+            return emptySet;
+        }
+    };
+
+    // ✅ CORRIGIDO: Carregar faltas com retorno garantido
+    const carregarFaltas = async (utilizadoresParam = null) => {
+        try {
+            const painelAdminToken = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
+            const loginToken = secureStorage.getItem("loginToken");
+
+            console.log("🔍 [FALTAS] Iniciando carregamento de faltas...");
+
+            if (!painelAdminToken || !urlempresa || !loginToken) {
+                console.warn("❌ [FALTAS] Tokens não encontrados");
+                setFaltas([]);
+                faltasRef.current = [];
+                return [];
+            }
+
+            const utilizadoresParaProcessar = utilizadoresParam || utilizadores;
+
+            console.log("🔍 [FALTAS] Utilizadores a processar:", utilizadoresParaProcessar.length);
+
+            if (utilizadoresParaProcessar.length === 0) {
+                console.warn("⚠️ [FALTAS] Nenhum utilizador disponível");
+                setFaltas([]);
+                faltasRef.current = [];
+                return [];
+            }
+
+            const promises = utilizadoresParaProcessar.map(async (user) => {
+                try {
+                    const resCodFuncionario = await fetch(
+                        `https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`,
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${loginToken}`,
+                                "Content-Type": "application/json",
+                            },
+                        },
+                    );
+
+                    if (!resCodFuncionario.ok) {
+                        return [];
+                    }
+
+                    const dataCodFuncionario = await resCodFuncionario.json();
+                    const codFuncionario = dataCodFuncionario.codFuncionario;
+
+                    if (!codFuncionario) {
+                        return [];
+                    }
+
+                    const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
+
+                    const res = await fetch(urlFaltas, {
+                        headers: {
+                            Authorization: `Bearer ${painelAdminToken}`,
+                            urlempresa: urlempresa,
+                            "Content-Type": "application/json",
+                        },
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        const faltasUsuario = data?.DataSet?.Table || [];
+
+                        if (faltasUsuario.length > 0) {
+                            const faltasComUserId = faltasUsuario.map((falta) => ({
+                                ...falta,
+                                userId: user.id,
+                                nomeUsuario: user.nome,
+                                codFuncionarioUsado: codFuncionario,
+                            }));
+
+                            return faltasComUserId;
+                        }
+                    }
+
+                    return [];
+                } catch (error) {
+                    console.error(`❌ [FALTAS] Erro ao carregar faltas para ${user.nome}:`, error);
+                    return [];
+                }
+            });
+
+            const resultados = await Promise.all(promises);
+            const faltasTotal = resultados.flat();
+            
+            console.log("✅ [FALTAS] Total de faltas carregadas:", faltasTotal.length);
+            
+            // ✅ IMPORTANTE: Atualizar state E ref
+            setFaltas(faltasTotal);
+            faltasRef.current = faltasTotal;
+            
+            return faltasTotal;
+        } catch (error) {
+            console.error("❌ [FALTAS] Erro ao carregar faltas:", error);
+            setFaltas([]);
+            faltasRef.current = [];
+            return [];
+        }
     };
 
     const [horariosUtilizadores, setHorariosUtilizadores] = useState({});
-    const [horariosCarregados, setHorariosCarregados] = useState(false);
+    const horariosRef = useRef({});
 
     useEffect(() => {
         carregarDadosIniciais();
     }, []);
 
-    // Só carregar dados da grade quando os horários estiverem disponíveis
+    // ✅ CORRIGIDO: Recarregar ao mudar filtros
     useEffect(() => {
-        if (horariosCarregados && utilizadores.length > 0 && Object.keys(horariosUtilizadores).length > 0) {
-            console.log(`✅ [INIT] Horários carregados (${Object.keys(horariosUtilizadores).length}/${utilizadores.length}), iniciando carregamento da grade...`);
-            console.log(`📋 [INIT] Período: ${mesSelecionado}/${anoSelecionado} | Obra: ${obraSelecionada || 'Todas'}`);
-            carregarDadosGrade();
-        } else if (utilizadores.length > 0 && !horariosCarregados) {
-            console.log(`⏳ [INIT] Aguardando carregamento de horários (${Object.keys(horariosUtilizadores).length}/${utilizadores.length} carregados)...`);
+        if (dadosCarregados.inicial && utilizadores.length > 0) {
+            console.log(`🔄 [CHANGE] Detectada mudança de período ou obra`);
+            console.log(`📋 [CHANGE] Novo período: ${mesSelecionado}/${anoSelecionado}`);
+            console.log(`📋 [CHANGE] Obra: ${obraSelecionada || 'Todas'}`);
+            
+            recarregarDadosPeriodo();
         }
-    }, [obraSelecionada, mesSelecionado, anoSelecionado, horariosCarregados]);
+    }, [obraSelecionada, mesSelecionado, anoSelecionado]);
+
+    // ✅ NOVO: Função principal de recarregamento com ordem garantida
+    const recarregarDadosPeriodo = async () => {
+        console.log(`\n${"=".repeat(60)}`);
+        console.log(`🔄 [RELOAD] INICIANDO RECARREGAMENTO COMPLETO FORÇADO`);
+        console.log(`📅 Período: ${mesSelecionado}/${anoSelecionado}`);
+        console.log(`🏢 Obra: ${obraSelecionada || 'Todas'}`);
+        console.log(`${"=".repeat(60)}\n`);
+
+        setLoading(true);
+
+        // ✅ LIMPEZA FORÇADA: Limpar TODOS os dados anteriores antes de recarregar
+        console.log(`🧹 [CLEANUP] Limpando dados anteriores...`);
+        setDadosGrade([]);
+        setFeriados(new Set());
+        feriadosRef.current = new Set();
+        setFaltas([]);
+        faltasRef.current = [];
+        console.log(`✅ [CLEANUP] Dados anteriores limpos`);
+
+        try {
+            // ✅ PASSO 1: Carregar FERIADOS (OBRIGATÓRIO - SEMPRE)
+            console.log(`\n📌 PASSO 1/3: Carregando FERIADOS (recarregamento forçado)...`);
+            const feriadosCarregados = await carregarFeriados();
+            console.log(`✅ PASSO 1/3 CONCLUÍDO: ${feriadosCarregados.size} feriados carregados`);
+
+            // Validação obrigatória
+            if (!feriadosCarregados) {
+                throw new Error("Feriados não foram carregados corretamente");
+            }
+            if (feriadosCarregados.size === 0) {
+                console.warn(`⚠️ [VALIDAÇÃO] Nenhum feriado encontrado - continuando sem feriados`);
+            }
+
+            // ✅ PASSO 2: Carregar FALTAS (OBRIGATÓRIO - SEMPRE)
+            console.log(`\n📌 PASSO 2/3: Carregando FALTAS (recarregamento forçado)...`);
+            const faltasCarregadas = await carregarFaltas();
+            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasCarregadas.length} faltas carregadas`);
+
+            // Validação obrigatória
+            if (!faltasCarregadas) {
+                throw new Error("Faltas não foram carregadas corretamente");
+            }
+
+            // Log detalhado de faltas por utilizador
+            if (faltasCarregadas.length > 0) {
+                const faltasPorUser = {};
+                faltasCarregadas.forEach(f => {
+                    if (!faltasPorUser[f.nomeUsuario]) {
+                        faltasPorUser[f.nomeUsuario] = 0;
+                    }
+                    faltasPorUser[f.nomeUsuario]++;
+                });
+                console.log(`📊 [FALTAS] Distribuição por utilizador:`, faltasPorUser);
+            }
+
+            // ✅ PASSO 3: Gerar GRADE com PONTOS FICTÍCIOS (OBRIGATÓRIO - SEMPRE)
+            console.log(`\n📌 PASSO 3/3: Gerando GRADE com PONTOS FICTÍCIOS (usando dados validados)...`);
+            await gerarGradeComDadosValidados(feriadosCarregados, faltasCarregadas);
+            console.log(`✅ PASSO 3/3 CONCLUÍDO: Grade gerada com pontos fictícios`);
+
+            console.log(`\n${"=".repeat(60)}`);
+            console.log(`✅ [RELOAD] RECARREGAMENTO COMPLETO FINALIZADO COM SUCESSO`);
+            console.log(`   - Feriados: ${feriadosCarregados.size}`);
+            console.log(`   - Faltas: ${faltasCarregadas.length}`);
+            console.log(`   - Utilizadores na grade: ${dadosGrade.length || 'processando...'}`);
+            console.log(`${"=".repeat(60)}\n`);
+
+        } catch (error) {
+            console.error("❌ [RELOAD] Erro ao recarregar dados:", error);
+            Alert.alert("Erro", "Erro ao recarregar dados do período");
+            // Garantir que os dados ficam limpos em caso de erro
+            setDadosGrade([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ✅ NOVO: Gerar grade com dados já validados (recebe os dados como parâmetro)
+    const gerarGradeComDadosValidados = async (feriadosValidados, faltasValidadas) => {
+        console.log(`\n🔍 [GRADE] Iniciando geração da grade...`);
+        console.log(`📊 [GRADE] Dados recebidos:`);
+        console.log(`   - Feriados: ${feriadosValidados.size} registos`);
+        console.log(`   - Faltas: ${faltasValidadas.length} registos`);
+        console.log(`   - Utilizadores: ${utilizadores.length}`);
+        console.log(`   - Período: ${mesSelecionado}/${anoSelecionado}`);
+
+        // Filtrar faltas para o mês/ano selecionado
+        const faltasDoMes = faltasValidadas.filter((falta) => {
+            const dataFalta = new Date(falta.Data);
+            const mesData = dataFalta.getMonth() + 1;
+            const anoData = dataFalta.getFullYear();
+            return mesData === mesSelecionado && anoData === anoSelecionado;
+        });
+
+        console.log(`📋 [GRADE] Faltas filtradas para ${mesSelecionado}/${anoSelecionado}: ${faltasDoMes.length}`);
+        
+        if (faltasDoMes.length > 0) {
+            console.log(`📋 [GRADE] Detalhes das faltas do mês:`);
+            faltasDoMes.forEach(f => {
+                const dataFalta = new Date(f.Data);
+                console.log(`   - ${f.nomeUsuario}: Dia ${dataFalta.getDate()}/${mesSelecionado}`);
+            });
+        }
+
+        // Filtrar feriados para o mês/ano selecionado
+        const feriadosDoMes = new Set();
+        feriadosValidados.forEach(feriadoISO => {
+            const [ano, mes] = feriadoISO.split('-').map(Number);
+            if (ano === anoSelecionado && mes === mesSelecionado) {
+                feriadosDoMes.add(feriadoISO);
+            }
+        });
+        
+        console.log(`📋 [GRADE] Feriados do mês: ${feriadosDoMes.size}`);
+        if (feriadosDoMes.size > 0) {
+            console.log(`📋 [GRADE] Lista:`, Array.from(feriadosDoMes));
+        }
+
+        const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
+        const hoje = new Date();
+        const dadosGradeTemp = [];
+
+        utilizadores.forEach((user) => {
+            const dadosUsuario = {
+                utilizador: user,
+                estatisticasDias: {},
+                totalHorasMes: 0,
+                diasTrabalhados: 0,
+                faltasTotal: 0,
+                feriadosTotal: 0,
+            };
+
+            // Faltas deste utilizador no mês
+            const faltasDoUser = faltasDoMes.filter(f => f.userId === user.id);
+            
+            if (faltasDoUser.length > 0) {
+                console.log(`👤 [GRADE] ${user.nome}: ${faltasDoUser.length} faltas no mês`);
+            }
+
+            for (let dia = 1; dia <= diasDoMes; dia++) {
+                const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, dia);
+                const diaSemana = dataAtual.getDay();
+                const isWeekend = diaSemana === 0 || diaSemana === 6;
+                const isFutureDate = dataAtual > hoje;
+
+                // ✅ Verificar se é feriado
+                const dataISO = fmtLocal(dataAtual);
+                const isFeriado = feriadosValidados.has(dataISO);
+
+                // ✅ Verificar faltas do dia para este utilizador
+                const faltasDoDia = faltasDoUser.filter((falta) => {
+                    const df = new Date(falta.Data);
+                    return df.getDate() === dia;
+                });
+
+                let estatisticasDia = {
+                    dia,
+                    diaSemana,
+                    isWeekend,
+                    isFutureDate,
+                    isFeriado,
+                    faltas: faltasDoDia,
+                    temFalta: faltasDoDia.length > 0,
+                    trabalhou: false,
+                };
+
+                // ✅ PRIORIDADE 1: FALTAS (verificar PRIMEIRO - OBRIGATÓRIO)
+                if (faltasDoDia.length > 0) {
+                    estatisticasDia.trabalhou = false;
+                    estatisticasDia.temFalta = true;
+                    estatisticasDia.faltas = faltasDoDia;
+                    dadosUsuario.faltasTotal++;
+                    console.log(`   ⚠️ Dia ${dia}: FALTA`);
+                }
+                // ✅ PRIORIDADE 2: FERIADOS (verificar SEGUNDO - OBRIGATÓRIO)
+                else if (isFeriado) {
+                    estatisticasDia.trabalhou = false;
+                    dadosUsuario.feriadosTotal++;
+                    console.log(`   🎉 Dia ${dia}: FERIADO`);
+                }
+                // ✅ PRIORIDADE 3: FIM DE SEMANA
+                else if (isWeekend) {
+                    estatisticasDia.trabalhou = false;
+                }
+                // ✅ PRIORIDADE 4: FUTURO
+                else if (isFutureDate) {
+                    estatisticasDia.trabalhou = false;
+                }
+                // ✅ PRIORIDADE 5: DIA ÚTIL -> GERAR HORÁRIO ESPERADO (ÚLTIMO)
+                else {
+                    const isHoje = dataAtual.toDateString() === hoje.toDateString();
+                    const horaAtual = isHoje
+                        ? `${String(hoje.getHours()).padStart(2, "0")}:${String(hoje.getMinutes()).padStart(2, "0")}`
+                        : null;
+
+                    const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
+                    Object.assign(estatisticasDia, pontosFicticios);
+                    estatisticasDia.trabalhou = true;
+
+                    if (pontosFicticios.temSaida) {
+                        const horasDia = horariosRef.current[user.id]?.horasPorDia || 8;
+                        dadosUsuario.totalHorasMes += horasDia;
+                        dadosUsuario.diasTrabalhados++;
+                    } else {
+                        dadosUsuario.diasTrabalhados += 0.5;
+                    }
+                }
+
+                dadosUsuario.estatisticasDias[dia] = estatisticasDia;
+            }
+
+            dadosGradeTemp.push(dadosUsuario);
+        });
+
+        console.log(`\n📊 [GRADE] RESUMO FINAL:`);
+        console.log(`   - Utilizadores processados: ${dadosGradeTemp.length}`);
+        
+        const totalFaltas = dadosGradeTemp.reduce((sum, u) => sum + u.faltasTotal, 0);
+        const totalFeriados = dadosGradeTemp.reduce((sum, u) => sum + u.feriadosTotal, 0);
+        
+        console.log(`   - Total faltas na grade: ${totalFaltas}`);
+        console.log(`   - Total feriados na grade: ${totalFeriados}`);
+        
+        // Listar utilizadores com faltas
+        const usersComFaltas = dadosGradeTemp.filter(u => u.faltasTotal > 0);
+        if (usersComFaltas.length > 0) {
+            console.log(`   - Utilizadores com faltas:`);
+            usersComFaltas.forEach(u => {
+                console.log(`      • ${u.utilizador.nome}: ${u.faltasTotal} faltas`);
+            });
+        }
+
+        setDadosGrade(dadosGradeTemp);
+    };
 
     const carregarDadosIniciais = async () => {
+        console.log(`\n${"=".repeat(60)}`);
+        console.log(`🚀 [INIT] INICIANDO CARREGAMENTO INICIAL COMPLETO`);
+        console.log(`${"=".repeat(60)}\n`);
+
         setLoading(true);
+
+        // ✅ LIMPEZA INICIAL: Garantir que não há dados residuais
+        console.log(`🧹 [INIT-CLEANUP] Limpando estados iniciais...`);
+        setDadosGrade([]);
+        setFeriados(new Set());
+        feriadosRef.current = new Set();
+        setFaltas([]);
+        faltasRef.current = [];
+        console.log(`✅ [INIT-CLEANUP] Estados iniciais limpos`);
+
         try {
             const token = secureStorage.getItem("loginToken");
             const empresaId = secureStorage.getItem("empresa_id");
 
             // Carregar obras
+            console.log(`\n📌 [INIT] Carregando obras...`);
             const resObras = await fetch(
                 `https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`,
                 {
@@ -169,8 +550,10 @@ const AnaliseComplotaPontos = () => {
             );
             const obrasData = await resObras.json();
             setObras(obrasData);
+            console.log(`✅ [INIT] ${obrasData.length} obras carregadas`);
 
-            // Carregar utilizadores da empresa
+            // Carregar utilizadores
+            console.log(`\n📌 [INIT] Carregando utilizadores...`);
             const resUsers = await fetch(
                 `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
                 {
@@ -179,48 +562,277 @@ const AnaliseComplotaPontos = () => {
             );
             const usersData = await resUsers.json();
 
-            // Mapear para o formato correto com nome
             const utilizadoresFormatados = usersData.map((user) => ({
                 id: user.id,
-                nome:
-                    user.username ||
-                    user.nome ||
-                    user.email ||
-                    `Utilizador ${user.id}`,
+                nome: user.username || user.nome || user.email || `Utilizador ${user.id}`,
                 email: user.email,
-                codFuncionario:
-                    user.codFuncionario || user.username || user.nome,
+                codFuncionario: user.codFuncionario || user.username || user.nome,
             }));
 
-            console.log(
-                "🔍 [INIT] Utilizadores carregados:",
-                utilizadoresFormatados.length,
-            );
+            console.log(`✅ [INIT] ${utilizadoresFormatados.length} utilizadores carregados`);
 
-            // Carregar horários e filtrar apenas utilizadores com plano ativo
+            // Carregar horários e filtrar utilizadores com plano ativo
+            console.log(`\n📌 [INIT] Carregando horários...`);
             const { utilizadoresComHorario, horariosMap } = await carregarHorariosUtilizadores(utilizadoresFormatados);
 
-            console.log(`✅ [INIT] Filtrados ${utilizadoresComHorario.length} utilizadores COM plano de horário ativo`);
+            console.log(`✅ [INIT] ${utilizadoresComHorario.length} utilizadores COM plano de horário ativo`);
 
             setUtilizadores(utilizadoresComHorario);
             setHorariosUtilizadores(horariosMap);
+            horariosRef.current = horariosMap;
 
-            // Marcar horários como carregados apenas depois de concluir
-            setHorariosCarregados(true);
-            console.log("✅ [INIT] Todos os horários carregados, pronto para carregar grade");
+            // ✅ PASSO 1: CARREGAR FERIADOS (OBRIGATÓRIO - SEMPRE PRIMEIRO)
+            console.log(`\n${"━".repeat(60)}`);
+            console.log(`📌 PASSO 1/3: Carregando FERIADOS...`);
+            console.log(`${"━".repeat(60)}`);
+            const feriadosIniciais = await carregarFeriados();
+            if (!feriadosIniciais) {
+                throw new Error("Feriados não foram carregados corretamente");
+            }
+            console.log(`✅ PASSO 1/3 CONCLUÍDO: ${feriadosIniciais.size} feriados carregados`);
+
+            // ✅ PASSO 2: CARREGAR FALTAS (OBRIGATÓRIO - SEMPRE SEGUNDO)
+            console.log(`\n${"━".repeat(60)}`);
+            console.log(`📌 PASSO 2/3: Carregando FALTAS...`);
+            console.log(`${"━".repeat(60)}`);
+            const faltasIniciais = await carregarFaltas(utilizadoresComHorario);
+            if (!faltasIniciais) {
+                throw new Error("Faltas não foram carregadas corretamente");
+            }
+            console.log(`✅ PASSO 2/3 CONCLUÍDO: ${faltasIniciais.length} faltas carregadas`);
+
+            // Marcar carregamento inicial como concluído
+            setDadosCarregados({
+                feriados: true,
+                faltas: true,
+                horarios: true,
+                inicial: true
+            });
+
+            // ✅ PASSO 3: GERAR GRADE COM PONTOS FICTÍCIOS (OBRIGATÓRIO - SEMPRE TERCEIRO)
+            console.log(`\n${"━".repeat(60)}`);
+            console.log(`📌 PASSO 3/3: Gerando GRADE com PONTOS FICTÍCIOS...`);
+            console.log(`${"━".repeat(60)}`);
+            await gerarGradeComDadosValidadosInicial(
+                utilizadoresComHorario,
+                horariosMap,
+                feriadosIniciais,
+                faltasIniciais
+            );
+            console.log(`✅ PASSO 3/3 CONCLUÍDO: Grade gerada com pontos fictícios`);
+
+            console.log(`\n${"=".repeat(60)}`);
+            console.log(`✅ [INIT] CARREGAMENTO INICIAL CONCLUÍDO COM SUCESSO`);
+            console.log(`   - Obras: ${obrasData.length}`);
+            console.log(`   - Utilizadores: ${utilizadoresComHorario.length}`);
+            console.log(`   - Feriados: ${feriadosIniciais.size}`);
+            console.log(`   - Faltas: ${faltasIniciais.length}`);
+            console.log(`   - ORDEM GARANTIDA: Feriados → Faltas → Pontos Fictícios`);
+            console.log(`${"=".repeat(60)}\n`);
+
         } catch (error) {
-            console.error("Erro ao carregar dados iniciais:", error);
+            console.error("❌ [INIT] Erro ao carregar dados iniciais:", error);
             Alert.alert("Erro", "Erro ao carregar dados iniciais");
+            // Garantir que os dados ficam limpos em caso de erro
+            setDadosGrade([]);
+            setFeriados(new Set());
+            feriadosRef.current = new Set();
+            setFaltas([]);
+            faltasRef.current = [];
         } finally {
             setLoading(false);
         }
     };
 
-    // Função auxiliar para extrair HH:mm de uma string ISO ou hora completa
+    // ✅ NOVO: Versão especial para carregamento inicial (recebe todos os dados como parâmetro)
+    const gerarGradeComDadosValidadosInicial = async (utilizadoresList, horariosMap, feriadosSet, faltasList) => {
+        console.log(`🔍 [GRADE-INIT] Gerando grade inicial...`);
+        console.log(`   - Utilizadores: ${utilizadoresList.length}`);
+        console.log(`   - Feriados: ${feriadosSet.size}`);
+        console.log(`   - Faltas: ${faltasList.length}`);
+
+        // Filtrar faltas para o mês/ano selecionado
+        const faltasDoMes = faltasList.filter((falta) => {
+            const dataFalta = new Date(falta.Data);
+            const mesData = dataFalta.getMonth() + 1;
+            const anoData = dataFalta.getFullYear();
+            return mesData === mesSelecionado && anoData === anoSelecionado;
+        });
+
+        console.log(`📋 [GRADE-INIT] Faltas do mês: ${faltasDoMes.length}`);
+
+        const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
+        const hoje = new Date();
+        const dadosGradeTemp = [];
+
+        utilizadoresList.forEach((user) => {
+            const dadosUsuario = {
+                utilizador: user,
+                estatisticasDias: {},
+                totalHorasMes: 0,
+                diasTrabalhados: 0,
+                faltasTotal: 0,
+                feriadosTotal: 0,
+            };
+
+            const faltasDoUser = faltasDoMes.filter(f => f.userId === user.id);
+
+            for (let dia = 1; dia <= diasDoMes; dia++) {
+                const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, dia);
+                const diaSemana = dataAtual.getDay();
+                const isWeekend = diaSemana === 0 || diaSemana === 6;
+                const isFutureDate = dataAtual > hoje;
+
+                const dataISO = fmtLocal(dataAtual);
+                const isFeriado = feriadosSet.has(dataISO);
+
+                const faltasDoDia = faltasDoUser.filter((falta) => {
+                    const df = new Date(falta.Data);
+                    return df.getDate() === dia;
+                });
+
+                let estatisticasDia = {
+                    dia,
+                    diaSemana,
+                    isWeekend,
+                    isFutureDate,
+                    isFeriado,
+                    faltas: faltasDoDia,
+                    temFalta: faltasDoDia.length > 0,
+                    trabalhou: false,
+                };
+
+                // ✅ PRIORIDADE 1: FALTAS
+                if (faltasDoDia.length > 0) {
+                    estatisticasDia.trabalhou = false;
+                    estatisticasDia.temFalta = true;
+                    estatisticasDia.faltas = faltasDoDia;
+                    dadosUsuario.faltasTotal++;
+                }
+                // ✅ PRIORIDADE 2: FERIADOS
+                else if (isFeriado) {
+                    estatisticasDia.trabalhou = false;
+                    dadosUsuario.feriadosTotal++;
+                }
+                // ✅ PRIORIDADE 3: FIM DE SEMANA
+                else if (isWeekend) {
+                    estatisticasDia.trabalhou = false;
+                }
+                // ✅ PRIORIDADE 4: FUTURO
+                else if (isFutureDate) {
+                    estatisticasDia.trabalhou = false;
+                }
+                // ✅ PRIORIDADE 5: DIA ÚTIL
+                else {
+                    const isHoje = dataAtual.toDateString() === hoje.toDateString();
+                    const horaAtual = isHoje
+                        ? `${String(hoje.getHours()).padStart(2, "0")}:${String(hoje.getMinutes()).padStart(2, "0")}`
+                        : null;
+
+                    const pontosFicticios = gerarPontosFicticiosComHorario(user.id, dia, isHoje, horaAtual, horariosMap);
+                    Object.assign(estatisticasDia, pontosFicticios);
+                    estatisticasDia.trabalhou = true;
+
+                    if (pontosFicticios.temSaida) {
+                        const horasDia = horariosMap[user.id]?.horasPorDia || 8;
+                        dadosUsuario.totalHorasMes += horasDia;
+                        dadosUsuario.diasTrabalhados++;
+                    } else {
+                        dadosUsuario.diasTrabalhados += 0.5;
+                    }
+                }
+
+                dadosUsuario.estatisticasDias[dia] = estatisticasDia;
+            }
+
+            dadosGradeTemp.push(dadosUsuario);
+        });
+
+        console.log(`✅ [GRADE-INIT] Grade gerada: ${dadosGradeTemp.length} utilizadores`);
+        setDadosGrade(dadosGradeTemp);
+    };
+
+    // ✅ Versão que recebe horários como parâmetro (para carregamento inicial)
+    const gerarPontosFicticiosComHorario = (userId, dia, isHoje, horaAtual, horariosMap) => {
+        const horarioUser = horariosMap[userId];
+
+        const horarioFinal = horarioUser || {
+            horaEntrada: "08:00",
+            horaSaida: "17:00",
+            intervaloAlmoco: 1.00,
+            horasPorDia: 8.00,
+        };
+
+        const parseHora = (horaStr) => {
+            if (!horaStr) return { h: 0, m: 0 };
+            const partes = String(horaStr).split(':');
+            return {
+                h: parseInt(partes[0], 10) || 0,
+                m: parseInt(partes[1], 10) || 0
+            };
+        };
+
+        const paraMinutos = (h, m) => h * 60 + m;
+
+        const paraHora = (minutos) => {
+            const h = Math.floor(minutos / 60);
+            const m = minutos % 60;
+            return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        };
+
+        const aplicarVariacao = (minutos) => {
+            const variacao = Math.floor(Math.random() * 11) - 5;
+            return Math.max(0, minutos + variacao);
+        };
+
+        const entradaBase = parseHora(horarioFinal.horaEntrada);
+        const saidaBase = parseHora(horarioFinal.horaSaida);
+
+        const minutosEntradaBase = paraMinutos(entradaBase.h, entradaBase.m);
+        const minutosSaidaBase = paraMinutos(saidaBase.h, saidaBase.m);
+
+        const minutosEntradaVariada = aplicarVariacao(minutosEntradaBase);
+        const minutosSaidaVariada = aplicarVariacao(minutosSaidaBase);
+
+        const horaEntrada = paraHora(minutosEntradaVariada);
+        const horaSaida = paraHora(minutosSaidaVariada);
+
+        const intervaloMinutos = Math.floor(horarioFinal.intervaloAlmoco * 60);
+        const minutosTrabalho = minutosSaidaVariada - minutosEntradaVariada - intervaloMinutos;
+        const minutosAteAlmoco = Math.floor(minutosTrabalho / 2);
+
+        const minutosSaidaAlmoco = minutosEntradaVariada + minutosAteAlmoco;
+        const saidaAlmoco = paraHora(aplicarVariacao(minutosSaidaAlmoco));
+
+        const minutosEntradaAlmoco = minutosSaidaAlmoco + intervaloMinutos;
+        const entradaAlmoco = paraHora(aplicarVariacao(minutosEntradaAlmoco));
+
+        let mostrarSaida = true;
+        let mostrarAlmoco = true;
+
+        if (isHoje && horaAtual) {
+            const [horaAtualH, horaAtualM] = horaAtual.split(":").map(Number);
+            const minutosAtuais = horaAtualH * 60 + horaAtualM;
+
+            mostrarAlmoco = minutosAtuais >= minutosEntradaAlmoco;
+            mostrarSaida = minutosAtuais >= minutosSaidaVariada;
+        }
+
+        const horasPorDia = parseFloat(horarioFinal.horasPorDia) || 8.0;
+
+        return {
+            horaEntrada: horaEntrada,
+            horaSaida: mostrarSaida ? horaSaida : null,
+            saidaAlmoco: mostrarAlmoco ? saidaAlmoco : null,
+            entradaAlmoco: mostrarAlmoco ? entradaAlmoco : null,
+            totalHoras: mostrarSaida ? horasPorDia : null,
+            temSaida: mostrarSaida,
+        };
+    };
+
     const extrairHoraMinuto = (horaStr) => {
         if (!horaStr) return null;
         
-        // Se for uma data ISO (contém 'T' ou '-'), extrair apenas a parte da hora
         if (typeof horaStr === 'string' && (horaStr.includes('T') || horaStr.includes('-'))) {
             try {
                 const data = new Date(horaStr);
@@ -233,7 +845,6 @@ const AnaliseComplotaPontos = () => {
             }
         }
         
-        // Se já estiver em formato HH:mm ou HH:mm:ss, extrair apenas HH:mm
         const partes = String(horaStr).split(':');
         if (partes.length >= 2) {
             return `${partes[0].padStart(2, '0')}:${partes[1].padStart(2, '0')}`;
@@ -248,9 +859,8 @@ const AnaliseComplotaPontos = () => {
             const horariosMap = {};
             const utilizadoresComHorario = [];
 
-            console.log(`🔍 [HORARIOS] Iniciando carregamento de horários para ${utilizadores.length} utilizadores...`);
+            console.log(`🔍 [HORARIOS] Carregando horários para ${utilizadores.length} utilizadores...`);
 
-            // Carregar todos os horários em paralelo para ser mais rápido
             const promises = utilizadores.map(async (user) => {
                 try {
                     const res = await fetch(
@@ -262,12 +872,9 @@ const AnaliseComplotaPontos = () => {
 
                     if (res.ok) {
                         const planoHorario = await res.json();
-                        // A API retorna um objeto PlanoHorario que contém um objeto Horario aninhado
                         const horarioData = planoHorario?.Horario || planoHorario;
 
-                        // ✅ VALIDAR que o plano está ATIVO
                         if (planoHorario && planoHorario.ativo === true && horarioData) {
-                            // ✅ CONVERTER horários ISO para formato HH:mm
                             const horaEntrada = extrairHoraMinuto(horarioData.horaEntrada) || "08:00";
                             const horaSaida = extrairHoraMinuto(horarioData.horaSaida) || "17:00";
                             
@@ -285,7 +892,6 @@ const AnaliseComplotaPontos = () => {
                                 planoAtivo: true
                             };
                         } else {
-                            console.warn(`⚠️ [HORARIOS] ${user.nome}: Plano inativo ou sem horário associado`);
                             return {
                                 user: user,
                                 userId: user.id,
@@ -296,7 +902,6 @@ const AnaliseComplotaPontos = () => {
                             };
                         }
                     } else {
-                        console.warn(`⚠️ [HORARIOS] ${user.nome}: Sem plano de horário (${res.status})`);
                         return {
                             user: user,
                             userId: user.id,
@@ -321,7 +926,6 @@ const AnaliseComplotaPontos = () => {
 
             const resultados = await Promise.all(promises);
 
-            // ✅ FILTRAR apenas utilizadores com plano de horário ativo
             resultados.forEach(resultado => {
                 if (resultado.planoAtivo && resultado.horario) {
                     horariosMap[resultado.userId] = resultado.horario;
@@ -329,442 +933,31 @@ const AnaliseComplotaPontos = () => {
                 }
             });
 
-            // Logs de resumo
             const comHorario = resultados.filter(r => r.planoAtivo).length;
-            const semHorario = resultados.length - comHorario;
-
-            console.log(`✅ [HORARIOS] Carregamento concluído:`);
-            console.log(`   - Total analisado: ${resultados.length} utilizadores`);
-            console.log(`   - ✅ Com plano ativo: ${comHorario}`);
-            console.log(`   - ❌ Sem plano ativo (EXCLUÍDOS): ${semHorario}`);
-
-            if (comHorario > 0) {
-                console.log(`📋 [HORARIOS] Utilizadores com horário ativo:`);
-                resultados.filter(r => r.planoAtivo).forEach(r => {
-                    console.log(`   - ${r.userName}: ${r.horario.horaEntrada}-${r.horario.horaSaida} (${r.horario.horasPorDia}h/dia)`);
-                });
-            }
+            console.log(`✅ [HORARIOS] ${comHorario} utilizadores com plano ativo`);
 
             return { utilizadoresComHorario, horariosMap };
 
         } catch (error) {
-            console.error("❌ [HORARIOS] Erro geral ao carregar horários:", error);
+            console.error("❌ [HORARIOS] Erro geral:", error);
             return { utilizadoresComHorario: [], horariosMap: {} };
         }
     };
 
-    const carregarFaltas = async () => {
-        try {
-            const painelAdminToken = secureStorage.getItem("painelAdminToken");
-            const urlempresa = secureStorage.getItem("urlempresa");
-            const loginToken = secureStorage.getItem("loginToken");
-
-            console.log("🔍 [FALTAS] Iniciando carregamento de faltas...");
-            console.log(
-                "🔍 [FALTAS] painelAdminToken:",
-                painelAdminToken ? "✅ Presente" : "❌ Ausente",
-            );
-            console.log(
-                "🔍 [FALTAS] urlempresa:",
-                urlempresa ? "✅ Presente" : "❌ Ausente",
-            );
-            console.log(
-                "🔍 [FALTAS] loginToken:",
-                loginToken ? "✅ Presente" : "❌ Ausente",
-            );
-
-            if (!painelAdminToken || !urlempresa || !loginToken) {
-                console.warn(
-                    "❌ [FALTAS] Token, URL da empresa ou loginToken não encontrados para carregar faltas",
-                );
-                return [];
-            }
-
-            console.log(
-                "🔍 [FALTAS] Utilizadores a processar:",
-                utilizadores.length,
-            );
-
-            const promises = utilizadores.map(async (user) => {
-                try {
-                    console.log(
-                        `🔍 [FALTAS] Carregando faltas para ${user.nome} (ID: ${user.id})`,
-                    );
-
-                    // Primeiro, obter o codFuncionario do backend
-                    console.log(
-                        `🔍 [FALTAS] Obtendo codFuncionario para userId: ${user.id}`,
-                    );
-                    const resCodFuncionario = await fetch(
-                        `https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`,
-                        {
-                            method: "GET",
-                            headers: {
-                                Authorization: `Bearer ${loginToken}`,
-                                "Content-Type": "application/json",
-                            },
-                        },
-                    );
-
-                    if (!resCodFuncionario.ok) {
-                        const errorText = await resCodFuncionario
-                            .text()
-                            .catch(() => "Erro desconhecido");
-                        console.warn(
-                            `❌ [FALTAS] Erro ao obter codFuncionario para ${user.nome}: ${errorText}`,
-                        );
-                        return [];
-                    }
-
-                    const dataCodFuncionario = await resCodFuncionario.json();
-                    const codFuncionario = dataCodFuncionario.codFuncionario;
-
-                    if (!codFuncionario) {
-                        console.warn(
-                            `❌ [FALTAS] codFuncionario não definido para ${user.nome}`,
-                        );
-                        return [];
-                    }
-
-                    console.log(
-                        `✅ [FALTAS] codFuncionario obtido para ${user.nome}: "${codFuncionario}"`,
-                    );
-
-                    // Agora usar o codFuncionario para buscar as faltas
-                    const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
-                    console.log(
-                        `🔍 [FALTAS] Chamando API de faltas para ${user.nome}: ${urlFaltas}`,
-                    );
-
-                    const res = await fetch(urlFaltas, {
-                        headers: {
-                            Authorization: `Bearer ${painelAdminToken}`,
-                            urlempresa: urlempresa,
-                            "Content-Type": "application/json",
-                        },
-                    });
-
-                    console.log(
-                        `🔍 [FALTAS] Response status para ${user.nome}:`,
-                        res.status,
-                    );
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        const faltasUsuario = data?.DataSet?.Table || [];
-
-                        if (faltasUsuario.length > 0) {
-                            console.log(
-                                `✅ [FALTAS] ${user.nome}: ${faltasUsuario.length} faltas encontradas`,
-                            );
-                            console.log(
-                                `🔍 [FALTAS] Primeiras faltas de ${user.nome}:`,
-                                faltasUsuario.slice(0, 3),
-                            );
-
-                            const faltasComUserId = faltasUsuario.map(
-                                (falta) => ({
-                                    ...falta,
-                                    userId: user.id,
-                                    nomeUsuario: user.nome,
-                                    codFuncionarioUsado: codFuncionario,
-                                }),
-                            );
-
-                            return faltasComUserId;
-                        } else {
-                            console.log(
-                                `⚠️ [FALTAS] ${user.nome}: API retornou com sucesso mas sem faltas`,
-                            );
-                        }
-                    } else {
-                        const errorText = await res
-                            .text()
-                            .catch(() => "Erro desconhecido");
-                        console.warn(
-                            `❌ [FALTAS] Erro ${res.status} para ${user.nome}: ${errorText}`,
-                        );
-                    }
-
-                    return [];
-                } catch (error) {
-                    console.error(
-                        `❌ [FALTAS] Erro ao carregar faltas para ${user.nome}:`,
-                        error,
-                    );
-                    return [];
-                }
-            });
-
-            const resultados = await Promise.all(promises);
-            const faltasTotal = resultados.flat();
-            console.log(
-                "✅ [FALTAS] Total de faltas carregadas:",
-                faltasTotal.length,
-            );
-
-            if (faltasTotal.length > 0) {
-                console.log(
-                    "🔍 [FALTAS] Primeiras faltas gerais:",
-                    faltasTotal.slice(0, 5),
-                );
-                console.log("🔍 [FALTAS] UserIds únicos nas faltas:", [
-                    ...new Set(faltasTotal.map((f) => f.userId)),
-                ]);
-            }
-
-            return faltasTotal;
-        } catch (error) {
-            console.error("❌ [FALTAS] Erro ao carregar faltas:", error);
-            return [];
-        }
-    };
-
     const gerarPontosFicticios = (userId, dia, isHoje, horaAtual) => {
-        // Obter horário do utilizador
-        const horarioUser = horariosUtilizadores[userId];
-
-        if (!horarioUser) {
-            console.warn(`⚠️ [PONTOS] UserId ${userId} - Dia ${dia}: Horário não encontrado, usando padrão 08:00-17:00`);
-            console.log(`📊 [PONTOS] Estado: ${Object.keys(horariosUtilizadores).length} horários carregados - IDs: [${Object.keys(horariosUtilizadores).join(', ')}]`);
-        }
-
-        const horarioFinal = horarioUser || {
-            horaEntrada: "08:00",
-            horaSaida: "17:00",
-            intervaloAlmoco: 1.00,
-            horasPorDia: 8.00,
-        };
-
-        if (dia === 1) {
-            console.log(`📋 [PONTOS] UserId ${userId}: Horário aplicado ${horarioFinal.horaEntrada}-${horarioFinal.horaSaida} (${horarioFinal.horasPorDia}h/dia, ${horarioFinal.intervaloAlmoco}h almoço)`);
-        }
-
-        // Parse do horário (formato HH:mm ou HH:mm:ss)
-        const parseHora = (horaStr) => {
-            if (!horaStr) return { h: 0, m: 0 };
-            const partes = String(horaStr).split(':');
-            return {
-                h: parseInt(partes[0], 10) || 0,
-                m: parseInt(partes[1], 10) || 0
-            };
-        };
-
-        // Função para adicionar variação aleatória de -5 a +5 minutos
-        const adicionarVariacao = (h, m) => {
-            // Gerar variação entre -5 e +5 minutos
-            const variacao = Math.floor(Math.random() * 11) - 5; // -5 a +5
-            let totalMinutos = h * 60 + m + variacao;
-
-            // Garantir que não fica negativo
-            if (totalMinutos < 0) totalMinutos = 0;
-
-            const novaHora = Math.floor(totalMinutos / 60);
-            const novoMinuto = totalMinutos % 60;
-
-            return {
-                h: novaHora,
-                m: novoMinuto
-            };
-        };
-
-        // Aplicar variação aos horários
-        const entradaBase = parseHora(horarioFinal.horaEntrada);
-        const saidaBase = parseHora(horarioFinal.horaSaida);
-
-        const entradaVariada = adicionarVariacao(entradaBase.h, entradaBase.m);
-        const saidaVariada = adicionarVariacao(saidaBase.h, saidaBase.m);
-
-        const horaEntrada = `${String(entradaVariada.h).padStart(2, "0")}:${String(entradaVariada.m).padStart(2, "0")}`;
-        const horaSaida = `${String(saidaVariada.h).padStart(2, "0")}:${String(saidaVariada.m).padStart(2, "0")}`;
-
-        // Calcular intervalo de almoço (com horários base, não variados)
-        const intervaloMinutos = Math.floor(horarioFinal.intervaloAlmoco * 60);
-        const minutosEntrada = entradaBase.h * 60 + entradaBase.m;
-        const minutosSaida = saidaBase.h * 60 + saidaBase.m;
-
-        // Saída e entrada de almoço (meio do expediente)
-        const minutosTrabalho = minutosSaida - minutosEntrada - intervaloMinutos;
-        const minutosAteAlmoco = Math.floor(minutosTrabalho / 2);
-
-        const minutosSaidaAlmoco = minutosEntrada + minutosAteAlmoco;
-        const saidaAlmocoBase = {
-            h: Math.floor(minutosSaidaAlmoco / 60),
-            m: minutosSaidaAlmoco % 60
-        };
-        const saidaAlmocoVariada = adicionarVariacao(saidaAlmocoBase.h, saidaAlmocoBase.m);
-        const saidaAlmoco = `${String(saidaAlmocoVariada.h).padStart(2, "0")}:${String(saidaAlmocoVariada.m).padStart(2, "0")}`;
-
-        const minutosEntradaAlmoco = minutosSaidaAlmoco + intervaloMinutos;
-        const entradaAlmocoBase = {
-            h: Math.floor(minutosEntradaAlmoco / 60),
-            m: minutosEntradaAlmoco % 60
-        };
-        const entradaAlmocoVariada = adicionarVariacao(entradaAlmocoBase.h, entradaAlmocoBase.m);
-        const entradaAlmoco = `${String(entradaAlmocoVariada.h).padStart(2, "0")}:${String(entradaAlmocoVariada.m).padStart(2, "0")}`;
-
-        // Verificar se deve mostrar saída (se é hoje e já passou da hora)
-        let mostrarSaida = true;
-        let mostrarAlmoco = true;
-
-        if (isHoje && horaAtual) {
-            const [horaAtualH, horaAtualM] = horaAtual.split(":").map(Number);
-            const minutosAtuais = horaAtualH * 60 + horaAtualM;
-
-            mostrarAlmoco = minutosAtuais >= minutosEntradaAlmoco;
-            mostrarSaida = minutosAtuais >= minutosSaida;
-        }
-
-        const horasPorDia = parseFloat(horarioFinal.horasPorDia) || 8.0;
-
-        return {
-            horaEntrada: horaEntrada,
-            horaSaida: mostrarSaida ? horaSaida : null,
-            saidaAlmoco: mostrarAlmoco ? saidaAlmoco : null,
-            entradaAlmoco: mostrarAlmoco ? entradaAlmoco : null,
-            totalHoras: mostrarSaida ? horasPorDia : null,
-            temSaida: mostrarSaida,
-        };
-    };
-
-    // Extrai Y/M/D e HH:mm de um ISO (preferir UTC por causa do "Z" do endpoint)
-    const ymdFrom = (iso) => {
-        if (!iso) return null;
-        const d = new Date(iso);
-        if (isNaN(d)) return null;
-        return {
-            y: d.getUTCFullYear(),
-            m: d.getUTCMonth() + 1,
-            d: d.getUTCDate(),
-            hh: String(d.getUTCHours()).padStart(2, "0"),
-            mm: String(d.getUTCMinutes()).padStart(2, "0"),
-        };
-    };
-
-    const horaFrom = (reg) => {
-        const iso =
-            reg?.timestamp ||
-            reg?.dataHora ||
-            reg?.data ||
-            reg?.createdAt ||
-            reg?.updatedAt;
-        const p = ymdFrom(iso);
-        return p ? `${p.hh}:${p.mm}` : null;
-    };
-
-    const carregarDadosGrade = async () => {
-        console.log("🔍 [GRADE] Iniciando carregamento da grade...");
-        console.log("🔍 [GRADE] Obra selecionada:", obraSelecionada || "Todas as obras");
-        console.log("🔍 [GRADE] Mês/Ano:", mesSelecionado, "/", anoSelecionado);
-
-        setLoading(true);
-        try {
-            // 1) Carregar faltas
-            console.log("🔍 [GRADE] Carregando faltas...");
-            const faltasData = await carregarFaltas();
-            setFaltas(faltasData);
-            console.log("✅ [GRADE] Faltas carregadas:", faltasData.length);
-
-            // 2) Filtrar faltas para o mês/ano selecionado
-            const faltasDoMes = faltasData.filter((falta) => {
-                const dataFalta = new Date(falta.Data);
-                const mesData = dataFalta.getMonth() + 1;
-                const anoData = dataFalta.getFullYear();
-                return mesData === mesSelecionado && anoData === anoSelecionado;
-            });
-
-            console.log("✅ [GRADE] Faltas do mês filtradas:", faltasDoMes.length);
-
-            // 3) Construir a grelha apenas com horários esperados
-            const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
-            const hoje = new Date();
-            const dadosGradeTemp = [];
-
-            utilizadores.forEach((user) => {
-                const dadosUsuario = {
-                    utilizador: user,
-                    estatisticasDias: {},
-                    totalHorasMes: 0,
-                    diasTrabalhados: 0,
-                    faltasTotal: 0,
-                };
-
-                for (let dia = 1; dia <= diasDoMes; dia++) {
-                    const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, dia);
-                    const diaSemana = dataAtual.getDay();
-                    const isWeekend = diaSemana === 0 || diaSemana === 6;
-                    const isFutureDate = dataAtual > hoje;
-
-                    // Verificar faltas do dia
-                    const faltasDoDia = faltasDoMes.filter((falta) => {
-                        const df = new Date(falta.Data);
-                        return df.getDate() === dia && falta.userId === user.id;
-                    });
-
-                    let estatisticasDia = {
-                        dia,
-                        diaSemana,
-                        isWeekend,
-                        isFutureDate,
-                        faltas: faltasDoDia,
-                        temFalta: faltasDoDia.length > 0,
-                        trabalhou: false,
-                    };
-
-                    // PRIORIDADE 1: Faltas
-                    if (faltasDoDia.length > 0) {
-                        estatisticasDia.trabalhou = false;
-                        estatisticasDia.temFalta = true;
-                        estatisticasDia.faltas = faltasDoDia;
-                        dadosUsuario.faltasTotal++;
-                    }
-                    // PRIORIDADE 2: Dias úteis -> GERAR HORÁRIO ESPERADO
-                    else if (!isWeekend && !isFutureDate) {
-                        const isHoje = dataAtual.toDateString() === hoje.toDateString();
-                        const horaAtual = isHoje
-                            ? `${String(hoje.getHours()).padStart(2, "0")}:${String(hoje.getMinutes()).padStart(2, "0")}`
-                            : null;
-
-                        // Gerar horário esperado
-                        const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
-                        Object.assign(estatisticasDia, pontosFicticios);
-                        estatisticasDia.trabalhou = true;
-
-                        // Contar horas
-                        if (pontosFicticios.temSaida) {
-                            const horasDia = horariosUtilizadores[user.id]?.horasPorDia || 8;
-                            dadosUsuario.totalHorasMes += horasDia;
-                            dadosUsuario.diasTrabalhados++;
-                        } else {
-                            dadosUsuario.diasTrabalhados += 0.5;
-                        }
-                    }
-
-                    dadosUsuario.estatisticasDias[dia] = estatisticasDia;
-                }
-
-                dadosGradeTemp.push(dadosUsuario);
-            });
-
-            console.log("✅ [GRADE] Grade gerada com", dadosGradeTemp.length, "utilizadores");
-            setDadosGrade(dadosGradeTemp);
-        } catch (error) {
-            console.error("❌ [GRADE] Erro ao carregar dados da grade:", error);
-            Alert.alert("Erro", "Erro ao carregar dados da grade");
-        } finally {
-            setLoading(false);
-        }
+        return gerarPontosFicticiosComHorario(userId, dia, isHoje, horaAtual, horariosRef.current);
     };
 
     const getCellStyle = (estatisticas) => {
-        // ✅ VERIFICAÇÃO DE SEGURANÇA: se estatisticas é undefined, retornar estilo vazio
         if (!estatisticas) return styles.cellEmpty;
 
-        // 1º FALTAS (tem prioridade absoluta, mesmo em futuro/fds)
+        // 1º FALTAS (prioridade absoluta)
         if (estatisticas.temFalta) return styles.cellFalta;
-        // 2º FIM DE SEMANA
+        // 2º FERIADOS
+        if (estatisticas.isFeriado) return styles.cellFeriado || styles.cellWeekend;
+        // 3º FIM DE SEMANA
         if (estatisticas.isWeekend) return styles.cellWeekend;
-        // 3º FUTURO (sem falta)
+        // 4º FUTURO
         if (estatisticas.isFutureDate) return styles.cellFuture;
 
         if (estatisticas.trabalhou) {
@@ -777,13 +970,10 @@ const AnaliseComplotaPontos = () => {
     const getCellText = (estatisticas) => {
         if (!estatisticas || estatisticas.isWeekend) return "";
 
-        // Faltas
         if (estatisticas.temFalta) return "FALTA";
-
-        // Futuro
+        if (estatisticas.isFeriado) return "FERIADO";
         if (estatisticas.isFutureDate) return "";
 
-        // Horário esperado
         if (estatisticas.trabalhou) {
             let cellValue = "";
 
@@ -821,90 +1011,55 @@ const AnaliseComplotaPontos = () => {
 
         try {
             const workbook = XLSX.utils.book_new();
-            const diasDoMes = new Date(
-                anoSelecionado,
-                mesSelecionado,
-                0,
-            ).getDate();
+            const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
             const dias = Array.from({ length: diasDoMes }, (_, i) => i + 1);
             const obraNome = obraSelecionada
                 ? obras.find((obra) => obra.id.toString() === obraSelecionada)?.nome || "Obra não encontrada"
                 : "Todas as Obras";
 
-            // Criar dados para exportação em formato profissional
             const dadosExport = [];
 
-            // ========== CABEÇALHO PRINCIPAL ==========
-            dadosExport.push([
-                "RELATÓRIO DE ANÁLISE COMPLETA DE REGISTOS DE PONTO",
-            ]);
+            dadosExport.push(["RELATÓRIO DE ANÁLISE COMPLETA DE REGISTOS DE PONTO"]);
             dadosExport.push([""]);
-
-            // Informações do relatório
-            dadosExport.push([
-                "📅 PERÍODO:",
-                `${meses[mesSelecionado - 1]} de ${anoSelecionado}`,
-            ]);
+            dadosExport.push(["📅 PERÍODO:", `${meses[mesSelecionado - 1]} de ${anoSelecionado}`]);
             dadosExport.push(["🏢 OBRA:", obraNome]);
-            dadosExport.push([
-                "👥 FUNCIONÁRIOS:",
-                `${dadosGrade.length} utilizadores`,
-            ]);
-            dadosExport.push([
-                "📊 DATA GERAÇÃO:",
-                new Date().toLocaleString("pt-PT"),
-            ]);
+            dadosExport.push(["👥 FUNCIONÁRIOS:", `${dadosGrade.length} utilizadores`]);
+            dadosExport.push(["📊 DATA GERAÇÃO:", new Date().toLocaleString("pt-PT")]);
             dadosExport.push([""]);
             dadosExport.push([""]);
 
-            // ========== LEGENDA DE CORES E SÍMBOLOS ==========
             dadosExport.push(["📋 LEGENDA:"]);
-            dadosExport.push([
-                "",
-                "✅ Registo Normal",
-                "- Horário de entrada e saída",
-            ]);
+            dadosExport.push(["", "✅ Registo Normal", "- Horário de entrada e saída"]);
             dadosExport.push(["", "❌ FALTA", "- Ausência registada"]);
+            dadosExport.push(["", "🎉 FERIADO", "- Feriado nacional/municipal"]);
             dadosExport.push(["", "📅 FDS", "- Fim de semana"]);
             dadosExport.push(["", "🔄 Em curso", "- Apenas entrada registada"]);
             dadosExport.push([""]);
             dadosExport.push([""]);
 
-            // ========== CABEÇALHO DA TABELA DE DADOS ==========
             const headerRow = ["FUNCIONÁRIO"];
 
-            // Adicionar dias do mês com dia da semana
             dias.forEach((dia) => {
-                const dataCompleta = new Date(
-                    anoSelecionado,
-                    mesSelecionado - 1,
-                    dia,
-                );
-                const diaSemana = dataCompleta
-                    .toLocaleDateString("pt-PT", { weekday: "short" })
-                    .toUpperCase();
+                const dataCompleta = new Date(anoSelecionado, mesSelecionado - 1, dia);
+                const diaSemana = dataCompleta.toLocaleDateString("pt-PT", { weekday: "short" }).toUpperCase();
                 headerRow.push(`${dia}\n${diaSemana}`);
             });
 
-            headerRow.push(
-                "TOTAL\nHORAS",
-                "DIAS\nTRABALHADOS",
-                "TOTAL\nFALTAS",
-            );
+            headerRow.push("TOTAL\nHORAS", "DIAS\nTRABALHADOS", "TOTAL\nFALTAS", "TOTAL\nFERIADOS");
             dadosExport.push(headerRow);
 
-            // ========== DADOS DOS FUNCIONÁRIOS ==========
-            dadosGrade.forEach((dadosUsuario, index) => {
+            dadosGrade.forEach((dadosUsuario) => {
                 const row = [dadosUsuario.utilizador.nome];
 
-                // Adicionar dados de cada dia
                 dias.forEach((dia) => {
                     const estatisticas = dadosUsuario.estatisticasDias[dia];
                     let cellValue = "";
 
                     if (estatisticas) {
                         if (estatisticas.temFalta) {
-                            cellValue = "❌ FALTA"; // falta futura aparece
+                            cellValue = "❌ FALTA";
+                        } else if (estatisticas.isFeriado) {
+                            cellValue = "🎉 FERIADO";
                         } else if (estatisticas.isWeekend) {
                             cellValue = "📅 FDS";
                         } else if (estatisticas.isFutureDate) {
@@ -918,71 +1073,52 @@ const AnaliseComplotaPontos = () => {
                                 cellValue += `\n${estatisticas.entradaAlmoco}`;
                             }
                             cellValue += `\n${estatisticas.horaSaida}`;
-                        } else {
-                            cellValue = "";
                         }
                     }
 
                     row.push(cellValue);
                 });
 
-                // Adicionar totais com formatação
                 row.push(
                     `${dadosUsuario.totalHorasMes}h`,
                     `${dadosUsuario.diasTrabalhados} dias`,
                     `${dadosUsuario.faltasTotal} faltas`,
+                    `${dadosUsuario.feriadosTotal} feriados`
                 );
 
                 dadosExport.push(row);
             });
 
-            // ========== LINHA DE SEPARAÇÃO ==========
             const separatorRow = Array(headerRow.length).fill("═══════════");
             dadosExport.push(separatorRow);
 
-            // ========== RESUMO ESTATÍSTICO ==========
-            const totalHorasTodos = dadosGrade.reduce(
-                (sum, user) => sum + user.totalHorasMes,
-                0,
-            );
-            const totalDiasTodos = dadosGrade.reduce(
-                (sum, user) => sum + user.diasTrabalhados,
-                0,
-            );
-            const totalFaltasTodos = dadosGrade.reduce(
-                (sum, user) => sum + user.faltasTotal,
-                0,
-            );
-            const mediaHorasPorFuncionario = (
-                totalHorasTodos / dadosGrade.length
-            ).toFixed(1);
-            const mediaDiasPorFuncionario = (
-                totalDiasTodos / dadosGrade.length
-            ).toFixed(1);
+            const totalHorasTodos = dadosGrade.reduce((sum, user) => sum + user.totalHorasMes, 0);
+            const totalDiasTodos = dadosGrade.reduce((sum, user) => sum + user.diasTrabalhados, 0);
+            const totalFaltasTodos = dadosGrade.reduce((sum, user) => sum + user.faltasTotal, 0);
+            const totalFeriadosTodos = dadosGrade.reduce((sum, user) => sum + user.feriadosTotal, 0);
+            const mediaHorasPorFuncionario = (totalHorasTodos / dadosGrade.length).toFixed(1);
+            const mediaDiasPorFuncionario = (totalDiasTodos / dadosGrade.length).toFixed(1);
 
             dadosExport.push(["📊 RESUMO ESTATÍSTICO"]);
             dadosExport.push([""]);
 
-            // Totais gerais
             const resumoRow = Array(dias.length + 1).fill("");
             resumoRow[0] = "TOTAIS GERAIS:";
-            resumoRow[resumoRow.length - 3] = `${totalHorasTodos}h`;
-            resumoRow[resumoRow.length - 2] = `${totalDiasTodos} dias`;
-            resumoRow[resumoRow.length - 1] = `${totalFaltasTodos} faltas`;
+            resumoRow[resumoRow.length - 4] = `${totalHorasTodos}h`;
+            resumoRow[resumoRow.length - 3] = `${totalDiasTodos} dias`;
+            resumoRow[resumoRow.length - 2] = `${totalFaltasTodos} faltas`;
+            resumoRow[resumoRow.length - 1] = `${totalFeriadosTodos} feriados`;
             dadosExport.push(resumoRow);
 
-            // Médias
             const mediaRow = Array(dias.length + 1).fill("");
             mediaRow[0] = "MÉDIAS POR FUNCIONÁRIO:";
-            mediaRow[mediaRow.length - 3] = `${mediaHorasPorFuncionario}h`;
-            mediaRow[mediaRow.length - 2] = `${mediaDiasPorFuncionario} dias`;
-            mediaRow[mediaRow.length - 1] =
-                `${(totalFaltasTodos / dadosGrade.length).toFixed(1)} faltas`;
+            mediaRow[mediaRow.length - 4] = `${mediaHorasPorFuncionario}h`;
+            mediaRow[mediaRow.length - 3] = `${mediaDiasPorFuncionario} dias`;
+            mediaRow[mediaRow.length - 2] = `${(totalFaltasTodos / dadosGrade.length).toFixed(1)} faltas`;
+            mediaRow[mediaRow.length - 1] = `${(totalFeriadosTodos / dadosGrade.length).toFixed(1)} feriados`;
             dadosExport.push(mediaRow);
 
             dadosExport.push([""]);
-
-            // ========== ANÁLISE POR CATEGORIA ==========
             dadosExport.push(["📈 ANÁLISE DETALHADA:"]);
 
             const funcionariosComMaisFaltas = dadosGrade
@@ -994,13 +1130,7 @@ const AnaliseComplotaPontos = () => {
                 dadosExport.push([""]);
                 dadosExport.push(["🚨 TOP 5 - FUNCIONÁRIOS COM MAIS FALTAS:"]);
                 funcionariosComMaisFaltas.forEach((user, index) => {
-                    dadosExport.push([
-                        `${index + 1}. ${user.utilizador.nome}`,
-                        "",
-                        "",
-                        "",
-                        `${user.faltasTotal} faltas`,
-                    ]);
+                    dadosExport.push([`${index + 1}. ${user.utilizador.nome}`, "", "", "", `${user.faltasTotal} faltas`]);
                 });
             }
 
@@ -1011,42 +1141,20 @@ const AnaliseComplotaPontos = () => {
             dadosExport.push([""]);
             dadosExport.push(["⭐ TOP 5 - FUNCIONÁRIOS COM MAIS HORAS:"]);
             funcionariosComMaisHoras.forEach((user, index) => {
-                dadosExport.push([
-                    `${index + 1}. ${user.utilizador.nome}`,
-                    "",
-                    "",
-                    "",
-                    `${user.totalHorasMes}h`,
-                ]);
+                dadosExport.push([`${index + 1}. ${user.utilizador.nome}`, "", "", "", `${user.totalHorasMes}h`]);
             });
 
-            // ========== CRIAR E FORMATAR PLANILHA ==========
             const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
 
-            // Definir larguras das colunas otimizadas
-            const colWidths = [{ wch: 25 }]; // Nome do funcionário mais largo
-            dias.forEach(() => colWidths.push({ wch: 14 })); // Dias com espaço para duas linhas
-            colWidths.push({ wch: 12 }, { wch: 15 }, { wch: 12 }); // Totais
+            const colWidths = [{ wch: 25 }];
+            dias.forEach(() => colWidths.push({ wch: 14 }));
+            colWidths.push({ wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 });
 
             worksheet["!cols"] = colWidths;
 
-            // Definir altura das linhas para melhor visualização
-            const rowHeights = dadosExport.map((row, index) => {
-                if (index === 0) return { hpt: 25 }; // Título principal
-                if (index >= 12 && index < 12 + dadosGrade.length + 1)
-                    return { hpt: 35 }; // Linhas de dados
-                return { hpt: 20 }; // Outras linhas
-            });
-            worksheet["!rows"] = rowHeights;
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Análise Completa");
 
-            // Adicionar planilha ao workbook
-            XLSX.utils.book_append_sheet(
-                workbook,
-                worksheet,
-                "Análise Completa",
-            );
-
-            // ========== CRIAR PLANILHA DE RESUMO EXECUTIVO ==========
+            // Resumo Executivo
             const resumoExecutivo = [
                 ["RESUMO EXECUTIVO - ASSIDUIDADE"],
                 [""],
@@ -1059,33 +1167,24 @@ const AnaliseComplotaPontos = () => {
                 ["⏰ Total de Horas Trabalhadas:", `${totalHorasTodos}h`],
                 ["📅 Total de Dias Trabalhados:", totalDiasTodos],
                 ["❌ Total de Faltas:", totalFaltasTodos],
+                ["🎉 Total de Feriados:", totalFeriadosTodos],
                 [""],
                 ["MÉDIAS:"],
                 [""],
                 ["⏰ Horas por Funcionário:", `${mediaHorasPorFuncionario}h`],
                 ["📅 Dias por Funcionário:", `${mediaDiasPorFuncionario} dias`],
-                [
-                    "❌ Faltas por Funcionário:",
-                    `${(totalFaltasTodos / dadosGrade.length).toFixed(1)}`,
-                ],
+                ["❌ Faltas por Funcionário:", `${(totalFaltasTodos / dadosGrade.length).toFixed(1)}`],
+                ["🎉 Feriados por Funcionário:", `${(totalFeriadosTodos / dadosGrade.length).toFixed(1)}`],
                 [""],
                 ["TAXA DE ASSIDUIDADE:"],
                 [""],
-                [
-                    "🎯 Taxa Geral:",
-                    `${((totalDiasTodos / (dadosGrade.length * diasDoMes)) * 100 || 0).toFixed(1)}%`,
-                ],
+                ["🎯 Taxa Geral:", `${((totalDiasTodos / (dadosGrade.length * diasDoMes)) * 100 || 0).toFixed(1)}%`],
             ];
 
             const worksheetResumo = XLSX.utils.aoa_to_sheet(resumoExecutivo);
             worksheetResumo["!cols"] = [{ wch: 30 }, { wch: 20 }];
-            XLSX.utils.book_append_sheet(
-                workbook,
-                worksheetResumo,
-                "Resumo Executivo",
-            );
+            XLSX.utils.book_append_sheet(workbook, worksheetResumo, "Resumo Executivo");
 
-            // Salvar arquivo com nome mais descritivo
             const dataAtual = new Date().toISOString().split("T")[0];
             const fileName = `Analise_Completa_Registos_${obraNome.replace(/[^a-zA-Z0-9]/g, "_")}_${meses[mesSelecionado - 1]}_${anoSelecionado}_${dataAtual}.xlsx`;
             XLSX.writeFile(workbook, fileName);
@@ -1096,10 +1195,7 @@ const AnaliseComplotaPontos = () => {
             );
         } catch (error) {
             console.error("Erro ao exportar para Excel:", error);
-            Alert.alert(
-                "❌ Erro na Exportação",
-                "Ocorreu um erro ao gerar o relatório Excel. Tente novamente.",
-            );
+            Alert.alert("❌ Erro na Exportação", "Ocorreu um erro ao gerar o relatório Excel. Tente novamente.");
         }
     };
 
@@ -1163,6 +1259,13 @@ const AnaliseComplotaPontos = () => {
                                             `Dia: ${dia}/${mesSelecionado}/${anoSelecionado}\n` +
                                             `Motivo: FALTA`,
                                     );
+                                } else if (estatisticas && estatisticas.isFeriado) {
+                                    Alert.alert(
+                                        "Detalhes do Dia",
+                                        `Funcionário: ${dadosUsuario.utilizador.nome}\n` +
+                                            `Dia: ${dia}/${mesSelecionado}/${anoSelecionado}\n` +
+                                            `Motivo: FERIADO`,
+                                    );
                                 }
                             }}
                         >
@@ -1194,7 +1297,6 @@ const AnaliseComplotaPontos = () => {
                 style={styles.scrollContainer}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
                 <View style={styles.header}>
                     <MaterialCommunityIcons
                         name="chart-timeline-variant"
@@ -1206,7 +1308,6 @@ const AnaliseComplotaPontos = () => {
                     </Text>
                 </View>
 
-                {/* Filtros */}
                 <View style={styles.filtersCard}>
                     <Text style={styles.filtersTitle}>Filtros de Pesquisa</Text>
 
@@ -1219,10 +1320,7 @@ const AnaliseComplotaPontos = () => {
                                     onValueChange={setObraSelecionada}
                                     style={styles.picker}
                                 >
-                                    <Picker.Item
-                                        label="Todas as Obras"
-                                        value=""
-                                    />
+                                    <Picker.Item label="Todas as Obras" value="" />
                                     {obras.map((obra) => (
                                         <Picker.Item
                                             key={obra.id}
@@ -1276,43 +1374,32 @@ const AnaliseComplotaPontos = () => {
                     </View>
                 </View>
 
-                {/* Legenda */}
                 <View style={styles.legendCard}>
                     <Text style={styles.legendTitle}>Legenda</Text>
                     <View style={styles.legendRow}>
                         <View style={styles.legendItem}>
-                            <View
-                                style={[
-                                    styles.legendColor,
-                                    styles.cellTrabalhou,
-                                ]}
-                            />
-                            <Text style={styles.legendText}>
-                                Registos de Entrada/Saída
-                            </Text>
+                            <View style={[styles.legendColor, styles.cellTrabalhou]} />
+                            <Text style={styles.legendText}>Registos de Entrada/Saída</Text>
                         </View>
                         <View style={styles.legendItem}>
-                            <View
-                                style={[styles.legendColor, styles.cellFalta]}
-                            />
+                            <View style={[styles.legendColor, styles.cellFalta]} />
                             <Text style={styles.legendText}>Falta</Text>
                         </View>
                         <View style={styles.legendItem}>
-                            <View
-                                style={[styles.legendColor, styles.cellWeekend]}
-                            />
+                            <View style={[styles.legendColor, styles.cellFeriado || styles.cellWeekend]} />
+                            <Text style={styles.legendText}>Feriado</Text>
+                        </View>
+                        <View style={styles.legendItem}>
+                            <View style={[styles.legendColor, styles.cellWeekend]} />
                             <Text style={styles.legendText}>Fim de semana</Text>
                         </View>
                         <View style={styles.legendItem}>
-                            <View
-                                style={[styles.legendColor, styles.cellFuture]}
-                            />
+                            <View style={[styles.legendColor, styles.cellFuture]} />
                             <Text style={styles.legendText}>Dias futuros</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Grade */}
                 {loading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color="#1792FE" />
@@ -1334,215 +1421,10 @@ const AnaliseComplotaPontos = () => {
                                     onPress={() => {
                                         Alert.alert(
                                             "Atualizar Dados",
-                                            "Deseja recarregar apenas as faltas ou todos os dados?",
+                                            "Deseja recarregar os dados?",
                                             [
-                                                {
-                                                    text: "Cancelar",
-                                                    style: "cancel",
-                                                },
-                                                {
-                                                    text: "Apenas Faltas",
-                                                    onPress: async () => {
-                                                        setLoading(true);
-                                                        try {
-                                                            console.log(
-                                                                "🔄 [REFRESH] Recarregando apenas faltas...",
-                                                            );
-                                                            const novasFaltas =
-                                                                await carregarFaltas();
-                                                            setFaltas(
-                                                                novasFaltas,
-                                                            );
-
-                                                            // Filtrar faltas do mês atual
-                                                            const faltasDoMes =
-                                                                novasFaltas.filter(
-                                                                    (falta) => {
-                                                                        const dataFalta =
-                                                                            new Date(
-                                                                                falta.Data,
-                                                                            );
-                                                                        const mesData =
-                                                                            dataFalta.getMonth() +
-                                                                            1;
-                                                                        const anoData =
-                                                                            dataFalta.getFullYear();
-                                                                        return (
-                                                                            mesData ===
-                                                                                mesSelecionado &&
-                                                                            anoData ===
-                                                                                anoSelecionado
-                                                                        );
-                                                                    },
-                                                                );
-
-                                                            // Reprocessar dados da grade com as novas faltas
-                                                            const dadosAtualizados =
-                                                                dadosGrade.map(
-                                                                    (
-                                                                        dadosUsuario,
-                                                                    ) => {
-                                                                        let novosDados =
-                                                                            {
-                                                                                ...dadosUsuario,
-                                                                            };
-                                                                        novosDados.faltasTotal = 0;
-
-                                                                        // Filtrar faltas para este usuário
-                                                                        const faltasUsuario =
-                                                                            faltasDoMes.filter(
-                                                                                (
-                                                                                    falta,
-                                                                                ) =>
-                                                                                    falta.userId ===
-                                                                                    dadosUsuario
-                                                                                        .utilizador
-                                                                                        .id,
-                                                                            );
-
-                                                                        // Atualizar cada dia
-                                                                        Object.keys(
-                                                                            novosDados.estatisticasDias,
-                                                                        ).forEach(
-                                                                            (
-                                                                                dia,
-                                                                            ) => {
-                                                                                const diaNum =
-                                                                                    parseInt(
-                                                                                        dia,
-                                                                                    );
-                                                                                const faltasDoDia =
-                                                                                    faltasUsuario.filter(
-                                                                                        (
-                                                                                            falta,
-                                                                                        ) => {
-                                                                                            const dataFalta =
-                                                                                                new Date(
-                                                                                                    falta.Data,
-                                                                                                );
-                                                                                            return (
-                                                                                                dataFalta.getDate() ===
-                                                                                                diaNum
-                                                                                            );
-                                                                                        },
-                                                                                    );
-
-                                                                                // Atualizar estatísticas do dia
-                                                                                const estatisticasDia =
-                                                                                    {
-                                                                                        ...novosDados
-                                                                                            .estatisticasDias[
-                                                                                            dia
-                                                                                        ],
-                                                                                    };
-
-                                                                                if (
-                                                                                    faltasDoDia.length >
-                                                                                    0
-                                                                                ) {
-                                                                                    estatisticasDia.faltas =
-                                                                                        faltasDoDia;
-                                                                                    estatisticasDia.temFalta = true;
-                                                                                    estatisticasDia.trabalhou = false;
-                                                                                    // Limpar dados de trabalho se há falta
-                                                                                    estatisticasDia.horaEntrada =
-                                                                                        null;
-                                                                                    estatisticasDia.horaSaida =
-                                                                                        null;
-                                                                                    estatisticasDia.totalHoras =
-                                                                                        null;
-                                                                                    estatisticasDia.saidaAlmoco = null;
-                                                                                    estatisticasDia.entradaAlmoco = null;
-                                                                                    novosDados.faltasTotal++;
-                                                                                } else {
-                                                                                    estatisticasDia.faltas =
-                                                                                        [];
-                                                                                    estatisticasDia.temFalta = false;
-                                                                                    // Se não há falta e não é fim de semana/futuro,
-                                                                                    // regenerar dados de trabalho se necessário
-                                                                                    if (
-                                                                                        !estatisticasDia.isWeekend &&
-                                                                                        !estatisticasDia.isFutureDate &&
-                                                                                        !estatisticasDia.temFalta &&
-                                                                                        estatisticasDia.temRegistosReais && // ✅ só se o DIA tem real
-                                                                                        !estatisticasDia.horaEntrada
-                                                                                    ) {
-                                                                                        const hoje =
-                                                                                            new Date();
-                                                                                        const dataAtual =
-                                                                                            new Date(
-                                                                                                anoSelecionado,
-                                                                                                mesSelecionado -
-                                                                                                    1,
-                                                                                                diaNum,
-                                                                                            );
-                                                                                        const isHoje =
-                                                                                            dataAtual.toDateString() ===
-                                                                                            hoje.toDateString();
-                                                                                        const horaAtual =
-                                                                                            isHoje
-                                                                                                ? `${String(hoje.getHours()).padStart(2, "0")}:${String(hoje.getMinutes()).padStart(2, "0")}`
-                                                                                                : null;
-
-                                                                                        const pontosFicticios =
-                                                                                            gerarPontosFicticios(
-                                                                                                dadosUsuario
-                                                                                                    .utilizador
-                                                                                                    .id,
-                                                                                                diaNum,
-                                                                                                isHoje,
-                                                                                                horaAtual,
-                                                                                            );
-
-                                                                                        Object.assign(
-                                                                                            estatisticasDia,
-                                                                                            pontosFicticios,
-                                                                                        );
-                                                                                        estatisticasDia.trabalhou = true;
-                                                                                    }
-                                                                                }
-
-                                                                                novosDados.estatisticasDias[
-                                                                                    dia
-                                                                                ] =
-                                                                                    estatisticasDia;
-                                                                            },
-                                                                        );
-
-                                                                        return novosDados;
-                                                                    },
-                                                                );
-
-                                                            setDadosGrade(
-                                                                dadosAtualizados,
-                                                            );
-                                                            Alert.alert(
-                                                                "✅ Sucesso",
-                                                                "Faltas atualizadas com sucesso!",
-                                                            );
-                                                        } catch (error) {
-                                                            console.error(
-                                                                "❌ Erro ao recarregar faltas:",
-                                                                error,
-                                                            );
-                                                            Alert.alert(
-                                                                "❌ Erro",
-                                                                "Erro ao recarregar faltas. Tente novamente.",
-                                                            );
-                                                        } finally {
-                                                            setLoading(false);
-                                                        }
-                                                    },
-                                                },
-                                                {
-                                                    text: "Todos os Dados",
-                                                    onPress: () => {
-                                                        console.log(
-                                                            "🔄 [REFRESH] Recarregando todos os dados...",
-                                                        );
-                                                        carregarDadosGrade();
-                                                    },
-                                                },
+                                                { text: "Cancelar", style: "cancel" },
+                                                { text: "Sim, atualizar", onPress: () => recarregarDadosPeriodo() },
                                             ],
                                         );
                                     }}
@@ -1555,15 +1437,11 @@ const AnaliseComplotaPontos = () => {
                                         end={{ x: 1, y: 0 }}
                                     >
                                         <MaterialCommunityIcons
-                                            name={
-                                                loading ? "loading" : "refresh"
-                                            }
+                                            name={loading ? "loading" : "refresh"}
                                             size={18}
                                             color="#fff"
                                         />
-                                        <Text style={styles.refreshButtonText}>
-                                            Atualizar
-                                        </Text>
+                                        <Text style={styles.refreshButtonText}>Atualizar</Text>
                                     </LinearGradient>
                                 </TouchableOpacity>
 
@@ -1582,18 +1460,13 @@ const AnaliseComplotaPontos = () => {
                                             size={20}
                                             color="#fff"
                                         />
-                                        <Text style={styles.exportButtonText}>
-                                            Exportar Excel
-                                        </Text>
+                                        <Text style={styles.exportButtonText}>Exportar Excel</Text>
                                     </LinearGradient>
                                 </TouchableOpacity>
                             </View>
                         </View>
 
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={true}
-                        >
+                        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
                             <View style={styles.gradeContainer}>
                                 {renderGradeHeader()}
                                 {dadosGrade.map((dadosUsuario, index) =>
