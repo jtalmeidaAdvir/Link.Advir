@@ -302,8 +302,8 @@ const adicionarLinhaPessoalEquip = async () => {
     invalidos.add('classeId');
   }
 
-  // ✅ VALIDAÇÃO OBRIGATÓRIA: Observações se classe -1 (Indiferenciada)
-  if (classeId === -1 && (!observacoes || observacoes.trim() === "")) {
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Observações se classe -1 (Indiferenciada) MAS APENAS PARA MÃO DE OBRA
+  if (categoria !== "Equipamentos" && classeId === -1 && (!observacoes || observacoes.trim() === "")) {
     invalidos.add('observacoes');
   }
 
@@ -4384,6 +4384,17 @@ for (const l of linhasParaSubmeter) {
                                                 return;
                                             }
 
+                                            // Se for Equipamentos, aceitar qualquer número decimal
+                                            if (linhaAtual.categoria === "Equipamentos") {
+                                                // Permite números decimais (vírgula ou ponto)
+                                                const valorLimpo = v.replace(',', '.');
+                                                if (/^\d*\.?\d*$/.test(valorLimpo)) {
+                                                    setLinhaAtual((p) => ({ ...p, horas: valorLimpo }));
+                                                }
+                                                return;
+                                            }
+
+                                            // Para Mão de Obra, manter lógica de horas
                                             const { trabalhadorId, dia, obraId } = linhaAtual;
                                             if (!trabalhadorId || !dia || !obraId) {
                                                 setLinhaAtual((p) => ({ ...p, horas: v }));
@@ -4412,8 +4423,8 @@ for (const l of linhasParaSubmeter) {
 
                                             setLinhaAtual((p) => ({ ...p, horas: v }));
                                         }}
-                                        placeholder="0:00"
-                                        keyboardType="default"
+                                        placeholder={linhaAtual.categoria === "Equipamentos" ? "0" : "0:00"}
+                                        keyboardType={linhaAtual.categoria === "Equipamentos" ? "decimal-pad" : "default"}
                                     />
                                 </View>
 
@@ -4709,152 +4720,150 @@ for (const l of linhasParaSubmeter) {
               </View>
             </View>
 
-            {/* Colaborador interno - Seleção Múltipla */}
-            {linhaPessoalEquipAtual.categoria !== "Equipamentos" && (
-              <View style={{ marginBottom: 20 }}>
-                <Text style={styles.externosInputLabel}>
-                  <Ionicons name="people" size={14} color="#666" /> Colaborador(es) *
-                  {linhaPessoalEquipAtual.colaboradoresIds && linhaPessoalEquipAtual.colaboradoresIds.length > 0 && (
-                    <Text style={{ color: '#1792FE', fontWeight: 'bold' }}>
-                      {' '}({linhaPessoalEquipAtual.colaboradoresIds.length} selecionado{linhaPessoalEquipAtual.colaboradoresIds.length !== 1 ? 's' : ''})
-                    </Text>
-                  )}
-                </Text>
-                <View style={[
-                  {
-                    backgroundColor: '#fff',
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: '#dee2e6',
-                    maxHeight: 200,
-                    overflow: 'hidden',
-                    elevation: 1,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 2,
-                  },
-                  camposInvalidosPessoal.has('colaboradorId') && { borderColor: '#dc3545', borderWidth: 2 }
-                ]}>
-                  <ScrollView 
-                    style={{ maxHeight: 200 }} 
-                    nestedScrollEnabled={true}
-                    showsVerticalScrollIndicator={true}
-                  >
-                    {colaboradoresDisponiveis.map((c, index) => {
-                      const isSelected = linhaPessoalEquipAtual.colaboradoresIds?.includes(String(c.id));
+            {/* Colaborador interno - Seleção Múltipla - SEMPRE VISÍVEL */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={styles.externosInputLabel}>
+                <Ionicons name="people" size={14} color="#666" /> Colaborador(es) *
+                {linhaPessoalEquipAtual.colaboradoresIds && linhaPessoalEquipAtual.colaboradoresIds.length > 0 && (
+                  <Text style={{ color: '#1792FE', fontWeight: 'bold' }}>
+                    {' '}({linhaPessoalEquipAtual.colaboradoresIds.length} selecionado{linhaPessoalEquipAtual.colaboradoresIds.length !== 1 ? 's' : ''})
+                  </Text>
+                )}
+              </Text>
+              <View style={[
+                {
+                  backgroundColor: '#fff',
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#dee2e6',
+                  maxHeight: 200,
+                  overflow: 'hidden',
+                  elevation: 1,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                },
+                camposInvalidosPessoal.has('colaboradorId') && { borderColor: '#dc3545', borderWidth: 2 }
+              ]}>
+                <ScrollView 
+                  style={{ maxHeight: 200 }} 
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                >
+                  {colaboradoresDisponiveis.map((c, index) => {
+                    const isSelected = linhaPessoalEquipAtual.colaboradoresIds?.includes(String(c.id));
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          borderBottomWidth: index < colaboradoresDisponiveis.length - 1 ? 1 : 0,
+                          borderBottomColor: '#f0f0f0',
+                          backgroundColor: isSelected ? '#e7f3ff' : '#fff',
+                        }}
+                        onPress={() => {
+                          const colabId = String(c.id);
+                          const currentIds = linhaPessoalEquipAtual.colaboradoresIds || [];
+
+                          let newIds;
+                          if (currentIds.includes(colabId)) {
+                            newIds = currentIds.filter(id => id !== colabId);
+                          } else {
+                            newIds = [...currentIds, colabId];
+                          }
+
+                          setLinhaPessoalEquipAtual(p => ({
+                            ...p,
+                            colaboradoresIds: newIds,
+                          }));
+
+                          setCamposInvalidosPessoal(prev => {
+                            const novo = new Set(prev);
+                            novo.delete('colaboradorId');
+                            return novo;
+                          });
+                        }}
+                      >
+                        <Ionicons
+                          name={isSelected ? "checkbox" : "square-outline"}
+                          size={22}
+                          color={isSelected ? "#1792FE" : "#999"}
+                          style={{ marginRight: 10 }}
+                        />
+                        <Text style={{
+                          fontSize: 13,
+                          color: isSelected ? '#1792FE' : '#333',
+                          fontWeight: isSelected ? '600' : '400',
+                          flex: 1,
+                        }}>
+                          {c.nome}
+                          {c.codFuncionario && (
+                            <Text style={{ color: '#666', fontSize: 11, fontWeight: '400' }}>
+                              {' '}[{String(c.codFuncionario).padStart(3, "0")}]
+                            </Text>
+                          )}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Tags de colaboradores selecionados */}
+              {linhaPessoalEquipAtual.colaboradoresIds && linhaPessoalEquipAtual.colaboradoresIds.length > 0 && (
+                <View style={{ 
+                  marginTop: 8, 
+                  padding: 12, 
+                  backgroundColor: '#f8f9fa', 
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#e0e0e0',
+                }}>
+                  <Text style={{ fontSize: 12, color: '#666', marginBottom: 8, fontWeight: '600' }}>
+                    Selecionados:
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {linhaPessoalEquipAtual.colaboradoresIds.map(colabId => {
+                      const colab = colaboradoresDisponiveis.find(c => String(c.id) === colabId);
+                      if (!colab) return null;
                       return (
-                        <TouchableOpacity
-                          key={c.id}
+                        <View 
+                          key={colabId}
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            paddingVertical: 10,
-                            paddingHorizontal: 12,
-                            borderBottomWidth: index < colaboradoresDisponiveis.length - 1 ? 1 : 0,
-                            borderBottomColor: '#f0f0f0',
-                            backgroundColor: isSelected ? '#e7f3ff' : '#fff',
-                          }}
-                          onPress={() => {
-                            const colabId = String(c.id);
-                            const currentIds = linhaPessoalEquipAtual.colaboradoresIds || [];
-                            
-                            let newIds;
-                            if (currentIds.includes(colabId)) {
-                              newIds = currentIds.filter(id => id !== colabId);
-                            } else {
-                              newIds = [...currentIds, colabId];
-                            }
-                            
-                            setLinhaPessoalEquipAtual(p => ({
-                              ...p,
-                              colaboradoresIds: newIds,
-                            }));
-                            
-                            setCamposInvalidosPessoal(prev => {
-                              const novo = new Set(prev);
-                              novo.delete('colaboradorId');
-                              return novo;
-                            });
+                            backgroundColor: '#1792FE',
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 16,
+                            elevation: 1,
                           }}
                         >
-                          <Ionicons
-                            name={isSelected ? "checkbox" : "square-outline"}
-                            size={22}
-                            color={isSelected ? "#1792FE" : "#999"}
-                            style={{ marginRight: 10 }}
-                          />
-                          <Text style={{
-                            fontSize: 13,
-                            color: isSelected ? '#1792FE' : '#333',
-                            fontWeight: isSelected ? '600' : '400',
-                            flex: 1,
-                          }}>
-                            {c.nome}
-                            {c.codFuncionario && (
-                              <Text style={{ color: '#666', fontSize: 11, fontWeight: '400' }}>
-                                {' '}[{String(c.codFuncionario).padStart(3, "0")}]
-                              </Text>
-                            )}
+                          <Text style={{ color: '#fff', fontSize: 11, marginRight: 6, fontWeight: '600' }}>
+                            {colab.nome}
                           </Text>
-                        </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setLinhaPessoalEquipAtual(p => ({
+                                ...p,
+                                colaboradoresIds: p.colaboradoresIds.filter(id => id !== colabId),
+                              }));
+                            }}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          >
+                            <Ionicons name="close-circle" size={16} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
                       );
                     })}
-                  </ScrollView>
-                </View>
-                
-                {/* Tags de colaboradores selecionados */}
-                {linhaPessoalEquipAtual.colaboradoresIds && linhaPessoalEquipAtual.colaboradoresIds.length > 0 && (
-                  <View style={{ 
-                    marginTop: 8, 
-                    padding: 12, 
-                    backgroundColor: '#f8f9fa', 
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: '#e0e0e0',
-                  }}>
-                    <Text style={{ fontSize: 12, color: '#666', marginBottom: 8, fontWeight: '600' }}>
-                      Selecionados:
-                    </Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                      {linhaPessoalEquipAtual.colaboradoresIds.map(colabId => {
-                        const colab = colaboradoresDisponiveis.find(c => String(c.id) === colabId);
-                        if (!colab) return null;
-                        return (
-                          <View 
-                            key={colabId}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              backgroundColor: '#1792FE',
-                              paddingHorizontal: 10,
-                              paddingVertical: 6,
-                              borderRadius: 16,
-                              elevation: 1,
-                            }}
-                          >
-                            <Text style={{ color: '#fff', fontSize: 11, marginRight: 6, fontWeight: '600' }}>
-                              {colab.nome}
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => {
-                                setLinhaPessoalEquipAtual(p => ({
-                                  ...p,
-                                  colaboradoresIds: p.colaboradoresIds.filter(id => id !== colabId),
-                                }));
-                              }}
-                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            >
-                              <Ionicons name="close-circle" size={16} color="#fff" />
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
-                    </View>
                   </View>
-                )}
-              </View>
-            )}
+                </View>
+              )}
+            </View>
 
             {/* Especialidade / Equipamento */}
             <View style={{ marginBottom: 20 }}>
@@ -4943,6 +4952,24 @@ for (const l of linhasParaSubmeter) {
                       novo.delete('horas');
                       return novo;
                     });
+
+                    // Permitir limpar o campo
+                    if (v === "") {
+                      setLinhaPessoalEquipAtual(p => ({...p, horas: v}));
+                      return;
+                    }
+
+                    // Se for Equipamentos, aceitar qualquer número decimal
+                    if (linhaPessoalEquipAtual.categoria === "Equipamentos") {
+                      // Permite números decimais (vírgula ou ponto)
+                      const valorLimpo = v.replace(',', '.');
+                      if (/^\d*\.?\d*$/.test(valorLimpo)) {
+                        setLinhaPessoalEquipAtual(p => ({...p, horas: valorLimpo}));
+                      }
+                      return;
+                    }
+
+                    // Para Mão de Obra, manter lógica de horas
                     const { colaboradorId, colaboradoresIds, dia, obraId } = linhaPessoalEquipAtual;
                     const selectedColId = colaboradoresIds && colaboradoresIds.length > 0 ? colaboradoresIds[0] : (colaboradorId ? [colaboradorId] : []);
 
@@ -4971,16 +4998,8 @@ for (const l of linhasParaSubmeter) {
                     }
                     setLinhaPessoalEquipAtual(p => ({...p, horas: v}));
                   }}
-                  placeholder={
-                    linhaPessoalEquipAtual.categoria === "Equipamentos" && linhaPessoalEquipAtual.especialidadeCodigo
-                      ? (() => {
-                          const equip = equipamentosList.find(e => e.codigo === linhaPessoalEquipAtual.especialidadeCodigo);
-                          const unidade = equip?.unidade?.toUpperCase().trim() || 'UN/H';
-                          return unidade.includes('/D') ? '0' : '0:00';
-                        })()
-                      : '0:00'
-                  }
-                  keyboardType="default"
+                  placeholder={linhaPessoalEquipAtual.categoria === "Equipamentos" ? "0" : "0:00"}
+                  keyboardType={linhaPessoalEquipAtual.categoria === "Equipamentos" ? "decimal-pad" : "default"}
                 />
               </View>
 
@@ -5001,7 +5020,7 @@ for (const l of linhasParaSubmeter) {
             {/* Observações */}
             <View style={{ marginBottom: 20 }}>
               <Text style={styles.externosInputLabel}>
-                <Ionicons name="chatbubble-ellipses" size={14} color="#666" /> Observações{linhaPessoalEquipAtual.classeId === -1 ? ' *' : ''}
+                <Ionicons name="chatbubble-ellipses" size={14} color="#666" /> Observações{linhaPessoalEquipAtual.categoria !== "Equipamentos" && linhaPessoalEquipAtual.classeId === -1 ? ' *' : ''}
               </Text>
               <TextInput
                 style={[
@@ -5018,7 +5037,7 @@ for (const l of linhasParaSubmeter) {
                   });
                   setLinhaPessoalEquipAtual(p => ({...p, observacoes: v}));
                 }}
-                placeholder={linhaPessoalEquipAtual.classeId === -1 ? "Obrigatório para classe Indiferenciada" : "Notas adicionais"}
+                placeholder={linhaPessoalEquipAtual.categoria !== "Equipamentos" && linhaPessoalEquipAtual.classeId === -1 ? "Obrigatório para classe Indiferenciada" : "Notas adicionais"}
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
