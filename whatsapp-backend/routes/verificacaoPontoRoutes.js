@@ -282,7 +282,7 @@ console.log("👥 Total contactos processados:", contactos.length);
             try {
                 if (user_id) {
                     const check = await axios.get(
-                        `http://localhost:3000/api/registo-ponto-obra/verificar-registo?user_id=${user_id}&data=${hoje}`,
+                        `https://backend.advir.pt/api/registo-ponto-obra/verificar-registo?user_id=${user_id}&data=${hoje}`,
                         { headers: { Authorization: req.headers.authorization } }
                     );
 
