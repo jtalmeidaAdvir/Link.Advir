@@ -71,6 +71,8 @@ const configuracaoRoutes = require('./routes/configuracaoRoutes');
 const predicaoObraRoutes = require('./routes/predicaoObraRoutes');
 const horarioRoutes = require('./routes/horarioRoutes');
 const dividirHorasObraRoutes = require('./routes/dividirHorasObraRoutes');
+const verificarRegistoPontoRoutes = require('./routes/verificarRegistoPontoRoutes')
+
 
 // Importar associações
 require('./associations');
@@ -108,6 +110,7 @@ app.use(cors({
 
 
 // Rotas
+
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/empresas', empresaRoutes);
@@ -140,7 +143,7 @@ app.use('/api/configuracoes', configuracaoRoutes);
 app.use('/api/predicao-obra', predicaoObraRoutes);
 app.use('/api/horarios', horarioRoutes);
 app.use('/api/dividir-horas-obra', dividirHorasObraRoutes);
-
+app.use('/api/registo-ponto-obra', verificarRegistoPontoRoutes);
 app.use('/api/gdpr', gdprRoutes);
 
 

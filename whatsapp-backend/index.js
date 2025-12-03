@@ -1,4 +1,5 @@
-﻿const express = require("express");
+﻿
+const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
@@ -10,19 +11,22 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Importar rotas - corrigir importações para usar apenas o router
+// Importar rotas
 const whatsappRoutes = require("./routes/whatsappRoutes");
 const { router: intervencaoRoutes } = require("./routes/whatsappIntervencoes");
 const { router: relatoriosRoutes } = require("./routes/relatoriosRoutes");
+const verificacaoPontoRoutes = require('./routes/verificacaoPontoRoutes');
 
-// Usar rotas
+// Configurar o WhatsApp service no app para acesso em outras rotas
+const { whatsappService } = require("./routes/whatsappRoutes");
+app.set("whatsappService", whatsappService);
+
+// Registar rotas na ordem correta
 app.use("/api/whatsapp", whatsappRoutes);
-app.use("/api/intervencoes", intervencaoRoutes);
-app.use(
-    "/api/configuracao-automatica",
-    require("./routes/configuracaoAutomaticaRoutes"),
-);
 app.use("/api/whatsapp", relatoriosRoutes);
+app.use("/api/whatsapp/verificacao-ponto", verificacaoPontoRoutes);
+app.use("/api/intervencoes", intervencaoRoutes);
+app.use("/api/configuracao-automatica", require("./routes/configuracaoAutomaticaRoutes"));
 
 // Rota de saúde
 app.get("/health", (req, res) => {
@@ -42,8 +46,54 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Middleware para log de todas as requisições
+app.use((req, res, next) => {
+    console.log(`📥 ${req.method} ${req.path}`);
+    next();
+});
+
 // Iniciar servidor
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 WhatsApp Backend running on port ${PORT}`);
-    console.log(`📱 WhatsApp Web will be available at http://0.0.0.0:${PORT}`);
+    console.log(`📱 WhatsApp Web available at http://0.0.0.0:${PORT}`);
+    console.log(`✅ Rotas registadas:`);
+    
+    // Listar todas as rotas registadas
+    const routes = [];
+    app._router.stack.forEach((middleware) => {
+        if (middleware.route) {
+            routes.push({
+                path: middleware.route.path,
+                methods: Object.keys(middleware.route.methods)
+            });
+        } else if (middleware.name === 'router') {
+            middleware.handle.stack.forEach((handler) => {
+                if (handler.route) {
+                    const path = middleware.regexp.toString()
+                        .replace('\\/?', '')
+                        .replace(/\\\//g, '/')
+                        .replace(/\^|\$/g, '')
+                        .replace(/\?\(\?=\\\/\|\$\)/g, '');
+                    routes.push({
+                        path: path + handler.route.path,
+                        methods: Object.keys(handler.route.methods)
+                    });
+                }
+            });
+        }
+    });
+    
+    routes.forEach(route => {
+        console.log(`   ${route.methods.join(', ').toUpperCase()} ${route.path}`);
+    });
+});
+
+// Tratamento de erros de porta ocupada
+server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Porta ${PORT} já está em uso!`);
+        process.exit(1);
+    } else {
+        console.error('❌ Erro ao iniciar servidor:', error);
+    }
 });

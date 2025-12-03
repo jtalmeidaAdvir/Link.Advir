@@ -5,6 +5,7 @@ import ScheduleTab from "./components/ScheduleTab";
 import { secureStorage } from '../../utils/secureStorage';
 import ConfiguracaoAutomaticaTab from "./components/ConfiguracaoAutomaticaTab";
 import RelatoriosTab from "./components/RelatoriosTab";
+import VerificacaoPontoTab from "./components/VerificacaoPontoTab";
 import useWhatsAppData from "./hooks/useWhatsAppData";
 import { getWhatsAppStyles } from "./styles/whatsAppStyles";
 
@@ -1060,6 +1061,7 @@ const WhatsAppWebConfig = () => {
                     { id: "schedule", icon: "⏰", label: "Agendamento" },
                     { id: "configuracao", icon: "🍽️", label: "Almoços" },
                     { id: "relatorios", icon: "📧", label: "Relatórios" },
+                    { id: "verificacao", icon: "⚠️", label: "Verificação Ponto" },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -1081,6 +1083,7 @@ const WhatsAppWebConfig = () => {
                 {activeTab === "schedule" && renderScheduleTab()}
                 {activeTab === "configuracao" && renderConfiguracaoAutomaticaTab()}
                 {activeTab === "relatorios" && renderRelatoriosTab()}
+                {activeTab === "verificacao" && <VerificacaoPontoTab styles={styles} API_BASE_URL={API_BASE_URL} />}
             </div>
         </div>
     );

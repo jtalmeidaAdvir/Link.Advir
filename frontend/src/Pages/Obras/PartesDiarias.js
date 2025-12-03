@@ -328,7 +328,7 @@ const adicionarLinhaPessoalEquip = async () => {
 
   const minutos = parseHorasToMinutos(horas);
   if (minutos <= 0) {
-    Alert.alert("Validação", "Horas inválidas.");
+    Alert.alert("Validação", "Valor inválido.");
     return;
   }
 
@@ -340,12 +340,13 @@ const adicionarLinhaPessoalEquip = async () => {
       continue; // Pula para o próximo colaborador
     }
 
-    // Validar 8h normais por obra no mesmo dia
-    if (!linhaPessoalEquipAtual.horaExtra) {
+    // ✅ VALIDAÇÕES DE HORAS APENAS PARA MÃO DE OBRA (não para Equipamentos)
+    if (categoria !== "Equipamentos" && !linhaPessoalEquipAtual.horaExtra) {
       const horasNaObraDia = linhasPessoalEquip
         .filter(l => l.dia === dia &&
                      l.colaboradorId === colId && // Verifica para o colaborador atual
                      String(l.obraId) === String(obraId) &&
+                     l.categoria !== "Equipamentos" && // Ignorar equipamentos no cálculo
                      !l.horaExtra)
         .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
 
@@ -359,7 +360,7 @@ const adicionarLinhaPessoalEquip = async () => {
 
       // Validar 10h totais por dia (todas as obras)
       const totalHorasDia = linhasPessoalEquip
-        .filter(l => l.dia === dia && l.colaboradorId === colId) // Verifica para o colaborador atual
+        .filter(l => l.dia === dia && l.colaboradorId === colId && l.categoria !== "Equipamentos") // Ignorar equipamentos
         .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
 
       if (totalHorasDia + minutos > 10 * 60) {
@@ -860,12 +861,14 @@ const submeterPessoalEquip = async () => {
             dia,
             trabalhadorId,
             horas,
-            categoria,
             especialidadeCodigo,
             subEmpId,
             classeId,
             observacoes,
         } = linhaAtual;
+
+        // Categoria sempre MaoObra
+        const categoria = "MaoObra";
 
         // Reset campos inválidos
         const invalidos = new Set();
@@ -901,8 +904,8 @@ const submeterPessoalEquip = async () => {
             invalidos.add('especialidadeCodigo');
         }
 
-        // ✅ VALIDAÇÃO OBRIGATÓRIA: Classe (sempre obrigatória, exceto Equipamentos)
-        if (categoria !== "Equipamentos" && (!classeId || classeId === null)) {
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Classe (sempre obrigatória para Mão de Obra)
+        if (!classeId || classeId === null) {
             invalidos.add('classeId');
         }
 
@@ -966,9 +969,7 @@ const submeterPessoalEquip = async () => {
             }
         }
 
-        const lista =
-            categoria === "Equipamentos" ? equipamentosList : especialidadesList;
-        const sel = lista.find((x) => x.codigo === especialidadeCodigo);
+        const sel = especialidadesList.find((x) => x.codigo === especialidadeCodigo);
 
         // Buscar informações da obra
         const obraMeta = obrasParaPickers.find((o) => Number(o.id) === Number(obraId));
@@ -1009,6 +1010,7 @@ const submeterPessoalEquip = async () => {
             trabalhadorId: "",
             horas: "",
             horaExtra: false,
+            categoria: "MaoObra",
             especialidadeCodigo: "",
             subEmpId: null,
             classeId: null,
@@ -2030,7 +2032,6 @@ const carregarRascunho = useCallback(async () => {
 
     const categorias = [
         { label: "Mão de Obra", value: "MaoObra" },
-        { label: "Equipamentos", value: "Equipamentos" },
     ];
 
     // Função para filtrar classes compatíveis com a especialidade selecionada
@@ -4211,71 +4212,25 @@ for (const l of linhasParaSubmeter) {
                                 })()
                             )}
 
-                            {/* Categoria com botões melhorados */}
+                            {/* Categoria fixada como Mão de Obra */}
                             <View style={styles.externosInputGroup}>
                                 <Text style={styles.externosInputLabel}>
-                                    <Ionicons name="layers" size={14} color="#666" /> Categoria *
+                                    <Ionicons name="layers" size={14} color="#666" /> Categoria
                                 </Text>
-                                <View style={styles.externosCategoryButtons}>
-                                    {[
-                                        { label: "Mão de Obra", value: "MaoObra", icon: "people" },
-                                        {
-                                            label: "Equipamentos",
-                                            value: "Equipamentos",
-                                            icon: "construct",
-                                        },
-                                    ].map((opt) => (
-                                        <TouchableOpacity
-                                            key={opt.value}
-                                            style={[
-                                                styles.externosCategoryButton,
-                                                linhaAtual.categoria === opt.value &&
-                                                styles.externosCategoryButtonActive,
-                                            ]}
-                                            onPress={() => {
-                                                const novaClasseId = opt.value === "Equipamentos" ? -1 : null;
-                                                setLinhaAtual((p) => ({ ...p, categoria: opt.value, especialidadeCodigo: "", subEmpId: null, classeId: novaClasseId }));
-                                            }}
-                                        >
-                                            <Ionicons
-                                                name={opt.icon}
-                                                size={16}
-                                                color={
-                                                    linhaAtual.categoria === opt.value
-                                                        ? "#fff"
-                                                        : "#1792FE"
-                                                }
-                                            />
-                                            <Text
-                                                style={[
-                                                    styles.externosCategoryButtonText,
-                                                    linhaAtual.categoria === opt.value &&
-                                                    styles.externosCategoryButtonTextActive,
-                                                ]}
-                                            >
-                                                {opt.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
+                                <View style={[styles.externosPickerWrapper, { backgroundColor: '#f8f9fa' }]}>
+                                    <View style={{ paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
+                                        <Ionicons name="people" size={16} color="#1792FE" style={{ marginRight: 8 }} />
+                                        <Text style={{ fontSize: 14, color: '#333', fontWeight: '500' }}>
+                                            Mão de Obra
+                                        </Text>
+                                    </View>
                                 </View>
                             </View>
 
-                            {/* Especialidade/Equipamento */}
+                            {/* Especialidade */}
                             <View style={styles.externosInputGroup}>
                                 <Text style={styles.externosInputLabel}>
-                                    <Ionicons
-                                        name={
-                                            linhaAtual.categoria === "Equipamentos"
-                                                ? "construct"
-                                                : "hammer"
-                                        }
-                                        size={14}
-                                        color="#666"
-                                    />{" "}
-                                    {linhaAtual.categoria === "Equipamentos"
-                                        ? "Equipamento"
-                                        : "Especialidade"}{" "}
-                                    *
+                                    <Ionicons name="hammer" size={14} color="#666" /> Especialidade *
                                 </Text>
                                 <View style={[
                                     styles.externosPickerWrapper,
@@ -4284,20 +4239,13 @@ for (const l of linhasParaSubmeter) {
                                     <Picker
                                         selectedValue={linhaAtual.especialidadeCodigo}
                                         onValueChange={(cod) => {
-                                            const lista =
-                                                linhaAtual.categoria === "Equipamentos"
-                                                    ? equipamentosList
-                                                    : especialidadesList;
-                                            const sel = lista.find((x) => x.codigo === cod);
-
-                                            // ✅ SEMPRE null para Mão de Obra, -1 para Equipamentos
-                                            const novaClasse = linhaAtual.categoria === "Equipamentos" ? -1 : null;
+                                            const sel = especialidadesList.find((x) => x.codigo === cod);
 
                                             setLinhaAtual((p) => ({
                                                 ...p,
                                                 especialidadeCodigo: cod,
                                                 subEmpId: sel?.subEmpId ?? null,
-                                                classeId: novaClasse,
+                                                classeId: null,
                                             }));
 
                                             setCamposInvalidos(prev => {
@@ -4308,14 +4256,8 @@ for (const l of linhasParaSubmeter) {
                                         }}
                                         style={styles.externosPicker}
                                     >
-                                        <Picker.Item
-                                            label={`— Selecionar ${linhaAtual.categoria === "Equipamentos" ? "equipamento" : "especialidade"} —`}
-                                            value=""
-                                        />
-                                        {(linhaAtual.categoria === "Equipamentos"
-                                            ? equipamentosList
-                                            : especialidadesList
-                                        ).map((opt) => (
+                                        <Picker.Item label="— Selecionar especialidade —" value="" />
+                                        {especialidadesList.map((opt) => (
                                             <Picker.Item
                                                 key={opt.codigo}
                                                 label={opt.descricao}
