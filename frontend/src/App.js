@@ -9,6 +9,7 @@ import WhatsAppWebConfig from './Pages/WhatsApp/WhatsAppWebConfig';
 import NFCScanner from './Pages/WhatsApp/NFCScanner';
 import { migrateToSecureStorage, isMigrationCompleted } from './utils/migrateToSecureStorage';
 
+
 function App() {
     // Executar migração para secureStorage na primeira vez
     useEffect(() => {
