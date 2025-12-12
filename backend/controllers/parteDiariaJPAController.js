@@ -40,7 +40,7 @@ exports.listarJPA = async (req, res) => {
           attributes: ['id', 'nome', 'email']
         });
         const obra = await Obra.findByPk(registo.obra_id, {
-          attributes: ['id', 'nome', 'localizacao']
+          attributes: ['id', 'codigo', 'nome', 'localizacao']
         });
         return {
           ...registo,
