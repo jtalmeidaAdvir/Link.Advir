@@ -352,4 +352,12 @@ export const styles = {
         fontWeight: "600",
         marginLeft: 8,
     },
+    deleteButton: {
+        marginTop: 12,
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    deleteButtonDisabled: {
+        opacity: 0.7,
+    },
 };

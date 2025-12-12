@@ -59,6 +59,16 @@ const RegistoPontoObra = (props) => {
     const [cameras, setCameras] = useState([]);
     const [currentCamIdx, setCurrentCamIdx] = useState(0);
 
+    // Estados para modal de mudança de obra
+    const [showMudancaObraModal, setShowMudancaObraModal] = useState(false);
+    const [mudancaObraData, setMudancaObraData] = useState({
+        obraAtualId: null,
+        obraAtualNome: "",
+        novaObraId: null,
+        novaObraNome: "",
+        onConfirm: null,
+    });
+
 
     const startScannerWith = async (cameraId) => {
         // garante que não existem instâncias anteriores
@@ -124,21 +134,44 @@ const RegistoPontoObra = (props) => {
             .find((e) => !temSaidaPosterior(e, lista));
 
     const processarPorQR = async (obraId, nomeObra) => {
-        // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
+        // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA (sem confirmação)
         const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registos);
         if (ativaMesmaObra) {
             await registarPonto("saida", obraId, nomeObra);
             return;
         }
 
-        // 2) Se houver entrada ativa noutra obra → fechar essa e abrir ENTRADA nesta
+        // 2) Se houver entrada ativa noutra obra → MOSTRAR MODAL PERSONALIZADO
         const ultimaAtiva = getUltimaEntradaAtiva(registos);
         if (ultimaAtiva && String(ultimaAtiva.obra_id) != String(obraId)) {
             const nomeAnterior = ultimaAtiva.Obra?.nome || "Obra anterior";
-            await registarPonto("saida", ultimaAtiva.obra_id, nomeAnterior);
+
+            // Mostrar modal personalizado com Promise para aguardar escolha do utilizador
+            return new Promise((resolve) => {
+                setMudancaObraData({
+                    obraAtualId: ultimaAtiva.obra_id,
+                    obraAtualNome: nomeAnterior,
+                    novaObraId: obraId,
+                    novaObraNome: nomeObra,
+                    onConfirm: async (opcao) => {
+                        setShowMudancaObraModal(false);
+
+                        if (opcao === "sair") {
+                            // Apenas sair da obra atual
+                            await registarPonto("saida", ultimaAtiva.obra_id, nomeAnterior);
+                        } else if (opcao === "mudar") {
+                            // Sair da atual e entrar na nova
+                            await registarPonto("saida", ultimaAtiva.obra_id, nomeAnterior);
+                            await registarPonto("entrada", obraId, nomeObra);
+                        }
+                        resolve();
+                    },
+                });
+                setShowMudancaObraModal(true);
+            });
         }
 
-        // 3) Sem ativa → ENTRADA nesta obra
+        // 3) Sem ativa → ENTRADA nesta obra (sem confirmação)
         await registarPonto("entrada", obraId, nomeObra);
     };
 
@@ -483,14 +516,33 @@ const RegistoPontoObra = (props) => {
         ) {
             const nomeObraAnterior =
                 ultimaEntradaSemSaida.Obra?.nome || "Obra anterior";
-            await registarPonto(
-                "saida",
-                ultimaEntradaSemSaida.obra_id,
-                nomeObraAnterior,
-            );
+
+            // Mostrar modal personalizado com Promise para aguardar escolha do utilizador
+            return new Promise((resolve) => {
+                setMudancaObraData({
+                    obraAtualId: ultimaEntradaSemSaida.obra_id,
+                    obraAtualNome: nomeObraAnterior,
+                    novaObraId: novaObraId,
+                    novaObraNome: nomeObraNova,
+                    onConfirm: async (opcao) => {
+                        setShowMudancaObraModal(false);
+
+                        if (opcao === "sair") {
+                            // Apenas sair da obra atual
+                            await registarPonto("saida", ultimaEntradaSemSaida.obra_id, nomeObraAnterior);
+                        } else if (opcao === "mudar") {
+                            // Sair da atual e entrar na nova
+                            await registarPonto("saida", ultimaEntradaSemSaida.obra_id, nomeObraAnterior);
+                            await registarPonto("entrada", novaObraId, nomeObraNova);
+                        }
+                        resolve();
+                    },
+                });
+                setShowMudancaObraModal(true);
+            });
         }
 
-        // Registar entrada nova
+        // Sem entrada ativa → registar entrada (sem confirmação)
         await registarPonto("entrada", novaObraId, nomeObraNova);
     };
 
@@ -882,6 +934,16 @@ const longitude = loc?.coords?.longitude ?? null;
             ></div>
 
             <style jsx>{`
+                @keyframes modalSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-30px) scale(0.95);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0) scale(1);
+                    }
+                }
                 .scanner-container {
                     border-radius: 15px;
                     overflow: hidden;
@@ -1604,6 +1666,164 @@ const longitude = loc?.coords?.longitude ?? null;
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Mudança de Obra */}
+            {showMudancaObraModal && (
+                <div
+                    style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: "rgba(0, 0, 0, 0.5)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 10000,
+                        padding: "1rem",
+                    }}
+                    onClick={() => {
+                        setShowMudancaObraModal(false);
+                    }}
+                >
+                    <div
+                        style={{
+                            backgroundColor: "white",
+                            borderRadius: "8px",
+                            maxWidth: "450px",
+                            width: "100%",
+                            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
+                            animation: "modalSlideIn 0.3s ease-out",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div
+                            style={{
+                                borderBottom: "1px solid #e9ecef",
+                                padding: "1.25rem 1.5rem",
+                            }}
+                        >
+                            <h3
+                                style={{
+                                    color: "#212529",
+                                    fontSize: "1.125rem",
+                                    fontWeight: "500",
+                                    margin: 0,
+                                }}
+                            >
+                                Mudança de Obra
+                            </h3>
+                        </div>
+
+                        {/* Body */}
+                        <div style={{ padding: "1.5rem" }}>
+                            <p
+                                style={{
+                                    fontSize: "0.9rem",
+                                    color: "#6c757d",
+                                    marginBottom: "0.5rem",
+                                }}
+                            >
+                                Entrada ativa em: <strong>{mudancaObraData.obraAtualNome}</strong>
+                            </p>
+                            <p
+                                style={{
+                                    fontSize: "0.9rem",
+                                    color: "#6c757d",
+                                    marginBottom: "1.25rem",
+                                }}
+                            >
+                                Pretende entrar em: <strong>{mudancaObraData.novaObraNome}</strong>
+                            </p>
+
+                            {/* Botões de Ação */}
+                            <div
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "0.625rem",
+                                }}
+                            >
+                                <button
+                                    className="btn"
+                                    style={{
+                                        backgroundColor: "#28a745",
+                                        border: "none",
+                                        borderRadius: "4px",
+                                        padding: "0.75rem 1rem",
+                                        color: "white",
+                                        fontSize: "0.875rem",
+                                        fontWeight: "500",
+                                        cursor: "pointer",
+                                        transition: "background-color 0.2s",
+                                    }}
+                                    onClick={() => mudancaObraData.onConfirm("mudar")}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#218838";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#28a745";
+                                    }}
+                                >
+                                    Mudar de Obra
+                                </button>
+
+                                <button
+                                    className="btn"
+                                    style={{
+                                        backgroundColor: "#ffc107",
+                                        border: "none",
+                                        borderRadius: "4px",
+                                        padding: "0.75rem 1rem",
+                                        color: "#212529",
+                                        fontSize: "0.875rem",
+                                        fontWeight: "500",
+                                        cursor: "pointer",
+                                        transition: "background-color 0.2s",
+                                    }}
+                                    onClick={() => mudancaObraData.onConfirm("sair")}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#e0a800";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#ffc107";
+                                    }}
+                                >
+                                    Apenas Sair
+                                </button>
+
+                                <button
+                                    className="btn"
+                                    style={{
+                                        backgroundColor: "#f8f9fa",
+                                        border: "1px solid #dee2e6",
+                                        borderRadius: "4px",
+                                        padding: "0.75rem 1rem",
+                                        color: "#6c757d",
+                                        fontSize: "0.875rem",
+                                        fontWeight: "500",
+                                        cursor: "pointer",
+                                        transition: "background-color 0.2s",
+                                    }}
+                                    onClick={() => {
+                                        setShowMudancaObraModal(false);
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#e9ecef";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

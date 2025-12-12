@@ -1196,4 +1196,27 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 3
     },
+
+    // Estilos para Modal de Exportação
+    exportDescription: {
+        fontSize: 14,
+        color: '#666',
+        lineHeight: 20,
+        marginTop: 8,
+        marginBottom: 10
+    },
+    infoBox: {
+        flexDirection: 'row',
+        padding: 15,
+        borderRadius: 10,
+        borderLeftWidth: 4,
+        alignItems: 'flex-start',
+        gap: 10
+    },
+    infoBoxText: {
+        flex: 1,
+        fontSize: 14,
+        lineHeight: 20,
+        fontWeight: '500'
+    },
 });

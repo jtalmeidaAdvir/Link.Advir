@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
+import * as XLSX from 'xlsx-js-style';
 
 import { styles } from "../Css/GestaoTrabalhadoresExternosStyles";
 import { secureStorage } from '../../../utils/secureStorage';
@@ -254,6 +255,13 @@ const GestaoTrabalhadoresExternos = () => {
     const [agruparGradePor, setAgruparGradePor] = useState('geral');
     const [obraGradeFiltro, setObraGradeFiltro] = useState(''); // Estado adicionado para filtro de obra
     const [modoVisualizacaoGrade, setModoVisualizacaoGrade] = useState('geral'); // 'geral' ou 'porColaborador'
+
+    // === MODAL DE EXPORTAÇÃO EXCEL ===
+    const [modalExportVisible, setModalExportVisible] = useState(false);
+    const [exportDataInicio, setExportDataInicio] = useState('');
+    const [exportDataFim, setExportDataFim] = useState('');
+    const [exportEmpresaFiltro, setExportEmpresaFiltro] = useState('');
+    const [exportando, setExportando] = useState(false);
 
     // Helper para requisições com retry
     const fetchComRetentativas = async (url, options, tentativas = 3, delay = 1000) => {
@@ -587,11 +595,691 @@ const GestaoTrabalhadoresExternos = () => {
     const abrirDetalhe = (item) => { setDetalhe(item); setModalDetalheVisible(true); };
     const fecharDetalhe = () => { setDetalhe(null); setModalDetalheVisible(false); };
 
+    // === EXPORTAÇÃO PARA EXCEL ===
+    const abrirModalExport = () => {
+        // Definir datas padrão (mês atual)
+        const hoje = new Date();
+        const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+
+        setExportDataInicio(primeiroDia.toISOString().split('T')[0]);
+        setExportDataFim(ultimoDia.toISOString().split('T')[0]);
+        setExportEmpresaFiltro('');
+        setModalExportVisible(true);
+    };
+
+    const fecharModalExport = () => {
+        setModalExportVisible(false);
+        setExportDataInicio('');
+        setExportDataFim('');
+        setExportEmpresaFiltro('');
+    };
+
+    const exportarParaExcel = async () => {
+        try {
+            console.log('🚀 Iniciando exportação para Excel...', {
+                exportDataInicio,
+                exportDataFim,
+                exportEmpresaFiltro
+            });
+
+            setExportando(true);
+
+            // Validações
+            if (!exportDataInicio || !exportDataFim) {
+                console.error('❌ Validação falhou: datas não preenchidas');
+                window.alert('Por favor, preencha as datas de início e fim.');
+                setExportando(false);
+                return;
+            }
+
+            if (new Date(exportDataFim) < new Date(exportDataInicio)) {
+                console.error('❌ Validação falhou: data fim anterior à data início');
+                window.alert('A data de fim não pode ser anterior à data de início.');
+                setExportando(false);
+                return;
+            }
+
+            console.log('✅ Validações OK, buscando partes diárias...');
+
+            // Buscar partes diárias do período
+            const painelToken = secureStorage.getItem('painelAdminToken');
+
+            if (!painelToken) {
+                console.error('❌ Token do painel admin não encontrado');
+                throw new Error('Token de autenticação não encontrado');
+            }
+
+            console.log('📡 Fazendo requisição para:', API_PARTE_DIARIA);
+
+            const resPartes = await fetch(API_PARTE_DIARIA, {
+                headers: { Authorization: `Bearer ${painelToken}` }
+            });
+
+            console.log('📥 Resposta recebida, status:', resPartes.status);
+
+            if (!resPartes.ok) throw new Error('Erro ao carregar partes diárias');
+
+            const todasPartes = await resPartes.json();
+            console.log('✅ Partes diárias carregadas:', todasPartes?.length || 0);
+
+            // Filtrar partes do período selecionado
+            const dataInicio = new Date(exportDataInicio);
+            const dataFim = new Date(exportDataFim);
+
+            console.log('📅 Filtrando partes do período:', {
+                dataInicio: dataInicio.toISOString(),
+                dataFim: dataFim.toISOString()
+            });
+
+            const partesDoPerido = (todasPartes || []).filter(cab => {
+                const dataParte = new Date(cab.Data);
+                return dataParte >= dataInicio && dataParte <= dataFim;
+            });
+
+            console.log('✅ Partes do período encontradas:', partesDoPerido.length);
+
+            if (partesDoPerido.length === 0) {
+                console.warn('⚠️ Nenhuma parte diária encontrada no período');
+                window.alert('Não foram encontradas partes diárias no período selecionado.');
+                setExportando(false);
+                return;
+            }
+
+            // Criar mapa de dias do período
+            const diasDoPeriodo = [];
+            let dataAtual = new Date(dataInicio);
+            while (dataAtual <= dataFim) {
+                diasDoPeriodo.push(new Date(dataAtual).getDate());
+                dataAtual.setDate(dataAtual.getDate() + 1);
+            }
+
+            console.log('📆 Dias do período:', diasDoPeriodo);
+
+            // Buscar obras para ter codigo e nome corretos
+            console.log('🏗️ Buscando informações das obras...');
+            const loginToken = secureStorage.getItem('loginToken');
+            const empresaId = secureStorage.getItem('empresa_id');
+
+            let obrasMapLocal = {};
+            try {
+                const resObras = await fetch(API_OBRAS, {
+                    headers: {
+                        Authorization: `Bearer ${loginToken}`,
+                        'X-Empresa-ID': empresaId
+                    }
+                });
+
+                if (resObras.ok) {
+                    const obras = await resObras.json();
+                    obras.forEach(o => {
+                        const key = String(o.id || o.ID);
+                        obrasMapLocal[key] = { codigo: o.codigo, nome: o.nome };
+                    });
+                    console.log('✅ Obras carregadas:', Object.keys(obrasMapLocal).length);
+                } else {
+                    console.warn('⚠️ Não foi possível carregar obras, usando obrasMap do state');
+                    obrasMapLocal = obrasMap;
+                }
+            } catch (err) {
+                console.warn('⚠️ Erro ao buscar obras:', err.message);
+                obrasMapLocal = obrasMap;
+            }
+
+            // Processar dados dos externos
+            const mapaExternos = new Map();
+            console.log('🔄 Processando trabalhadores externos...');
+
+            partesDoPerido.forEach(cab => {
+                const itensExternos = (cab.ParteDiariaItems || []).filter(it => {
+                    const semColab = it.ColaboradorID == null || String(it.ColaboradorID).trim() === '';
+                    const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
+                    return semColab || marca;
+                });
+
+                console.log(`📄 Parte diária ${cab.Data}: ${itensExternos.length} externos encontrados`);
+
+                itensExternos.forEach(item => {
+                    const nome = String(item.Funcionario || 'Externo').replace(/\s*\(Externo\)\s*$/i, '').trim();
+
+                    // Buscar informações do trabalhador externo cadastrado
+                    const nomeKey = normalizeName(nome);
+                    const info = nomeToInfo[nomeKey] || {};
+                    const empresa = info.empresa || '—';
+                    const valorHora = info.valorHora || 0;
+                    const categoria = info.categoria || item.Categoria || '—'; // Prioriza categoria do cadastro
+
+                    console.log(`👤 Processando: ${nome} | Empresa: ${empresa} | Categoria: ${categoria}`);
+
+                    // Filtrar por empresa se selecionado
+                    if (exportEmpresaFiltro && empresa !== exportEmpresaFiltro) {
+                        console.log(`⏭️ Pulando ${nome} - empresa ${empresa} não corresponde a ${exportEmpresaFiltro}`);
+                        return;
+                    }
+
+                    // Chave única: nome + categoria + empresa
+                    const chave = `${nome}|${categoria}|${empresa}`;
+
+                    if (!mapaExternos.has(chave)) {
+                        mapaExternos.set(chave, {
+                            nome,
+                            categoria,
+                            empresa,
+                            valorHora,
+                            horasPorDia: {},
+                            totalHoras: 0,
+                            totalValor: 0
+                        });
+                    }
+
+                    const externo = mapaExternos.get(chave);
+                    const dia = new Date(cab.Data).getDate();
+                    const minutos = Number(item.NumHoras || 0);
+                    const horas = minutos / 60;
+
+                    externo.horasPorDia[dia] = (externo.horasPorDia[dia] || 0) + horas;
+                    externo.totalHoras += horas;
+                    externo.totalValor += horas * valorHora;
+                });
+            });
+
+            console.log('✅ Trabalhadores externos processados:', mapaExternos.size);
+
+            if (mapaExternos.size === 0) {
+                console.warn('⚠️ Nenhum trabalhador externo encontrado');
+                window.alert('Não foram encontrados trabalhadores externos no período selecionado.');
+                setExportando(false);
+                return;
+            }
+
+            console.log('📊 Criando estrutura Excel agrupada por obra...');
+
+            // Buscar informações das obras
+            const obrasIds = new Set();
+            partesDoPerido.forEach(cab => {
+                if (cab.ObraID) obrasIds.add(String(cab.ObraID));
+            });
+
+            console.log('🏗️ Obras encontradas:', obrasIds.size);
+
+            // Reorganizar dados por obra
+            const dadosPorObra = new Map();
+
+            partesDoPerido.forEach(cab => {
+                const obraId = String(cab.ObraID || 'SEM_OBRA');
+                const obra = obrasMapLocal[obraId];
+                const obraLabel = obra ? `${obra.codigo} - ${obra.nome}` : `Obra ${cab.ObraID || 'Desconhecida'}`;
+
+                if (!dadosPorObra.has(obraId)) {
+                    dadosPorObra.set(obraId, {
+                        obraLabel,
+                        externos: new Map()
+                    });
+                }
+
+                const itensExternos = (cab.ParteDiariaItems || []).filter(it => {
+                    const semColab = it.ColaboradorID == null || String(it.ColaboradorID).trim() === '';
+                    const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
+                    return semColab || marca;
+                });
+
+                itensExternos.forEach(item => {
+                    const nome = String(item.Funcionario || 'Externo').replace(/\s*\(Externo\)\s*$/i, '').trim();
+                    const nomeKey = normalizeName(nome);
+                    const info = nomeToInfo[nomeKey] || {};
+                    const empresa = info.empresa || '—';
+                    const valorHora = info.valorHora || 0;
+                    const categoria = info.categoria || item.Categoria || '—'; // Prioriza categoria do cadastro
+
+                    if (exportEmpresaFiltro && empresa !== exportEmpresaFiltro) return;
+
+                    const chave = `${nome}|${categoria}`;
+                    const obraData = dadosPorObra.get(obraId);
+
+                    if (!obraData.externos.has(chave)) {
+                        obraData.externos.set(chave, {
+                            nome,
+                            categoria,
+                            empresa,
+                            valorHora,
+                            horasPorDia: {},
+                            totalHoras: 0,
+                            totalValor: 0
+                        });
+                    }
+
+                    const externo = obraData.externos.get(chave);
+                    const dia = new Date(cab.Data).getDate();
+                    const minutos = Number(item.NumHoras || 0);
+                    const horas = minutos / 60;
+
+                    externo.horasPorDia[dia] = (externo.horasPorDia[dia] || 0) + horas;
+                    externo.totalHoras += horas;
+                    externo.totalValor += horas * valorHora;
+                });
+            });
+
+            // Criar planilha Excel
+            const dadosExcel = [];
+
+            // Título e período
+            const mesInicio = dataInicio.toLocaleString('pt-PT', { month: 'long', year: 'numeric' });
+            const mesFim = dataFim.toLocaleString('pt-PT', { month: 'long', year: 'numeric' });
+            const periodoLabel = mesInicio === mesFim ?
+                mesInicio.charAt(0).toUpperCase() + mesInicio.slice(1) :
+                `${mesInicio.charAt(0).toUpperCase() + mesInicio.slice(1)}/${mesFim.charAt(0).toUpperCase() + mesFim.slice(1)}`;
+
+            dadosExcel.push({ A: `GRAUM ${new Date().getFullYear()}` });
+            dadosExcel.push({ A: '' });
+
+            // Criar linha com Subempreiteiro e MÊS na mesma linha
+            const nomeEmpresa = exportEmpresaFiltro || 'Todas as empresas';
+            const linhaInfo = { A: `Subempreiteiro: ${nomeEmpresa}` };
+            // Calcular a coluna do MÊS (última coluna visível)
+            const colMes = 3 + diasDoPeriodo.length + 4; // Obra + Func + Cat + dias + colunas finais
+            linhaInfo[String.fromCharCode(65 + colMes)] = `MÊS: ${periodoLabel}`;
+            dadosExcel.push(linhaInfo);
+
+            dadosExcel.push({ A: '' });
+
+            // Cabeçalho de colunas
+            const cabecalho = {
+                A: 'Obra',
+                B: 'Funcionário',
+                C: 'Categoria'
+            };
+
+            let col = 3; // Começa depois de Obra, Funcionário, Categoria
+            diasDoPeriodo.forEach(dia => {
+                cabecalho[String.fromCharCode(65 + col)] = dia;
+                col++;
+            });
+
+            cabecalho[String.fromCharCode(65 + col)] = 'TOTAL';
+            cabecalho[String.fromCharCode(65 + col + 1)] = 'Valor hora';
+            cabecalho[String.fromCharCode(65 + col + 2)] = 'Horas sábado';
+            cabecalho[String.fromCharCode(65 + col + 3)] = 'TOTAL';
+
+            dadosExcel.push(cabecalho);
+
+            // Adicionar dados por obra
+            let totalGeralHoras = 0;
+            let totalGeralValor = 0;
+
+            Array.from(dadosPorObra.entries())
+                .filter(([, obraData]) => obraData.externos.size > 0) // Filtrar obras vazias
+                .sort(([, a], [, b]) => a.obraLabel.localeCompare(b.obraLabel))
+                .forEach(([obraId, obraData]) => {
+                    let totalObraHoras = 0;
+                    let totalObraValor = 0;
+
+                    Array.from(obraData.externos.values())
+                        .sort((a, b) => a.nome.localeCompare(b.nome))
+                        .forEach(externo => {
+                            const linha = {
+                                A: obraData.obraLabel, // Mostrar em todas as linhas
+                                B: externo.nome,
+                                C: externo.categoria
+                            };
+
+                            let col = 3;
+                            let horasSabado = 0;
+
+                            diasDoPeriodo.forEach((dia, index) => {
+                                const horas = externo.horasPorDia[dia] || 0;
+                                linha[String.fromCharCode(65 + col)] = horas > 0 ? horas.toFixed(1) : '';
+
+                                // Verificar se é sábado - usar o index correto
+                                const dataTemp = new Date(dataInicio);
+                                dataTemp.setDate(dataTemp.getDate() + index);
+                                if (dataTemp.getDay() === 6) { // 6 = sábado
+                                    horasSabado += horas;
+                                }
+
+                                col++;
+                            });
+
+                            linha[String.fromCharCode(65 + col)] = externo.totalHoras.toFixed(1);
+                            linha[String.fromCharCode(65 + col + 1)] = externo.valorHora > 0 ? externo.valorHora.toFixed(2) + ' €' : '';
+                            linha[String.fromCharCode(65 + col + 2)] = horasSabado.toFixed(2) + ' €';
+                            linha[String.fromCharCode(65 + col + 3)] = externo.totalValor > 0 ? externo.totalValor.toFixed(2) + ' €' : '';
+
+                            dadosExcel.push(linha);
+
+                            totalObraHoras += externo.totalHoras;
+                            totalObraValor += externo.totalValor;
+                        });
+
+                    // Linha de total da obra
+                    const linhaTotalObra = { A: 'TOTAL OBRA', B: '', C: '' };
+                    let col = 3;
+
+                    diasDoPeriodo.forEach(dia => {
+                        let totalDia = 0;
+                        obraData.externos.forEach(ext => {
+                            totalDia += ext.horasPorDia[dia] || 0;
+                        });
+                        linhaTotalObra[String.fromCharCode(65 + col)] = totalDia > 0 ? totalDia.toFixed(1) : '';
+                        col++;
+                    });
+
+                    linhaTotalObra[String.fromCharCode(65 + col)] = totalObraHoras.toFixed(1);
+                    linhaTotalObra[String.fromCharCode(65 + col + 3)] = totalObraValor.toFixed(2) + ' €';
+
+                    dadosExcel.push(linhaTotalObra);
+                    dadosExcel.push({ A: '' }); // Linha em branco entre obras
+
+                    totalGeralHoras += totalObraHoras;
+                    totalGeralValor += totalObraValor;
+                });
+
+            // Linha de total geral (todas as obras)
+            const linhaTotalGeral = { A: 'TOTAL GERAL', B: '', C: '' };
+            let colGeral = 3;
+
+            // Calcular totais por dia de todas as obras
+            diasDoPeriodo.forEach(dia => {
+                let totalDiaGeral = 0;
+                dadosPorObra.forEach(obraData => {
+                    obraData.externos.forEach(ext => {
+                        totalDiaGeral += ext.horasPorDia[dia] || 0;
+                    });
+                });
+                linhaTotalGeral[String.fromCharCode(65 + colGeral)] = totalDiaGeral > 0 ? totalDiaGeral.toFixed(1) : '';
+                colGeral++;
+            });
+
+            linhaTotalGeral[String.fromCharCode(65 + colGeral)] = totalGeralHoras.toFixed(1);
+            linhaTotalGeral[String.fromCharCode(65 + colGeral + 3)] = totalGeralValor.toFixed(2) + ' €';
+
+            dadosExcel.push(linhaTotalGeral);
+
+            // Seção de validação de horas por funcionário
+            dadosExcel.push({ A: '' });
+            dadosExcel.push({ A: '' });
+            dadosExcel.push({ A: 'Horas' });
+
+            const cabecalhoValidacao = {
+                A: 'Funcionário',
+                B: 'Categoria'
+            };
+
+            col = 2;
+            diasDoPeriodo.forEach(dia => {
+                cabecalhoValidacao[String.fromCharCode(65 + col)] = dia;
+                col++;
+            });
+            cabecalhoValidacao[String.fromCharCode(65 + col)] = 'Total';
+
+            dadosExcel.push(cabecalhoValidacao);
+
+            // Adicionar validação por funcionário (totalizando todas as obras)
+            mapaExternos.forEach(externo => {
+                const linha = {
+                    A: externo.nome,
+                    B: externo.categoria
+                };
+
+                let col = 2;
+                diasDoPeriodo.forEach(dia => {
+                    const horas = externo.horasPorDia[dia] || 0;
+                    linha[String.fromCharCode(65 + col)] = horas > 0 ? horas.toFixed(1) : '0.0';
+                    col++;
+                });
+
+                linha[String.fromCharCode(65 + col)] = externo.totalHoras.toFixed(1);
+                dadosExcel.push(linha);
+            });
+
+            // Linha final de total
+            const linhaTotalValidacao = { A: '', B: '' };
+            let col2 = 2;
+            diasDoPeriodo.forEach(dia => {
+                let totalDia = 0;
+                mapaExternos.forEach(ext => {
+                    totalDia += ext.horasPorDia[dia] || 0;
+                });
+                linhaTotalValidacao[String.fromCharCode(65 + col2)] = totalDia.toFixed(1);
+                col2++;
+            });
+            linhaTotalValidacao[String.fromCharCode(65 + col2)] = totalGeralHoras.toFixed(1);
+            dadosExcel.push(linhaTotalValidacao);
+
+            console.log('📝 Dados Excel preparados:', dadosExcel.length, 'linhas');
+            console.log('💾 Criando arquivo Excel...');
+
+            // Verificar se estamos usando xlsx-js-style
+            console.log('📦 Biblioteca XLSX:', XLSX.version || 'versão desconhecida');
+
+            // Criar workbook
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(dadosExcel, { skipHeader: true });
+
+            // Ajustar largura das colunas
+            const colWidths = [
+                { wch: 35 }, // Obra
+                { wch: 30 }, // Funcionário
+                { wch: 20 }, // Categoria
+            ];
+
+            // Adicionar largura para cada dia
+            diasDoPeriodo.forEach(() => {
+                colWidths.push({ wch: 7 });
+            });
+
+            colWidths.push({ wch: 10 }); // TOTAL
+            colWidths.push({ wch: 12 }); // Valor hora
+            colWidths.push({ wch: 12 }); // Horas sábado
+            colWidths.push({ wch: 12 }); // TOTAL valor
+
+            ws['!cols'] = colWidths;
+
+            // Aplicar formatação: bordas e cores de fundo
+            console.log('🎨 Aplicando formatação (bordas e cores)...');
+
+            // Definir estilos de borda (formato correto para xlsx-js-style)
+            const bordaFina = {
+                top: { style: 'thin' },
+                bottom: { style: 'thin' },
+                left: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+
+            const bordaMedia = {
+                top: { style: 'medium' },
+                bottom: { style: 'medium' },
+                left: { style: 'medium' },
+                right: { style: 'medium' }
+            };
+
+            // Cores de fundo (formato correto para xlsx-js-style)
+            const fundoVerde = { patternType: 'solid', fgColor: { rgb: '92D050' } }; // Verde para 8h
+            const fundoAmarelo = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } }; // Amarelo para < 8h
+            const fundoCabecalho = { patternType: 'solid', fgColor: { rgb: '4472C4' } }; // Azul para cabeçalho
+            const fonteBranca = { color: { rgb: 'FFFFFF' }, bold: true };
+
+            // Aplicar formatação em todas as células
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            let celulasComBorda = 0;
+            let celulasVerdes = 0;
+            let celulasAmarelas = 0;
+
+            console.log('📊 Range de células:', range);
+            console.log(`📏 Total de linhas: ${range.e.r + 1}, Total de colunas: ${range.e.c + 1}`);
+
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                // Verificar se a linha está completamente vazia (linha de separação)
+                let linhaVazia = true;
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (ws[cellAddr] && ws[cellAddr].v !== undefined && ws[cellAddr].v !== null && ws[cellAddr].v !== '') {
+                        linhaVazia = false;
+                        break;
+                    }
+                }
+
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+
+                    // Criar célula se não existir (para células vazias)
+                    if (!ws[cellAddress]) {
+                        ws[cellAddress] = { t: 's', v: '' };
+                    }
+
+                    // Inicializar estilo da célula
+                    if (!ws[cellAddress].s) ws[cellAddress].s = {};
+
+                    // Aplicar bordas APENAS em linhas com conteúdo (não em linhas vazias de separação)
+                    if (!linhaVazia) {
+                        ws[cellAddress].s.border = bordaFina;
+                        celulasComBorda++;
+                    }
+
+                    // Linha do cabeçalho principal (linha 5 no Excel, index 4)
+                    if (R === 4) {
+                        ws[cellAddress].s = {
+                            fill: fundoCabecalho,
+                            font: fonteBranca,
+                            alignment: { horizontal: 'center', vertical: 'center' },
+                            border: bordaMedia
+                        };
+                    }
+
+                    // Identificar e formatar cabeçalho da seção de validação
+                    const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+                    const isCabecalhoValidacao = R > 4 && ws[cellA] && ws[cellA].v === 'Funcionário';
+
+                    if (isCabecalhoValidacao) {
+                        ws[cellAddress].s = {
+                            fill: fundoCabecalho,
+                            font: fonteBranca,
+                            alignment: { horizontal: 'center', vertical: 'center' },
+                            border: bordaMedia
+                        };
+                    }
+
+                    // Aplicar cores nas células de horas (colunas dos dias)
+                    // Primeira tabela: colunas dos dias começam na coluna 3 (índice C=3)
+                    // Segunda tabela (validação): colunas dos dias começam na coluna 1 (índice B=1)
+                    const isPrimeiraTabelaDias = C >= 3 && C < 3 + diasDoPeriodo.length && R > 4 && !isCabecalhoValidacao;
+                    const isSegundaTabelaDias = C >= 1 && C < 1 + diasDoPeriodo.length && R > 4 && !isCabecalhoValidacao;
+
+                    if ((isPrimeiraTabelaDias || isSegundaTabelaDias) && !isCabecalhoValidacao) {
+                        const cellValue = ws[cellAddress].v;
+                        let horas = 0;
+
+                        // Tentar converter o valor para horas
+                        if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+                            if (typeof cellValue === 'number') {
+                                horas = cellValue;
+                            } else if (typeof cellValue === 'string') {
+                                horas = parseFloat(cellValue);
+                            }
+                        }
+
+                        // Aplicar cor de fundo baseada nas horas (mantendo a borda)
+                        if (!isNaN(horas) && horas > 0) {
+                            if (horas >= 8.0) {
+                                ws[cellAddress].s = {
+                                    fill: fundoVerde,
+                                    font: { bold: true },
+                                    alignment: { horizontal: 'center', vertical: 'center' },
+                                    border: bordaFina
+                                };
+                                celulasVerdes++;
+                            } else {
+                                ws[cellAddress].s = {
+                                    fill: fundoAmarelo,
+                                    alignment: { horizontal: 'center', vertical: 'center' },
+                                    border: bordaFina
+                                };
+                                celulasAmarelas++;
+                            }
+                        } else {
+                            ws[cellAddress].s.alignment = { horizontal: 'center', vertical: 'center' };
+                        }
+                    }
+
+                    // Centralizar texto em colunas a partir da coluna 3 (se ainda não foi alinhado)
+                    if (C >= 3 && !ws[cellAddress].s.alignment) {
+                        ws[cellAddress].s.alignment = { horizontal: 'center', vertical: 'center' };
+                    }
+
+                    // Negrito para primeira coluna (Obra) - mantendo a borda
+                    if (C === 0 && R > 4 && !isCabecalhoValidacao) {
+                        if (!ws[cellAddress].s.font) {
+                            ws[cellAddress].s.font = { bold: true };
+                        } else {
+                            ws[cellAddress].s.font.bold = true;
+                        }
+                    }
+                }
+            }
+
+            console.log('✅ Formatação aplicada com sucesso!');
+            console.log(`📋 Estatísticas: ${celulasComBorda} células com bordas, ${celulasVerdes} verdes, ${celulasAmarelas} amarelas`);
+
+            // Debug: Verificar se os estilos estão sendo aplicados
+            const testCell = ws['E5']; // Célula de exemplo no cabeçalho
+            console.log('🔍 Debug célula E5:', testCell);
+            if (testCell && testCell.s) {
+                console.log('✅ Célula tem estilos:', JSON.stringify(testCell.s));
+            } else {
+                console.error('❌ Célula não tem estilos!');
+            }
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Horas Trabalhadores Externos');
+
+            // Gerar nome do arquivo
+            const nomeArquivo = `Horas_Externos_${periodoLabel.replace(/\s|\//g, '_')}${exportEmpresaFiltro ? '_' + exportEmpresaFiltro.replace(/[^a-zA-Z0-9]/g, '_') : ''}.xlsx`;
+
+            console.log('📁 Nome do arquivo:', nomeArquivo);
+            console.log('⬇️ Iniciando download...');
+
+            // Exportar usando xlsx-js-style com preservação de estilos
+            // Método alternativo que garante que os estilos são preservados
+            try {
+                const wbout = XLSX.write(wb, {
+                    bookType: 'xlsx',
+                    type: 'array',
+                    cellStyles: true
+                });
+
+                const blob = new Blob([wbout], { type: 'application/octet-stream' });
+
+                // Criar link para download
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = nomeArquivo;
+                link.click();
+                window.URL.revokeObjectURL(url);
+
+                console.log('✅ Download iniciado com estilos preservados');
+            } catch (writeError) {
+                console.error('❌ Erro ao escrever arquivo com estilos:', writeError);
+                // Fallback para método simples
+                XLSX.writeFile(wb, nomeArquivo);
+            }
+
+            console.log('✅ Exportação concluída com sucesso!');
+
+            window.alert(`Exportados ${mapaExternos.size} trabalhadores externos com ${totalGeralHoras.toFixed(1)} horas.`);
+            fecharModalExport();
+
+        } catch (error) {
+            console.error('Erro ao exportar para Excel:', error);
+            Alert.alert('Erro', error.message || 'Erro ao exportar dados para Excel.');
+        } finally {
+            setExportando(false);
+        }
+    };
+
     const listaFiltrada = useMemo(() => registos, [registos]);
 
     // === PARTES DIÁRIAS DOS EXTERNOS (GRADE MENSAL) ===
 
-    // Info por externo (valor hora / moeda / empresa), indexado por nome normalizado
+    // Info por externo (valor hora / moeda / empresa / categoria), indexado por nome normalizado
     const nomeToInfo = useMemo(() => {
         const m = {};
         (registos || []).forEach(r => {
@@ -601,6 +1289,7 @@ const GestaoTrabalhadoresExternos = () => {
                 empresa: r?.empresa || '—',
                 valorHora: Number(r?.valor) || 0,
                 moeda: (r?.moeda || 'EUR').toUpperCase(),
+                categoria: r?.categoria || '—',
             };
         });
         return m;
@@ -1515,6 +2204,13 @@ setClassesList(items);
                                     <LinearGradient colors={['#17a2b8', '#138496']} style={styles.modernButtonGradient}>
                                         <Ionicons name="grid" size={18} color="#fff" />
                                         <Text style={styles.modernButtonText}>Grade Partes Diárias</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity onPress={abrirModalExport} style={[styles.modernButton, styles.successButton]}>
+                                    <LinearGradient colors={['#28a745', '#20c997']} style={styles.modernButtonGradient}>
+                                        <Ionicons name="download" size={18} color="#fff" />
+                                        <Text style={styles.modernButtonText}>Exportar Excel</Text>
                                     </LinearGradient>
                                 </TouchableOpacity>
                             </View>
@@ -2474,6 +3170,21 @@ setClassesList(items);
                   const isFds = data.getDay() === 0 || data.getDay() === 6;
                   const temHoras = minutos > 0;
 
+                  // Determinar cor da borda baseada nas horas
+                  const horas = minutos / 60;
+                  let borderColor = 'transparent';
+                  let borderWidth = 0;
+
+                  if (temHoras) {
+                    if (horas >= 8) {
+                      borderColor = '#28a745'; // Verde para 8h ou mais
+                      borderWidth = 3;
+                    } else {
+                      borderColor = '#ffc107'; // Amarelo para menos de 8h
+                      borderWidth = 3;
+                    }
+                  }
+
                   return (
                     <View
                       key={dia}
@@ -2482,6 +3193,16 @@ setClassesList(items);
                         styles.gradeMensalDiaCell,
                         isFds && styles.gradeMensalFimDeSemana,
                         temHoras && styles.gradeMensalCellComHoras,
+                        {
+                          borderLeftWidth: borderWidth,
+                          borderLeftColor: borderColor,
+                          borderRightWidth: borderWidth,
+                          borderRightColor: borderColor,
+                          borderTopWidth: borderWidth,
+                          borderTopColor: borderColor,
+                          borderBottomWidth: borderWidth,
+                          borderBottomColor: borderColor,
+                        }
                       ]}
                     >
                       <Text
@@ -2539,6 +3260,128 @@ setClassesList(items);
 </ScrollView>
 
 
+                    </SafeAreaView>
+                </Modal>
+
+                {/* Modal de Exportação Excel */}
+                <Modal visible={modalExportVisible} animationType="slide" onRequestClose={fecharModalExport} presentationStyle="pageSheet">
+                    <SafeAreaView style={styles.modalContainer}>
+                        <LinearGradient colors={['#28a745', '#20c997']} style={styles.modalHeader}>
+                            <View style={styles.modalHeaderContent}>
+                                <View style={styles.modalTitleContainer}>
+                                    <View style={styles.modalIcon}>
+                                        <Ionicons name="download" size={24} color="#fff" />
+                                    </View>
+                                    <Text style={styles.modalTitle}>Exportar para Excel</Text>
+                                </View>
+                                <TouchableOpacity onPress={fecharModalExport} style={styles.modalCloseBtn}>
+                                    <Ionicons name="close" size={24} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+                        </LinearGradient>
+
+                        <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
+                            <View style={styles.formSection}>
+                                <Text style={styles.sectionTitle}>
+                                    <Ionicons name="information-circle" size={16} color="#28a745" /> Filtros de Exportação
+                                </Text>
+                                <Text style={styles.exportDescription}>
+                                    Selecione o período e a empresa para exportar os dados dos trabalhadores externos para Excel.
+                                </Text>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.controlSectionTitle}>Período de Exportação</Text>
+
+                                <View style={styles.rowContainer}>
+                                    <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                                        <Text style={styles.inputLabel}>
+                                            <Ionicons name="calendar" size={14} color="#666" /> Data de Início *
+                                        </Text>
+                                        <View style={styles.inputContainer}>
+                                            <TextInput
+                                                style={styles.modernInput}
+                                                value={exportDataInicio}
+                                                onChangeText={setExportDataInicio}
+                                                placeholder="YYYY-MM-DD"
+                                                placeholderTextColor="#999"
+                                            />
+                                        </View>
+                                    </View>
+
+                                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                                        <Text style={styles.inputLabel}>
+                                            <Ionicons name="calendar" size={14} color="#666" /> Data de Fim *
+                                        </Text>
+                                        <View style={styles.inputContainer}>
+                                            <TextInput
+                                                style={styles.modernInput}
+                                                value={exportDataFim}
+                                                onChangeText={setExportDataFim}
+                                                placeholder="YYYY-MM-DD"
+                                                placeholderTextColor="#999"
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.controlSectionTitle}>Filtro de Empresa</Text>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>
+                                        <Ionicons name="business" size={14} color="#666" /> Empresa
+                                    </Text>
+                                    <View style={styles.modernPicker}>
+                                        <Picker
+                                            selectedValue={exportEmpresaFiltro}
+                                            onValueChange={setExportEmpresaFiltro}
+                                            style={styles.pickerStyle}
+                                            dropdownIconColor="#28a745"
+                                        >
+                                            <Picker.Item label="Todas as empresas" value="" />
+                                            {empresasCombo.slice(1).map((e, idx) => (
+                                                <Picker.Item key={`exp-emp-${idx}`} label={e} value={e} />
+                                            ))}
+                                        </Picker>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <View style={[styles.infoBox, { backgroundColor: '#e7f5ea', borderLeftColor: '#28a745' }]}>
+                                    <Ionicons name="information-circle" size={20} color="#28a745" />
+                                    <Text style={[styles.infoBoxText, { color: '#155724' }]}>
+                                        A exportação incluirá todos os trabalhadores externos que tenham períodos de vigência
+                                        que se sobreponham com as datas selecionadas.
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={exportarParaExcel}
+                                disabled={exportando}
+                                style={styles.saveButtonContainer}
+                            >
+                                <LinearGradient
+                                    colors={exportando ? ['#999', '#777'] : ['#28a745', '#20c997']}
+                                    style={styles.saveButton}
+                                >
+                                    {exportando ? (
+                                        <>
+                                            <ActivityIndicator size="small" color="#fff" />
+                                            <Text style={styles.saveButtonText}>A exportar...</Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Ionicons name="download" size={20} color="#fff" />
+                                            <Text style={styles.saveButtonText}>Exportar para Excel</Text>
+                                        </>
+                                    )}
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </ScrollView>
                     </SafeAreaView>
                 </Modal>
 

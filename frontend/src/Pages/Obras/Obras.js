@@ -9,6 +9,7 @@ import {
     Animated,
     ScrollView,
     Dimensions,
+    Alert,
 } from "react-native";
 import {
     FontAwesome,
@@ -36,6 +37,7 @@ const ListarObras = ({ navigation }) => {
     const [expandedCards, setExpandedCards] = useState({});
     const [filterType, setFilterType] = useState("with_qr"); // 'all', 'with_qr', 'without_qr'
     const [responsaveis, setResponsaveis] = useState({}); // Store responsaveis by obra codigo
+    const [deletingId, setDeletingId] = useState(null); // Track obra being deleted
 
     // Animação principal para efeitos visuais
     useEffect(() => {
@@ -148,7 +150,7 @@ const ListarObras = ({ navigation }) => {
     const importarObra = async (obra) => {
         try {
             const token = secureStorage.getItem("loginToken");
-            const empresaId = await secureStorage.getItem("empresa_id");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             const response = await fetch("https://backend.advir.pt/api/obra", {
                 method: "POST",
@@ -176,6 +178,61 @@ const ListarObras = ({ navigation }) => {
         } catch (error) {
             console.error("Erro ao importar obra:", error);
             alert("Erro ao importar obra");
+        }
+    };
+
+    const eliminarObra = async (obraId, obraNome) => {
+        // Confirmação antes de eliminar usando window.confirm (compatível com web)
+        const confirmacao = window.confirm(
+            `Tem a certeza que deseja eliminar a obra "${obraNome}"?\n\nEsta ação não pode ser desfeita.`
+        );
+
+        if (!confirmacao) {
+            console.log("Eliminação cancelada");
+            return;
+        }
+
+        try {
+            setDeletingId(obraId);
+            const token = secureStorage.getItem("loginToken");
+
+            if (!token) {
+                alert("Token não encontrado. Por favor, faça login novamente.");
+                setDeletingId(null);
+                return;
+            }
+
+            const response = await fetch(
+                `https://backend.advir.pt/api/obra/${obraId}`,
+                {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
+
+            if (response.ok) {
+                alert("Obra eliminada com sucesso!");
+                fetchObrasImportadas();
+                // Reapplicar filtros para atualizar a lista
+                applyFilters(searchTerm, filterType);
+            } else {
+                const data = await response.json();
+                alert(
+                    `Erro ao eliminar obra: ${
+                        data.message || "Erro desconhecido"
+                    }`,
+                );
+            }
+        } catch (error) {
+            console.error("Erro ao eliminar obra:", error);
+            alert(
+                "Erro ao eliminar obra. Por favor, tente novamente.",
+            );
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -591,6 +648,7 @@ const ListarObras = ({ navigation }) => {
             (o) => o.codigo === item.Codigo,
         );
         const isExpanded = expandedCards[item.ID];
+        const isDeleting = deletingId === obraExistente?.id;
 
         return (
             <View style={styles.obraCard}>
@@ -839,6 +897,53 @@ const ListarObras = ({ navigation }) => {
                                             <Text style={styles.buttonText}>
                                                 Ver Pessoal em Obra
                                             </Text>
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+                                    {/* Botão de Eliminar */}
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.deleteButton,
+                                            isDeleting && styles.deleteButtonDisabled,
+                                        ]}
+                                        onPress={() =>
+                                            eliminarObra(
+                                                obraExistente.id,
+                                                obraExistente.nome,
+                                            )
+                                        }
+                                        disabled={isDeleting}
+                                        activeOpacity={0.8}
+                                    >
+                                        <LinearGradient
+                                            colors={
+                                                isDeleting
+                                                    ? ["#ccc", "#aaa"]
+                                                    : ["#dc3545", "#c82333"]
+                                            }
+                                            style={styles.buttonGradient}
+                                        >
+                                            {isDeleting ? (
+                                                <>
+                                                    <ActivityIndicator
+                                                        size="small"
+                                                        color="#FFFFFF"
+                                                    />
+                                                    <Text style={styles.buttonText}>
+                                                        A eliminar...
+                                                    </Text>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FontAwesome
+                                                        name="trash"
+                                                        size={16}
+                                                        color="#FFFFFF"
+                                                    />
+                                                    <Text style={styles.buttonText}>
+                                                        Eliminar Obra
+                                                    </Text>
+                                                </>
+                                            )}
                                         </LinearGradient>
                                     </TouchableOpacity>
                                 </View>
