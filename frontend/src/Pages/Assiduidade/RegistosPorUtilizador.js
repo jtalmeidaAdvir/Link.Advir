@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import EditarRegistoModal from './EditarRegistoModalWeb';
 import { secureStorage } from '../../utils/secureStorage';
 const RegistosPorUtilizador = () => {
@@ -29,6 +29,9 @@ const RegistosPorUtilizador = () => {
     const [tiposFaltas, setTiposFaltas] = useState({});
     const [tiposHorasExtras, setTiposHorasExtras] = useState({});
     const [horasExtrasUtilizadores, setHorasExtrasUtilizadores] = useState({});
+
+    // Cache para codFuncionario (OTIMIZAÇÃO)
+    const [cacheCodFuncionario, setCacheCodFuncionario] = useState({});
 
     const token = secureStorage.getItem('loginToken');
 
@@ -825,28 +828,26 @@ const RegistosPorUtilizador = () => {
                 const userSelecionado = utilizadores.find(u => u.id.toString() === utilizadorSelecionado.toString());
                 utilizadoresParaPesquisar = userSelecionado ? [userSelecionado] : [];
             }
-            // Se tiver obra selecionada, filtrar utilizadores dessa obra (otimizado)
+            // Se tiver obra selecionada, filtrar utilizadores dessa obra (OTIMIZADO - 1 requisição)
             else if (obraSelecionada) {
                 setLoadingMessage('Filtrando utilizadores por obra...');
 
-                // Fazer apenas 1 request para todo o mês em vez de 1 por dia
-                const dataInicio = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
-                const ultimoDia = new Date(parseInt(anoSelecionado), parseInt(mesSelecionado), 0).getDate();
-                const dataFim = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+                try {
+                    // OTIMIZAÇÃO: Fazer apenas 1 request para o mês inteiro
+                    const query = `obra_id=${obraSelecionada}&ano=${anoSelecionado}&mes=${String(mesSelecionado).padStart(2, '0')}`;
+                    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-periodo?${query}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
 
-                const promises = [];
-                for (let dia = 1; dia <= ultimoDia; dia++) {
-                    const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                    promises.push(
-                        fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?obra_id=${obraSelecionada}&data=${dataFormatada}`, {
-                            headers: { Authorization: `Bearer ${token}` }
-                        }).then(res => res.json()).catch(() => [])
-                    );
+                    if (res.ok) {
+                        const registos = await res.json();
+                        const userIdsObra = [...new Set(registos.map(reg => reg.user_id).filter(Boolean))];
+                        utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
+                        console.log(`✅ Filtrados ${utilizadoresParaPesquisar.length} utilizadores para obra ${obraSelecionada}`);
+                    }
+                } catch (error) {
+                    console.error('Erro ao filtrar utilizadores por obra:', error);
                 }
-
-                const resultados = await Promise.all(promises);
-                const userIdsObra = [...new Set(resultados.flat().map(reg => reg.User?.id).filter(Boolean))];
-                utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
             }
 
             setLoadingProgress(20);
@@ -890,24 +891,34 @@ const RegistosPorUtilizador = () => {
                                 const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
 
                                 // Obter codFuncionario do utilizador ANTES de fazer a requisição
-                                const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
-                                    method: 'GET',
-                                    headers: {
-                                        'Authorization': `Bearer ${loginToken}`,
-                                        'Content-Type': 'application/json',
-                                    },
-                                });
+                                // Verificar cache primeiro
+                                let codFuncionario = cacheCodFuncionario[user.id];
 
-                                if (!resCodFuncionario.ok) {
-                                    console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
-                                } else {
-                                    const dataCodFuncionario = await resCodFuncionario.json();
-                                    const codFuncionario = dataCodFuncionario.codFuncionario;
+                                if (!codFuncionario) {
+                                    // Só faz requisição se não estiver em cache
+                                    const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
+                                        method: 'GET',
+                                        headers: {
+                                            'Authorization': `Bearer ${loginToken}`,
+                                            'Content-Type': 'application/json',
+                                        },
+                                    });
 
-                                    if (!codFuncionario) {
-                                        console.warn(`⚠️ [GRADE] codFuncionario vazio para ${user.nome}`);
+                                    if (resCodFuncionario.ok) {
+                                        const dataCodFuncionario = await resCodFuncionario.json();
+                                        codFuncionario = dataCodFuncionario.codFuncionario;
+
+                                        // Armazenar em cache
+                                        if (codFuncionario) {
+                                            setCacheCodFuncionario(prev => ({...prev, [user.id]: codFuncionario}));
+                                        }
                                     } else {
-                                        console.log(`🔍 [GRADE] Buscando faltas para ${user.nome} (${codFuncionario})`);
+                                        console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
+                                    }
+                                }
+
+                                if (codFuncionario) {
+                                    console.log(`🔍 [GRADE] Buscando faltas para ${user.nome} (${codFuncionario})`);
 
                                         const resFaltas = await fetch(urlFaltasMensal, {
                                             method: 'GET',
@@ -985,7 +996,6 @@ const RegistosPorUtilizador = () => {
                                         } else {
                                             console.warn(`⚠️ [GRADE] Erro HTTP ${resFaltas.status} ao carregar dados do mês ${mesSelecionado}`);
                                         }
-                                    }
                                 }
                             } catch (faltaErr) {
                                 console.error(`❌ [GRADE] Erro ao carregar dados para ${user.nome}:`, faltaErr);
@@ -1476,44 +1486,216 @@ const RegistosPorUtilizador = () => {
             return;
         }
 
-        const workbook = XLSX.utils.book_new();
+        // Função para converter horas decimais em formato HhMm
+        const formatarHoras = (horasDecimais) => {
+            if (!horasDecimais || horasDecimais === 0) return '';
+            const horas = Math.floor(horasDecimais);
+            const minutos = Math.round((horasDecimais - horas) * 60);
+            return `${horas}h${minutos.toString().padStart(2, '0')}m`;
+        };
 
+        const workbook = XLSX.utils.book_new();
         const dadosExport = [];
 
-        // Cabeçalho
-        dadosExport.push([
-            'Grade Mensal de Registos',
-            '',
-            '',
-            '',
-            `${mesSelecionado}/${anoSelecionado}`
-        ]);
-        dadosExport.push([]);
-
-        // Cabeçalhos da tabela
-        const headers = ['Utilizador'];
-        diasDoMes.forEach(dia => headers.push(`Dia ${dia}`));
-        headers.push('Total Dias', 'Total Horas');
-        dadosExport.push(headers);
+        // Linha 1: Nome e dias do mês
+        const headerRow1 = ['Nome'];
+        diasDoMes.forEach(dia => headerRow1.push(dia));
+        headerRow1.push('Total Dias', 'Total Horas', 'DIVERSOS', 'Sabados');
+        dadosExport.push(headerRow1);
 
         // Dados dos utilizadores
         dadosGrade.forEach(item => {
             const row = [item.utilizador.nome];
 
+            let totalSabados = 0;
+            let totalDiversos = 0;
+
             diasDoMes.forEach(dia => {
                 const estatisticas = item.estatisticasDias[dia];
-                if (estatisticas) {
-                    row.push(`${estatisticas.horasEstimadas}h (${estatisticas.totalRegistos}r)`);
+                const dataDia = new Date(anoSelecionado, mesSelecionado - 1, dia);
+                const diaSemana = dataDia.getDay();
+
+                if (estatisticas && estatisticas.totalRegistos > 0) {
+                    // Contar sábados trabalhados
+                    if (diaSemana === 6) {
+                        totalSabados++;
+                    }
+
+                    // Formatar horas
+                    row.push(formatarHoras(parseFloat(estatisticas.horasEstimadas)));
                 } else {
-                    row.push('-');
+                    row.push('');
                 }
             });
 
-            row.push(item.totalDias, `${item.totalHorasEstimadas}h`);
+            // Adicionar colunas finais
+            row.push(item.totalDias);
+            row.push(formatarHoras(parseFloat(item.totalHorasEstimadas)));
+            row.push(totalDiversos > 0 ? `${totalDiversos} Horas` : '');
+            row.push(totalSabados > 0 ? `${totalSabados} Sabados` : '');
+
             dadosExport.push(row);
         });
 
+        // Criar worksheet
         const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
+
+        // Aplicar formatação no cabeçalho dos dias primeiro
+        for (let C = 1; C <= diasDoMes.length; C++) {
+            const dia = diasDoMes[C - 1];
+            const dataDia = new Date(anoSelecionado, mesSelecionado - 1, dia);
+            const diaSemana = dataDia.getDay();
+
+            const headerCell = XLSX.utils.encode_cell({ r: 0, c: C });
+
+            // Cor do cabeçalho - amarelo para fins de semana
+            let corHeader = 'FFD9D9D9'; // Cinza padrão
+            if (diaSemana === 0 || diaSemana === 6) {
+                corHeader = 'FFFFFF00'; // Amarelo para fins de semana
+            }
+
+            if (worksheet[headerCell]) {
+                worksheet[headerCell].s = {
+                    font: { bold: true, size: 10, name: 'Calibri' },
+                    alignment: { horizontal: 'center', vertical: 'center' },
+                    fill: {
+                        patternType: 'solid',
+                        fgColor: { rgb: corHeader },
+                        bgColor: { rgb: corHeader }
+                    },
+                    border: {
+                        top: { style: 'thin', color: { rgb: '000000' } },
+                        bottom: { style: 'thin', color: { rgb: '000000' } },
+                        left: { style: 'thin', color: { rgb: '000000' } },
+                        right: { style: 'thin', color: { rgb: '000000' } }
+                    }
+                };
+            }
+        }
+
+        // Aplicar formatação e cores nas linhas dos utilizadores
+        for (let R = 1; R < dadosExport.length; R++) {
+            const utilizador = dadosGrade[R - 1];
+            if (!utilizador) continue;
+
+            // Formatar nome
+            const nomeCell = XLSX.utils.encode_cell({ r: R, c: 0 });
+            if (worksheet[nomeCell]) {
+                worksheet[nomeCell].s = {
+                    alignment: { horizontal: 'left', vertical: 'center' },
+                    font: { size: 9, name: 'Calibri' },
+                    border: {
+                        top: { style: 'thin', color: { rgb: '000000' } },
+                        bottom: { style: 'thin', color: { rgb: '000000' } },
+                        left: { style: 'thin', color: { rgb: '000000' } },
+                        right: { style: 'thin', color: { rgb: '000000' } }
+                    }
+                };
+            }
+
+            // Formatar dias
+            for (let C = 1; C <= diasDoMes.length; C++) {
+                const dia = diasDoMes[C - 1];
+                const dataDia = new Date(anoSelecionado, mesSelecionado - 1, dia);
+                const diaSemana = dataDia.getDay();
+
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+
+                // Garantir que a célula existe
+                if (!worksheet[cellAddress]) {
+                    worksheet[cellAddress] = { t: 's', v: '' };
+                }
+
+                // Fins de semana sempre amarelo
+                let corFundo = 'FFFFFFFF'; // Branco por padrão
+                if (diaSemana === 0 || diaSemana === 6) {
+                    corFundo = 'FFFFFF00'; // Amarelo para fins de semana
+                }
+
+                worksheet[cellAddress].s = {
+                    fill: {
+                        patternType: 'solid',
+                        fgColor: { rgb: corFundo },
+                        bgColor: { rgb: corFundo }
+                    },
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center',
+                        wrapText: false
+                    },
+                    font: {
+                        size: 9,
+                        name: 'Calibri'
+                    },
+                    border: {
+                        top: { style: 'thin', color: { rgb: '000000' } },
+                        bottom: { style: 'thin', color: { rgb: '000000' } },
+                        left: { style: 'thin', color: { rgb: '000000' } },
+                        right: { style: 'thin', color: { rgb: '000000' } }
+                    }
+                };
+            }
+        }
+
+        // Formatar restante do cabeçalho (Nome, Total Dias, Total Horas, DIVERSOS, Sabados)
+        const colunasHeaderEspeciais = [0]; // Nome
+        const numDias = diasDoMes.length;
+        colunasHeaderEspeciais.push(numDias + 1, numDias + 2, numDias + 3, numDias + 4);
+
+        colunasHeaderEspeciais.forEach(C => {
+            const cell = XLSX.utils.encode_cell({ r: 0, c: C });
+            if (worksheet[cell]) {
+                worksheet[cell].s = {
+                    font: { bold: true, size: 10, name: 'Calibri' },
+                    alignment: { horizontal: 'center', vertical: 'center' },
+                    fill: {
+                        patternType: 'solid',
+                        fgColor: { rgb: 'FFD9D9D9' },
+                        bgColor: { rgb: 'FFD9D9D9' }
+                    },
+                    border: {
+                        top: { style: 'thin', color: { rgb: '000000' } },
+                        bottom: { style: 'thin', color: { rgb: '000000' } },
+                        left: { style: 'thin', color: { rgb: '000000' } },
+                        right: { style: 'thin', color: { rgb: '000000' } }
+                    }
+                };
+            }
+        });
+
+        // Formatar colunas finais (Total Dias, Total Horas, DIVERSOS, Sabados)
+        for (let R = 1; R < dadosExport.length; R++) {
+            const numDias = diasDoMes.length;
+            const colunasFinais = [numDias + 1, numDias + 2, numDias + 3, numDias + 4];
+
+            colunasFinais.forEach(C => {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                if (worksheet[cellAddress]) {
+                    worksheet[cellAddress].s = {
+                        alignment: { horizontal: 'center', vertical: 'center' },
+                        font: { size: 9, name: 'Calibri' },
+                        border: {
+                            top: { style: 'thin', color: { rgb: '000000' } },
+                            bottom: { style: 'thin', color: { rgb: '000000' } },
+                            left: { style: 'thin', color: { rgb: '000000' } },
+                            right: { style: 'thin', color: { rgb: '000000' } }
+                        }
+                    };
+                }
+            });
+        }
+
+        // Larguras das colunas
+        const wscols = [
+            { wch: 25 }, // Nome
+            ...diasDoMes.map(() => ({ wch: 6 })), // Dias
+            { wch: 10 }, // Total Dias
+            { wch: 12 }, // Total Horas
+            { wch: 12 }, // DIVERSOS
+            { wch: 12 }  // Sabados
+        ];
+        worksheet['!cols'] = wscols;
+
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Grade');
 
         const fileName = `Grade_Mensal_${mesSelecionado}_${anoSelecionado}_${new Date().toISOString().split('T')[0]}.xlsx`;
