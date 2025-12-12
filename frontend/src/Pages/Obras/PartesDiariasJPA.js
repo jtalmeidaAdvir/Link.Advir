@@ -73,6 +73,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                 if (r.Obra && !obrasUnicas.has(r.Obra.id)) {
                     obrasUnicas.set(r.Obra.id, {
                         id: r.Obra.id,
+                        codigo: r.Obra.codigo || r.Obra.id,
                         nome: r.Obra.nome || `Obra ${r.Obra.id}`,
                         localizacao: r.Obra.localizacao || "",
                     });
@@ -590,6 +591,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                 if (!registosPorObra[obraId]) {
                     registosPorObra[obraId] = {
                         obraId,
+                        obraCodigo: registo.Obra.codigo || obraId,
                         obraNome: registo.Obra.nome || `Obra ${obraId}`,
                         itensPorFuncionarioDia: {},
                     };
@@ -695,10 +697,10 @@ const PartesDiariasJPA = ({ navigation }) => {
                 if (itensParaEnviar.length > 0) {
                     // Data final do mês
                     const dataFinal = new Date(mesAno.ano, mesAno.mes, 0).toISOString().split("T")[0];
-                    
+
                     const payload = {
                         Cabecalho: {
-                            ObraID: obra.obraNome,
+                            ObraID: obra.obraCodigo,
                             Notas: `Parte diária mensal de ${mesAno.mes}/${mesAno.ano} - ${obra.obraNome}`,
                         },
                         Itens: itensParaEnviar,
