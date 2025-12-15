@@ -48,6 +48,30 @@ router.get('/GetCAdicionaisEstimado/:IdObra', async (req, res) => {
 });
 
 
+router.get('/GetEmailResponsabelObra/:IdObra', async (req, res) => {
+    try {
+        const { IdObra } = req.params;
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        const urlempresa = await getEmpresaUrl(req);
+
+        if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
+        if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/GetEmailResponsabelObra/${IdObra}`;
+        const response = await axios.get(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        console.error('Erro:', error.message);
+        res.status(500).json({ error: 'Erro ao obter responsavel', details: error.message });
+    }
+});
+
 router.get('/GetSubempreitadasReal/:IdObra', async (req, res) => {
     try {
         const { IdObra } = req.params;
@@ -200,16 +224,16 @@ router.get('/GetTrabalhosMenos_Real/:IdObra', async (req, res) => {
 });
 
 
-router.get('/GetSubempreitadas_Pendentes/:IdObra', async (req, res) => {
+router.get('/GetSubempreitadas_Pendentes/:CodigoObra', async (req, res) => {
     try {
-        const { IdObra } = req.params;
+        const { CodigoObra } = req.params;
         const painelAdminToken = req.headers['authorization']?.split(' ')[1];
         const urlempresa = await getEmpresaUrl(req);
 
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetSubempreitadas_Pendentes/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetSubempreitadas_Pendentes/${CodigoObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
