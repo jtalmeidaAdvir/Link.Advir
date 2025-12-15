@@ -10,10 +10,12 @@ import {
   SafeAreaView,
   Modal,
   Dimensions,
+  TextInput,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { secureStorage } from "../../utils/secureStorage";
+import { PieChart, BarChart } from "react-native-chart-kit";
 
 const { width } = Dimensions.get("window");
 
@@ -26,7 +28,13 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
   const [colaboradoresMap, setColaboradoresMap] = useState({});
   const [modalDetalhes, setModalDetalhes] = useState(false);
   const [detalheSelecionado, setDetalheSelecionado] = useState(null);
-  const [tipoVista, setTipoVista] = useState("obra"); // "obra" ou "utilizador"
+  const [tipoVista, setTipoVista] = useState("obra"); // "obra", "utilizador", "dashboard", "relatorios"
+  const [especialidadesMap, setEspecialidadesMap] = useState({});
+  const [classesMap, setClassesMap] = useState({});
+  const [dadosEstatisticos, setDadosEstatisticos] = useState({});
+  const [obraSelecionadaDashboard, setObraSelecionadaDashboard] = useState(null);
+  const [modalRelatorio, setModalRelatorio] = useState(false);
+  const [pesquisa, setPesquisa] = useState("");
 
   useEffect(() => {
     carregarDados();
@@ -70,6 +78,9 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
       // Agrupar por obra e dia
       const registosPorObraTemp = {};
       const colaboradoresSet = new Set();
+      // Mapas para armazenar ClasseID e SubEmpID por colaborador
+      const classeIdPorColaborador = {};
+      const subEmpIdPorColaborador = {};
 
       obrasResponsavel.forEach((obra) => {
         registosPorObraTemp[obra.id] = {};
@@ -85,16 +96,24 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
           data.getFullYear() === anoSelecionado
         ) {
           const dia = data.getDate();
-          
+
           parte.ParteDiariaItems?.forEach((item) => {
             const colaboradorId = item.ColaboradorID || item.Funcionario;
             if (colaboradorId) {
               colaboradoresSet.add(colaboradorId);
-              
+
+              // Armazenar ClasseID e SubEmpID do item (pegar o primeiro encontrado)
+              if (item.ClasseID && !classeIdPorColaborador[colaboradorId]) {
+                classeIdPorColaborador[colaboradorId] = item.ClasseID;
+              }
+              if (item.SubEmpID && !subEmpIdPorColaborador[colaboradorId]) {
+                subEmpIdPorColaborador[colaboradorId] = item.SubEmpID;
+              }
+
               if (!registosPorObraTemp[obraId][colaboradorId]) {
                 registosPorObraTemp[obraId][colaboradorId] = {};
               }
-              
+
               if (!registosPorObraTemp[obraId][colaboradorId][dia]) {
                 registosPorObraTemp[obraId][colaboradorId][dia] = {
                   horas: 0,
@@ -102,7 +121,7 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
                   itens: [],
                 };
               }
-              
+
               registosPorObraTemp[obraId][colaboradorId][dia].horas +=
                 (item.NumHoras || 0) / 60;
               registosPorObraTemp[obraId][colaboradorId][dia].itens.push(item);
@@ -113,17 +132,66 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
 
       setRegistosPorObra(registosPorObraTemp);
 
-      // Buscar nomes dos colaboradores
+      // Carregar todas as classes e especialidades de uma vez (mais eficiente)
+      const [todasClassesMap, todasEspecialidadesMap] = await Promise.all([
+        carregarTodasClasses(token),
+        carregarTodasEspecialidades(token),
+      ]);
+
+      console.log('📊 Classes carregadas:', Object.keys(todasClassesMap).length);
+      console.log('📊 Especialidades carregadas:', Object.keys(todasEspecialidadesMap).length);
+      console.log('📊 Exemplo de classe:', Object.entries(todasClassesMap)[0]);
+      console.log('📊 Exemplo de especialidade:', Object.entries(todasEspecialidadesMap)[0]);
+
+      // Buscar nomes dos colaboradores e mapear classes/especialidades
       const colaboradoresMapTemp = {};
+      const especialidadesMapTemp = {};
+      const classesMapTemp = {};
+
       for (const colabId of colaboradoresSet) {
         try {
+          // Buscar nome do colaborador
           const nome = await obterNomeFuncionario(colabId, token);
           colaboradoresMapTemp[colabId] = nome || colabId;
+
+          // Mapear nome da classe usando o mapa carregado
+          if (classeIdPorColaborador[colabId]) {
+            const classeId = classeIdPorColaborador[colabId];
+            const nomeClasse = todasClassesMap[classeId];
+            classesMapTemp[colabId] = nomeClasse || `Classe ${classeId}`;
+
+            if (!nomeClasse) {
+              console.log(`⚠️ Classe não encontrada - ColabID: ${colabId}, ClasseID: ${classeId}`);
+            }
+          } else {
+            classesMapTemp[colabId] = "Não definida";
+          }
+
+          // Mapear nome da especialidade usando o mapa carregado
+          if (subEmpIdPorColaborador[colabId]) {
+            const subEmpId = subEmpIdPorColaborador[colabId];
+            const nomeEspecialidade = todasEspecialidadesMap[subEmpId];
+            especialidadesMapTemp[colabId] = nomeEspecialidade || `Especialidade ${subEmpId}`;
+
+            if (!nomeEspecialidade) {
+              console.log(`⚠️ Especialidade não encontrada - ColabID: ${colabId}, SubEmpID: ${subEmpId}`);
+            }
+          } else {
+            especialidadesMapTemp[colabId] = "Não definida";
+          }
         } catch (e) {
+          console.error(`Erro ao obter dados do colaborador ${colabId}:`, e);
           colaboradoresMapTemp[colabId] = colabId;
+          especialidadesMapTemp[colabId] = "Não definida";
+          classesMapTemp[colabId] = "Não definida";
         }
       }
       setColaboradoresMap(colaboradoresMapTemp);
+      setEspecialidadesMap(especialidadesMapTemp);
+      setClassesMap(classesMapTemp);
+
+      // Calcular estatísticas
+      calcularEstatisticas(registosPorObraTemp, colaboradoresMapTemp, especialidadesMapTemp, classesMapTemp, obrasResponsavel);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
     } finally {
@@ -171,12 +239,196 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
       );
       if (res.ok) {
         const data = await res.json();
-        return data?.DataSet?.Table?.[0]?.Nome;
+        return data?.DataSet?.Table?.[0]?.Nome || codFuncionario;
       }
     } catch (e) {
-      console.error("Erro ao obter nome:", e);
+      console.error("Erro ao obter nome do funcionário:", e);
     }
     return codFuncionario;
+  };
+
+  const carregarTodasClasses = async (token, tentativas = 3) => {
+    for (let i = 0; i < tentativas; i++) {
+      try {
+        console.log(`🔄 Tentativa ${i + 1}/${tentativas} - Carregando classes...`);
+        const urlempresa = await secureStorage.getItem("urlempresa");
+
+        const res = await fetch(
+          "https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              urlempresa,
+            },
+          }
+        );
+
+        console.log('📡 Status da resposta Classes:', res.status);
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log('📦 Dados recebidos Classes:', data);
+
+          const table = data?.DataSet?.Table;
+          console.log('📊 Table Classes:', Array.isArray(table) ? `Array com ${table.length} itens` : typeof table);
+
+          const classesMap = {};
+
+          if (Array.isArray(table)) {
+            table.forEach((item, idx) => {
+              if (idx < 3) {
+                console.log(`📋 Item ${idx} da classe:`, item);
+              }
+              if (item.ClasseId) {
+                classesMap[item.ClasseId] = item.Descricao || item.Classe || `Classe ${item.ClasseId}`;
+              }
+            });
+            console.log(`✅ ${Object.keys(classesMap).length} classes mapeadas com sucesso`);
+            return classesMap;
+          } else {
+            console.warn('⚠️ Table não é array:', table);
+          }
+        } else {
+          console.error('❌ Resposta não OK:', res.status, res.statusText);
+        }
+      } catch (e) {
+        console.error(`❌ Erro na tentativa ${i + 1} ao carregar classes:`, e);
+        if (i < tentativas - 1) {
+          console.log(`⏳ Aguardando 1s antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    console.error('❌ Falha ao carregar classes após todas as tentativas');
+    return {};
+  };
+
+  const carregarTodasEspecialidades = async (token, tentativas = 3) => {
+    for (let i = 0; i < tentativas; i++) {
+      try {
+        console.log(`🔄 Tentativa ${i + 1}/${tentativas} - Carregando especialidades...`);
+        const urlempresa = await secureStorage.getItem("urlempresa");
+
+        const res = await fetch(
+          "https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              urlempresa,
+            },
+          }
+        );
+
+        console.log('📡 Status da resposta Especialidades:', res.status);
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log('📦 Dados recebidos Especialidades:', data);
+
+          const table = data?.DataSet?.Table;
+          console.log('📊 Table Especialidades:', Array.isArray(table) ? `Array com ${table.length} itens` : typeof table);
+
+          const especialidadesMap = {};
+
+          if (Array.isArray(table)) {
+            table.forEach((item, idx) => {
+              if (idx < 3) {
+                console.log(`📋 Item ${idx} da especialidade:`, item);
+              }
+              if (item.SubEmpId) {
+                especialidadesMap[item.SubEmpId] = item.Descricao || item.SubEmp || `Especialidade ${item.SubEmpId}`;
+              }
+            });
+            console.log(`✅ ${Object.keys(especialidadesMap).length} especialidades mapeadas com sucesso`);
+            return especialidadesMap;
+          } else {
+            console.warn('⚠️ Table não é array:', table);
+          }
+        } else {
+          console.error('❌ Resposta não OK:', res.status, res.statusText);
+        }
+      } catch (e) {
+        console.error(`❌ Erro na tentativa ${i + 1} ao carregar especialidades:`, e);
+        if (i < tentativas - 1) {
+          console.log(`⏳ Aguardando 1s antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    console.error('❌ Falha ao carregar especialidades após todas as tentativas');
+    return {};
+  };
+
+  const calcularEstatisticas = (registos, colaboradores, especialidades, classes, obrasLista) => {
+    const stats = {};
+
+    obrasLista.forEach((obra) => {
+      const registosObra = registos[obra.id] || {};
+
+      const estatisticasObra = {
+        totalHoras: 0,
+        porEspecialidade: {},
+        porClasse: {},
+        porColaborador: {},
+        diasTrabalhados: new Set(),
+        colaboradoresUnicos: new Set(),
+      };
+
+      Object.keys(registosObra).forEach((colabId) => {
+        const especialidade = especialidades[colabId] || "Não definida";
+        const classe = classes[colabId] || "Não definida";
+        const nome = colaboradores[colabId] || colabId;
+
+        estatisticasObra.colaboradoresUnicos.add(colabId);
+
+        Object.entries(registosObra[colabId]).forEach(([dia, dados]) => {
+          const horas = dados.horas;
+          estatisticasObra.totalHoras += horas;
+          estatisticasObra.diasTrabalhados.add(dia);
+
+          // Por especialidade
+          if (!estatisticasObra.porEspecialidade[especialidade]) {
+            estatisticasObra.porEspecialidade[especialidade] = { horas: 0, colaboradores: new Set() };
+          }
+          estatisticasObra.porEspecialidade[especialidade].horas += horas;
+          estatisticasObra.porEspecialidade[especialidade].colaboradores.add(colabId);
+
+          // Por classe
+          if (!estatisticasObra.porClasse[classe]) {
+            estatisticasObra.porClasse[classe] = { horas: 0, colaboradores: new Set() };
+          }
+          estatisticasObra.porClasse[classe].horas += horas;
+          estatisticasObra.porClasse[classe].colaboradores.add(colabId);
+
+          // Por colaborador
+          if (!estatisticasObra.porColaborador[nome]) {
+            estatisticasObra.porColaborador[nome] = { horas: 0, dias: new Set() };
+          }
+          estatisticasObra.porColaborador[nome].horas += horas;
+          estatisticasObra.porColaborador[nome].dias.add(dia);
+        });
+      });
+
+      // Converter Sets para números
+      estatisticasObra.diasTrabalhados = estatisticasObra.diasTrabalhados.size;
+      estatisticasObra.colaboradoresUnicos = estatisticasObra.colaboradoresUnicos.size;
+
+      Object.keys(estatisticasObra.porEspecialidade).forEach(esp => {
+        estatisticasObra.porEspecialidade[esp].colaboradores = estatisticasObra.porEspecialidade[esp].colaboradores.size;
+      });
+
+      Object.keys(estatisticasObra.porClasse).forEach(cls => {
+        estatisticasObra.porClasse[cls].colaboradores = estatisticasObra.porClasse[cls].colaboradores.size;
+      });
+
+      Object.keys(estatisticasObra.porColaborador).forEach(nome => {
+        estatisticasObra.porColaborador[nome].dias = estatisticasObra.porColaborador[nome].dias.size;
+      });
+
+      stats[obra.id] = estatisticasObra;
+    });
+
+    setDadosEstatisticos(stats);
   };
 
   const diasDoMes = useMemo(() => {
@@ -188,6 +440,28 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
+
+  // Filtrar obras baseado na pesquisa
+  const obrasFiltradas = useMemo(() => {
+    if (!pesquisa.trim()) return obras;
+
+    const termoPesquisa = pesquisa.toLowerCase().trim();
+    return obras.filter(obra =>
+      obra.nome?.toLowerCase().includes(termoPesquisa) ||
+      obra.codigo?.toLowerCase().includes(termoPesquisa)
+    );
+  }, [obras, pesquisa]);
+
+  // Filtrar colaboradores baseado na pesquisa
+  const colaboradoresFiltrados = useMemo(() => {
+    if (!pesquisa.trim()) return Object.keys(colaboradoresMap);
+
+    const termoPesquisa = pesquisa.toLowerCase().trim();
+    return Object.keys(colaboradoresMap).filter(colabId =>
+      colaboradoresMap[colabId]?.toLowerCase().includes(termoPesquisa) ||
+      colabId?.toLowerCase().includes(termoPesquisa)
+    );
+  }, [colaboradoresMap, pesquisa]);
 
   const abrirDetalhes = (obra, colaborador, dia, dados) => {
     setDetalheSelecionado({
@@ -298,14 +572,186 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
     );
   };
 
+  const renderDashboardObra = (obra) => {
+    const stats = dadosEstatisticos[obra.id];
+    if (!stats || stats.totalHoras === 0) {
+      return (
+        <View >
+          <Text style={styles.emptyText}></Text>
+        </View>
+      );
+    }
+
+    // Dados para gráfico de pizza - Especialidades
+    const coresEspecialidades = ['#1792FE', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997'];
+    const dadosEspecialidades = Object.entries(stats.porEspecialidade).map(([esp, dados], idx) => ({
+      name: esp,
+      horas: dados.horas,
+      color: coresEspecialidades[idx % coresEspecialidades.length],
+      legendFontColor: '#333',
+      legendFontSize: 12,
+    }));
+
+    // Dados para gráfico de pizza - Classes
+    const coresClasses = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6610f2'];
+    const dadosClasses = Object.entries(stats.porClasse).map(([classe, dados], idx) => ({
+      name: classe,
+      horas: dados.horas,
+      color: coresClasses[idx % coresClasses.length],
+      legendFontColor: '#333',
+      legendFontSize: 12,
+    }));
+
+    // Top 5 colaboradores
+    const topColaboradores = Object.entries(stats.porColaborador)
+      .sort((a, b) => b[1].horas - a[1].horas)
+      .slice(0, 5);
+
+    return (
+      <View style={styles.dashboardCard}>
+        <View style={styles.dashboardHeader}>
+          <MaterialCommunityIcons name="chart-box" size={24} color="#fff" />
+          <Text style={styles.dashboardTitle}>{obra.nome}</Text>
+        </View>
+
+        {/* Métricas principais */}
+        <View style={styles.metricsContainer}>
+          <View style={styles.metricBox}>
+            <MaterialCommunityIcons name="clock-outline" size={32} color="#1792FE" />
+            <Text style={styles.metricValue}>{stats.totalHoras.toFixed(1)}h</Text>
+            <Text style={styles.metricLabel}>Total de Horas</Text>
+          </View>
+          <View style={styles.metricBox}>
+            <MaterialCommunityIcons name="account-group" size={32} color="#28a745" />
+            <Text style={styles.metricValue}>{stats.colaboradoresUnicos}</Text>
+            <Text style={styles.metricLabel}>Colaboradores</Text>
+          </View>
+          <View style={styles.metricBox}>
+            <MaterialCommunityIcons name="calendar-check" size={32} color="#ffc107" />
+            <Text style={styles.metricValue}>{stats.diasTrabalhados}</Text>
+            <Text style={styles.metricLabel}>Dias Trabalhados</Text>
+          </View>
+          <View style={styles.metricBox}>
+            <MaterialCommunityIcons name="chart-line" size={32} color="#dc3545" />
+            <Text style={styles.metricValue}>
+              {(stats.totalHoras / stats.diasTrabalhados).toFixed(1)}h
+            </Text>
+            <Text style={styles.metricLabel}>Média/Dia</Text>
+          </View>
+        </View>
+
+        {/* Gráfico de Especialidades */}
+        <View style={styles.chartSection}>
+          <Text style={styles.chartTitle}>Horas por Especialidade</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <PieChart
+              data={dadosEspecialidades}
+              width={width - 60}
+              height={220}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              }}
+              accessor="horas"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              absolute
+            />
+          </ScrollView>
+          {/* Tabela de detalhes */}
+          <View style={styles.detailTable}>
+            {Object.entries(stats.porEspecialidade).map(([esp, dados]) => (
+              <View key={esp} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{esp}</Text>
+                <Text style={styles.detailValue}>
+                  {dados.horas.toFixed(1)}h ({dados.colaboradores} pessoas)
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Gráfico de Classes */}
+        <View style={styles.chartSection}>
+          <Text style={styles.chartTitle}>Horas por Classe</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <PieChart
+              data={dadosClasses}
+              width={width - 60}
+              height={220}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              }}
+              accessor="horas"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              absolute
+            />
+          </ScrollView>
+          {/* Tabela de detalhes */}
+          <View style={styles.detailTable}>
+            {Object.entries(stats.porClasse).map(([classe, dados]) => (
+              <View key={classe} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{classe}</Text>
+                <Text style={styles.detailValue}>
+                  {dados.horas.toFixed(1)}h ({dados.colaboradores} pessoas)
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Top Colaboradores */}
+        <View style={styles.chartSection}>
+          <Text style={styles.chartTitle}>Top 5 Colaboradores</Text>
+          {topColaboradores.map(([nome, dados], idx) => (
+            <View key={nome} style={styles.rankingItem}>
+              <View style={styles.rankingPosition}>
+                <Text style={styles.rankingNumber}>{idx + 1}</Text>
+              </View>
+              <View style={styles.rankingInfo}>
+                <Text style={styles.rankingName}>{nome}</Text>
+                <Text style={styles.rankingStats}>
+                  {dados.horas.toFixed(1)}h em {dados.dias} dias
+                </Text>
+              </View>
+              <View style={styles.rankingBar}>
+                <View
+                  style={[
+                    styles.rankingBarFill,
+                    {
+                      width: `${(dados.horas / stats.totalHoras) * 100}%`,
+                      backgroundColor: coresEspecialidades[idx],
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Botão para relatório detalhado */}
+        <TouchableOpacity
+          style={styles.relatorioButton}
+          onPress={() => {
+            setObraSelecionadaDashboard(obra);
+            setModalRelatorio(true);
+          }}
+        >
+          <MaterialCommunityIcons name="file-document" size={20} color="#fff" />
+          <Text style={styles.relatorioButtonText}>Ver Relatório Completo</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderGrelha = (obra) => {
     const registosObra = registosPorObra[obra.id] || {};
     const colaboradores = Object.keys(registosObra);
 
     if (colaboradores.length === 0) {
       return (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Sem registos para este mês</Text>
+        <View >
+          <Text style={styles.emptyText}></Text>
         </View>
       );
     }
@@ -403,7 +849,7 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
   return (
     <LinearGradient colors={["#e3f2fd", "#bbdefb", "#90caf9"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+        {/* Header Fixo */}
         <LinearGradient colors={["#1792FE", "#0B5ED7"]} style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity
@@ -417,8 +863,14 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
           </View>
         </LinearGradient>
 
-        {/* Filtros de mês/ano */}
-        <View style={styles.filtrosContainer}>
+        {/* Scroll Principal - Contém tudo abaixo do header */}
+        <ScrollView
+          style={styles.mainScrollView}
+          contentContainerStyle={styles.mainScrollContent}
+          showsVerticalScrollIndicator={true}
+        >
+          {/* Filtros de mês/ano */}
+          <View style={styles.filtrosContainer}>
           <TouchableOpacity
             style={styles.filtroButton}
             onPress={() => {
@@ -455,7 +907,12 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
         </View>
 
         {/* Botões de seleção de vista */}
-        <View style={styles.vistaContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.vistaScrollContainer}
+          contentContainerStyle={styles.vistaContainer}
+        >
           <TouchableOpacity
             style={[
               styles.vistaButton,
@@ -465,7 +922,7 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
           >
             <Ionicons
               name="business"
-              size={20}
+              size={18}
               color={tipoVista === "obra" ? "#fff" : "#1792FE"}
             />
             <Text
@@ -474,7 +931,7 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
                 tipoVista === "obra" && styles.vistaButtonTextActive,
               ]}
             >
-              Por Obra
+              Obra
             </Text>
           </TouchableOpacity>
 
@@ -487,7 +944,7 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
           >
             <Ionicons
               name="people"
-              size={20}
+              size={18}
               color={tipoVista === "utilizador" ? "#fff" : "#1792FE"}
             />
             <Text
@@ -496,43 +953,94 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
                 tipoVista === "utilizador" && styles.vistaButtonTextActive,
               ]}
             >
-              Por Utilizador
+              Colab.
             </Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Lista de obras ou utilizadores */}
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+          <TouchableOpacity
+            style={[
+              styles.vistaButton,
+              tipoVista === "dashboard" && styles.vistaButtonActive,
+            ]}
+            onPress={() => setTipoVista("dashboard")}
+          >
+            <MaterialCommunityIcons
+              name="chart-box"
+              size={18}
+              color={tipoVista === "dashboard" ? "#fff" : "#1792FE"}
+            />
+            <Text
+              style={[
+                styles.vistaButtonText,
+                tipoVista === "dashboard" && styles.vistaButtonTextActive,
+              ]}
+            >
+              Dash
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+          {/* Barra de Pesquisa */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={
+                  tipoVista === "obra"
+                    ? "Pesquisar obra..."
+                    : tipoVista === "utilizador"
+                    ? "Pesquisar utilizador..."
+                    : "Pesquisar obra..."
+                }
+                placeholderTextColor="#999"
+                value={pesquisa}
+                onChangeText={setPesquisa}
+              />
+              {pesquisa.length > 0 && (
+                <TouchableOpacity onPress={() => setPesquisa("")}>
+                  <Ionicons name="close-circle" size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Lista de obras ou utilizadores */}
+          <View style={styles.contentContainer}>
           {tipoVista === "obra" ? (
-            obras.length === 0 ? (
+            obrasFiltradas.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Ionicons name="business" size={64} color="#ccc" />
-                <Text style={styles.emptyTitle}>Sem obras</Text>
+                <Text style={styles.emptyTitle}>
+                  {pesquisa ? "Nenhuma obra encontrada" : "Sem obras"}
+                </Text>
                 <Text style={styles.emptySubtitle}>
-                  Não há obras onde você é responsável
+                  {pesquisa
+                    ? `Nenhuma obra corresponde a "${pesquisa}"`
+                    : "Não há obras onde você é responsável"}
                 </Text>
               </View>
             ) : (
-              obras.map((obra) => (
+              obrasFiltradas.map((obra) => (
                 <View key={obra.id}>{renderGrelha(obra)}</View>
               ))
             )
-          ) : (
-            Object.keys(colaboradoresMap).length === 0 ? (
+          ) : tipoVista === "utilizador" ? (
+            colaboradoresFiltrados.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Ionicons name="people" size={64} color="#ccc" />
-                <Text style={styles.emptyTitle}>Sem utilizadores</Text>
+                <Text style={styles.emptyTitle}>
+                  {pesquisa ? "Nenhum utilizador encontrado" : "Sem utilizadores"}
+                </Text>
                 <Text style={styles.emptySubtitle}>
-                  Não há registos de utilizadores para este período
+                  {pesquisa
+                    ? `Nenhum utilizador corresponde a "${pesquisa}"`
+                    : "Não há registos de utilizadores para este período"}
                 </Text>
               </View>
             ) : (
-              Object.keys(colaboradoresMap)
-                .sort((a, b) => 
+              colaboradoresFiltrados
+                .sort((a, b) =>
                   colaboradoresMap[a].localeCompare(colaboradoresMap[b], 'pt')
                 )
                 .map((colaboradorId) => (
@@ -541,7 +1049,26 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
                   </View>
                 ))
             )
-          )}
+          ) : tipoVista === "dashboard" ? (
+            obrasFiltradas.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons name="chart-box" size={64} color="#ccc" />
+                <Text style={styles.emptyTitle}>
+                  {pesquisa ? "Nenhuma obra encontrada" : "Sem dados"}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {pesquisa
+                    ? `Nenhuma obra corresponde a "${pesquisa}"`
+                    : "Não há obras para mostrar estatísticas"}
+                </Text>
+              </View>
+            ) : (
+              obrasFiltradas.map((obra) => (
+                <View key={obra.id}>{renderDashboardObra(obra)}</View>
+              ))
+            )
+          ) : null}
+          </View>
         </ScrollView>
 
         {/* Modal de detalhes */}
@@ -619,6 +1146,185 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
             </View>
           </View>
         </Modal>
+
+        {/* Modal de Relatório Completo */}
+        <Modal
+          visible={modalRelatorio}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setModalRelatorio(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { width: width * 0.95, maxHeight: '90%' }]}>
+              <View style={styles.modalHeader}>
+                <MaterialCommunityIcons name="file-document" size={24} color="#1792FE" />
+                <Text style={styles.modalTitle}>Relatório Detalhado</Text>
+                <TouchableOpacity onPress={() => setModalRelatorio(false)}>
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+
+              {obraSelecionadaDashboard && dadosEstatisticos[obraSelecionadaDashboard.id] && (
+                <ScrollView style={styles.modalBody}>
+                  <View style={styles.relatorioHeader}>
+                    <Text style={styles.relatorioObraNome}>
+                      {obraSelecionadaDashboard.nome}
+                    </Text>
+                    <Text style={styles.relatorioPeriodo}>
+                      {meses[mesSelecionado]} {anoSelecionado}
+                    </Text>
+                  </View>
+
+                  {/* Resumo Executivo */}
+                  <View style={styles.relatorioSection}>
+                    <Text style={styles.relatorioSectionTitle}>
+                      📊 Resumo Executivo
+                    </Text>
+                    <View style={styles.relatorioGrid}>
+                      <View style={styles.relatorioMetric}>
+                        <Text style={styles.relatorioMetricLabel}>Total de Horas</Text>
+                        <Text style={styles.relatorioMetricValue}>
+                          {dadosEstatisticos[obraSelecionadaDashboard.id].totalHoras.toFixed(1)}h
+                        </Text>
+                      </View>
+                      <View style={styles.relatorioMetric}>
+                        <Text style={styles.relatorioMetricLabel}>Colaboradores</Text>
+                        <Text style={styles.relatorioMetricValue}>
+                          {dadosEstatisticos[obraSelecionadaDashboard.id].colaboradoresUnicos}
+                        </Text>
+                      </View>
+                      <View style={styles.relatorioMetric}>
+                        <Text style={styles.relatorioMetricLabel}>Dias Trabalhados</Text>
+                        <Text style={styles.relatorioMetricValue}>
+                          {dadosEstatisticos[obraSelecionadaDashboard.id].diasTrabalhados}
+                        </Text>
+                      </View>
+                      <View style={styles.relatorioMetric}>
+                        <Text style={styles.relatorioMetricLabel}>Média Diária</Text>
+                        <Text style={styles.relatorioMetricValue}>
+                          {(dadosEstatisticos[obraSelecionadaDashboard.id].totalHoras /
+                            dadosEstatisticos[obraSelecionadaDashboard.id].diasTrabalhados).toFixed(1)}h
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Detalhamento por Especialidade */}
+                  <View style={styles.relatorioSection}>
+                    <Text style={styles.relatorioSectionTitle}>
+                      👷 Detalhamento por Especialidade
+                    </Text>
+                    {Object.entries(dadosEstatisticos[obraSelecionadaDashboard.id].porEspecialidade)
+                      .sort((a, b) => b[1].horas - a[1].horas)
+                      .map(([esp, dados]) => (
+                        <View key={esp} style={styles.relatorioItem}>
+                          <View style={styles.relatorioItemHeader}>
+                            <Text style={styles.relatorioItemTitle}>{esp}</Text>
+                            <Text style={styles.relatorioItemHoras}>
+                              {dados.horas.toFixed(1)}h
+                            </Text>
+                          </View>
+                          <View style={styles.relatorioItemDetails}>
+                            <Text style={styles.relatorioItemDetailText}>
+                              {dados.colaboradores} colaborador{dados.colaboradores > 1 ? 'es' : ''}
+                            </Text>
+                            <Text style={styles.relatorioItemDetailText}>
+                              {((dados.horas / dadosEstatisticos[obraSelecionadaDashboard.id].totalHoras) * 100).toFixed(1)}% do total
+                            </Text>
+                          </View>
+                          <View style={styles.relatorioProgressBar}>
+                            <View
+                              style={[
+                                styles.relatorioProgressFill,
+                                {
+                                  width: `${(dados.horas / dadosEstatisticos[obraSelecionadaDashboard.id].totalHoras) * 100}%`,
+                                },
+                              ]}
+                            />
+                          </View>
+                        </View>
+                      ))}
+                  </View>
+
+                  {/* Detalhamento por Classe */}
+                  <View style={styles.relatorioSection}>
+                    <Text style={styles.relatorioSectionTitle}>
+                      🎯 Detalhamento por Classe
+                    </Text>
+                    {Object.entries(dadosEstatisticos[obraSelecionadaDashboard.id].porClasse)
+                      .sort((a, b) => b[1].horas - a[1].horas)
+                      .map(([classe, dados]) => (
+                        <View key={classe} style={styles.relatorioItem}>
+                          <View style={styles.relatorioItemHeader}>
+                            <Text style={styles.relatorioItemTitle}>{classe}</Text>
+                            <Text style={styles.relatorioItemHoras}>
+                              {dados.horas.toFixed(1)}h
+                            </Text>
+                          </View>
+                          <View style={styles.relatorioItemDetails}>
+                            <Text style={styles.relatorioItemDetailText}>
+                              {dados.colaboradores} colaborador{dados.colaboradores > 1 ? 'es' : ''}
+                            </Text>
+                            <Text style={styles.relatorioItemDetailText}>
+                              {((dados.horas / dadosEstatisticos[obraSelecionadaDashboard.id].totalHoras) * 100).toFixed(1)}% do total
+                            </Text>
+                          </View>
+                          <View style={styles.relatorioProgressBar}>
+                            <View
+                              style={[
+                                styles.relatorioProgressFill,
+                                {
+                                  width: `${(dados.horas / dadosEstatisticos[obraSelecionadaDashboard.id].totalHoras) * 100}%`,
+                                  backgroundColor: '#28a745',
+                                },
+                              ]}
+                            />
+                          </View>
+                        </View>
+                      ))}
+                  </View>
+
+                  {/* Ranking de Colaboradores Completo */}
+                  <View style={styles.relatorioSection}>
+                    <Text style={styles.relatorioSectionTitle}>
+                      🏆 Ranking Completo de Colaboradores
+                    </Text>
+                    {Object.entries(dadosEstatisticos[obraSelecionadaDashboard.id].porColaborador)
+                      .sort((a, b) => b[1].horas - a[1].horas)
+                      .map(([nome, dados], idx) => (
+                        <View key={nome} style={styles.relatorioColabItem}>
+                          <View style={styles.relatorioColabPosition}>
+                            <Text style={styles.relatorioColabNumber}>#{idx + 1}</Text>
+                          </View>
+                          <View style={styles.relatorioColabInfo}>
+                            <Text style={styles.relatorioColabNome}>{nome}</Text>
+                            <View style={styles.relatorioColabStats}>
+                              <Text style={styles.relatorioColabStat}>
+                                ⏱️ {dados.horas.toFixed(1)}h
+                              </Text>
+                              <Text style={styles.relatorioColabStat}>
+                                📅 {dados.dias} dias
+                              </Text>
+                              <Text style={styles.relatorioColabStat}>
+                                📊 {(dados.horas / dados.dias).toFixed(1)}h/dia
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                  </View>
+                </ScrollView>
+              )}
+
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setModalRelatorio(false)}
+              >
+                <Text style={styles.modalCloseButtonText}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -686,10 +1392,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
+  vistaScrollContainer: {
+    maxHeight: 60,
+  },
   vistaContainer: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 12,
+    alignItems: "center",
+    gap: 10,
     paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: "transparent",
@@ -697,14 +1406,18 @@ const styles = StyleSheet.create({
   vistaButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    borderRadius: 25,
     backgroundColor: "#fff",
     borderWidth: 2,
     borderColor: "#1792FE",
     elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   vistaButtonActive: {
     backgroundColor: "#1792FE",
@@ -714,12 +1427,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#1792FE",
+    whiteSpace: "nowrap",
   },
   vistaButtonTextActive: {
     color: "#fff",
   },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "transparent",
+  },
+  searchInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#333",
+    paddingVertical: 4,
+  },
+  mainScrollView: {
+    flex: 1,
+  },
+  mainScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
   obraCard: {
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -902,6 +1654,298 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 14,
     color: "#333",
+  },
+  // Estilos do Dashboard
+  dashboardCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 20,
+    elevation: 3,
+    overflow: "hidden",
+  },
+  dashboardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    backgroundColor: "#1792FE",
+  },
+  dashboardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+    flex: 1,
+  },
+  metricsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 16,
+    gap: 12,
+  },
+  metricBox: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 1,
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1792FE",
+    marginTop: 8,
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  chartSection: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 12,
+  },
+  detailTable: {
+    marginTop: 12,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#333",
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 13,
+    color: "#666",
+  },
+  rankingItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 12,
+  },
+  rankingPosition: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#1792FE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rankingNumber: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  rankingInfo: {
+    flex: 1,
+  },
+  rankingName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  rankingStats: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  rankingBar: {
+    width: 80,
+    height: 8,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  rankingBarFill: {
+    height: "100%",
+    backgroundColor: "#1792FE",
+  },
+  relatorioButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#1792FE",
+    padding: 14,
+    margin: 16,
+    borderRadius: 8,
+    elevation: 2,
+  },
+  relatorioButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  // Estilos do Modal de Relatório
+  relatorioHeader: {
+    backgroundColor: "#1792FE",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  relatorioObraNome: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  relatorioPeriodo: {
+    fontSize: 14,
+    color: "#e3f2fd",
+  },
+  relatorioSection: {
+    marginBottom: 24,
+  },
+  relatorioSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 12,
+  },
+  relatorioGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  relatorioMetric: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  relatorioMetricLabel: {
+    fontSize: 11,
+    color: "#666",
+    marginBottom: 4,
+  },
+  relatorioMetricValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1792FE",
+  },
+  relatorioItem: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  relatorioItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  relatorioItemTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    flex: 1,
+  },
+  relatorioItemHoras: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1792FE",
+  },
+  relatorioItemDetails: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  relatorioItemDetailText: {
+    fontSize: 12,
+    color: "#666",
+  },
+  relatorioProgressBar: {
+    height: 8,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  relatorioProgressFill: {
+    height: "100%",
+    backgroundColor: "#1792FE",
+  },
+  relatorioColabItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  relatorioColabPosition: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#1792FE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  relatorioColabNumber: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  relatorioColabInfo: {
+    flex: 1,
+  },
+  relatorioColabNome: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  relatorioColabStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  relatorioColabStat: {
+    fontSize: 12,
+    color: "#666",
+  },
+  modalCloseButton: {
+    backgroundColor: "#1792FE",
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  modalCloseButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
   },
 });
 
