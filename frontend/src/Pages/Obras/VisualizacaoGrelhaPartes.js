@@ -11,11 +11,13 @@ import {
   Modal,
   Dimensions,
   TextInput,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { secureStorage } from "../../utils/secureStorage";
 import { PieChart, BarChart } from "react-native-chart-kit";
+import * as XLSX from 'xlsx-js-style';
 
 const { width } = Dimensions.get("window");
 
@@ -35,6 +37,13 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
   const [obraSelecionadaDashboard, setObraSelecionadaDashboard] = useState(null);
   const [modalRelatorio, setModalRelatorio] = useState(false);
   const [pesquisa, setPesquisa] = useState("");
+
+  // Estados para exportação Excel
+  const [modalExportVisible, setModalExportVisible] = useState(false);
+  const [exportObraFiltro, setExportObraFiltro] = useState("");
+  const [exportDataInicio, setExportDataInicio] = useState("");
+  const [exportDataFim, setExportDataFim] = useState("");
+  const [exportando, setExportando] = useState(false);
 
   useEffect(() => {
     carregarDados();
@@ -473,6 +482,621 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
     setModalDetalhes(true);
   };
 
+  // === EXPORTAÇÃO PARA EXCEL ===
+  const abrirModalExport = () => {
+    // Definir datas padrão baseadas no mês selecionado
+    const primeiroDia = new Date(anoSelecionado, mesSelecionado, 1);
+    const ultimoDia = new Date(anoSelecionado, mesSelecionado + 1, 0);
+
+    setExportDataInicio(primeiroDia.toISOString().split('T')[0]);
+    setExportDataFim(ultimoDia.toISOString().split('T')[0]);
+    setExportObraFiltro("");
+    setModalExportVisible(true);
+  };
+
+  const fecharModalExport = () => {
+    setModalExportVisible(false);
+    setExportDataInicio("");
+    setExportDataFim("");
+    setExportObraFiltro("");
+  };
+
+  const exportarParaExcel = async () => {
+    try {
+      console.log('🚀 Iniciando exportação para Excel...', {
+        exportDataInicio,
+        exportDataFim,
+        exportObraFiltro
+      });
+
+      setExportando(true);
+
+      // Validações
+      if (!exportDataInicio || !exportDataFim) {
+        console.error('❌ Validação falhou: datas não preenchidas');
+        Alert.alert('Atenção', 'Por favor, preencha as datas de início e fim.');
+        setExportando(false);
+        return;
+      }
+
+      if (new Date(exportDataFim) < new Date(exportDataInicio)) {
+        console.error('❌ Validação falhou: data fim anterior à data início');
+        Alert.alert('Atenção', 'A data de fim não pode ser anterior à data de início.');
+        setExportando(false);
+        return;
+      }
+
+      console.log('✅ Validações OK, buscando partes diárias...');
+
+      // Buscar partes diárias do período
+      const token = await secureStorage.getItem("painelAdminToken");
+      const resPartes = await fetch(
+        "https://backend.advir.pt/api/parte-diaria/cabecalhos",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!resPartes.ok) throw new Error('Erro ao carregar partes diárias');
+
+      const todasPartes = await resPartes.json();
+      console.log('✅ Partes diárias carregadas:', todasPartes?.length || 0);
+
+      // Filtrar partes do período selecionado
+      const dataInicio = new Date(exportDataInicio);
+      const dataFim = new Date(exportDataFim);
+
+      console.log('📅 Filtrando partes do período:', {
+        dataInicio: dataInicio.toISOString(),
+        dataFim: dataFim.toISOString()
+      });
+
+      const partesDoPerido = (todasPartes || []).filter(cab => {
+        const dataParte = new Date(cab.Data);
+        return dataParte >= dataInicio && dataParte <= dataFim;
+      });
+
+      console.log('✅ Partes do período encontradas:', partesDoPerido.length);
+
+      if (partesDoPerido.length === 0) {
+        console.warn('⚠️ Nenhuma parte diária encontrada no período');
+        Alert.alert('Atenção', 'Não foram encontradas partes diárias no período selecionado.');
+        setExportando(false);
+        return;
+      }
+
+      // Filtrar por obra se selecionado
+      let obrasSelecionadas = obras;
+      if (exportObraFiltro) {
+        obrasSelecionadas = obras.filter(o => String(o.id) === String(exportObraFiltro));
+      }
+
+      console.log('🏗️ Obras selecionadas para exportação:', obrasSelecionadas.length);
+
+      // Criar mapa de dias do período
+      const diasDoPeriodo = [];
+      let dataAtual = new Date(dataInicio);
+      while (dataAtual <= dataFim) {
+        diasDoPeriodo.push(new Date(dataAtual).getDate());
+        dataAtual.setDate(dataAtual.getDate() + 1);
+      }
+
+      console.log('📆 Dias do período:', diasDoPeriodo.length);
+
+      // Processar dados por obra
+      const dadosPorObra = new Map();
+      const estatisticasGlobais = {
+        porEspecialidade: new Map(),
+        porClasse: new Map(),
+        porColaborador: new Map()
+      };
+
+      obrasSelecionadas.forEach(obra => {
+        const partesObra = partesDoPerido.filter(p => String(p.ObraID) === String(obra.id));
+
+        if (partesObra.length === 0) return;
+
+        const colaboradoresMapLocal = new Map();
+
+        partesObra.forEach(parte => {
+          const data = new Date(parte.Data);
+          const dia = data.getDate();
+
+          parte.ParteDiariaItems?.forEach(item => {
+            const colaboradorId = item.ColaboradorID || item.Funcionario;
+            if (!colaboradorId) return;
+
+            // Usar o nome do colaboradoresMap principal, não do local
+            const nomeColab = colaboradoresMap[colaboradorId] || colaboradorId;
+            const especialidade = especialidadesMap[colaboradorId] || "Não definida";
+            const classe = classesMap[colaboradorId] || "Não definida";
+
+            const chave = `${colaboradorId}`;
+
+            if (!colaboradoresMapLocal.has(chave)) {
+              colaboradoresMapLocal.set(chave, {
+                id: colaboradorId,
+                nome: nomeColab,
+                especialidade,
+                classe,
+                horasPorDia: {},
+                totalHoras: 0,
+                diasTrabalhados: new Set()
+              });
+            }
+
+            const colab = colaboradoresMapLocal.get(chave);
+            const horas = (item.NumHoras || 0) / 60;
+
+            colab.horasPorDia[dia] = (colab.horasPorDia[dia] || 0) + horas;
+            colab.totalHoras += horas;
+            colab.diasTrabalhados.add(dia);
+
+            // Acumular estatísticas globais
+            // Por especialidade
+            if (!estatisticasGlobais.porEspecialidade.has(especialidade)) {
+              estatisticasGlobais.porEspecialidade.set(especialidade, {
+                totalHoras: 0,
+                colaboradores: new Set()
+              });
+            }
+            estatisticasGlobais.porEspecialidade.get(especialidade).totalHoras += horas;
+            estatisticasGlobais.porEspecialidade.get(especialidade).colaboradores.add(colaboradorId);
+
+            // Por classe
+            if (!estatisticasGlobais.porClasse.has(classe)) {
+              estatisticasGlobais.porClasse.set(classe, {
+                totalHoras: 0,
+                colaboradores: new Set()
+              });
+            }
+            estatisticasGlobais.porClasse.get(classe).totalHoras += horas;
+            estatisticasGlobais.porClasse.get(classe).colaboradores.add(colaboradorId);
+
+            // Por colaborador
+            if (!estatisticasGlobais.porColaborador.has(colaboradorId)) {
+              estatisticasGlobais.porColaborador.set(colaboradorId, {
+                nome: nomeColab,
+                totalHoras: 0,
+                diasTrabalhados: new Set()
+              });
+            }
+            estatisticasGlobais.porColaborador.get(colaboradorId).totalHoras += horas;
+            estatisticasGlobais.porColaborador.get(colaboradorId).diasTrabalhados.add(dia);
+          });
+        });
+
+        // Converter diasTrabalhados de Set para número
+        colaboradoresMapLocal.forEach(colab => {
+          colab.diasTrabalhados = colab.diasTrabalhados.size;
+        });
+
+        dadosPorObra.set(obra.id, {
+          obraLabel: `${obra.codigo} - ${obra.nome}`,
+          colaboradores: colaboradoresMapLocal
+        });
+      });
+
+      // Converter Sets das estatísticas globais
+      estatisticasGlobais.porEspecialidade.forEach(stat => {
+        stat.colaboradores = stat.colaboradores.size;
+      });
+      estatisticasGlobais.porClasse.forEach(stat => {
+        stat.colaboradores = stat.colaboradores.size;
+      });
+      estatisticasGlobais.porColaborador.forEach(stat => {
+        stat.diasTrabalhados = stat.diasTrabalhados.size;
+      });
+
+      console.log('✅ Dados processados para', dadosPorObra.size, 'obras');
+
+      if (dadosPorObra.size === 0) {
+        console.warn('⚠️ Nenhum dado encontrado');
+        Alert.alert('Atenção', 'Não foram encontrados dados para exportar no período selecionado.');
+        setExportando(false);
+        return;
+      }
+
+      console.log('📊 Criando estrutura Excel...');
+
+      // Criar planilha Excel
+      const dadosExcel = [];
+
+      // Título e período
+      const mesInicio = dataInicio.toLocaleString('pt-PT', { month: 'long', year: 'numeric' });
+      const mesFim = dataFim.toLocaleString('pt-PT', { month: 'long', year: 'numeric' });
+      const periodoLabel = mesInicio === mesFim ?
+        mesInicio.charAt(0).toUpperCase() + mesInicio.slice(1) :
+        `${mesInicio.charAt(0).toUpperCase() + mesInicio.slice(1)} a ${mesFim.charAt(0).toUpperCase() + mesFim.slice(1)}`;
+
+      dadosExcel.push({ A: `RELATÓRIO DE HORAS - ${new Date().getFullYear()}` });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: `Período: ${periodoLabel}` });
+      dadosExcel.push({ A: '' });
+
+      // Cabeçalho de colunas
+      const cabecalho = {
+        A: 'Obra',
+        B: 'Trabalhador',
+        C: 'Especialidade',
+        D: 'Classe'
+      };
+
+      let col = 4; // Começa depois de Obra, Trabalhador, Especialidade, Classe
+      diasDoPeriodo.forEach(dia => {
+        cabecalho[String.fromCharCode(65 + col)] = dia;
+        col++;
+      });
+
+      cabecalho[String.fromCharCode(65 + col)] = 'TOTAL HORAS';
+      cabecalho[String.fromCharCode(65 + col + 1)] = 'DIAS TRABALHADOS';
+
+      dadosExcel.push(cabecalho);
+
+      // Adicionar dados por obra
+      let totalGeralHoras = 0;
+      let totalGeralDias = new Set();
+
+      Array.from(dadosPorObra.entries())
+        .sort(([, a], [, b]) => a.obraLabel.localeCompare(b.obraLabel))
+        .forEach(([obraId, obraData]) => {
+          let totalObraHoras = 0;
+
+          Array.from(obraData.colaboradores.values())
+            .sort((a, b) => a.nome.localeCompare(b.nome))
+            .forEach(colab => {
+              const linha = {
+                A: obraData.obraLabel,
+                B: colab.nome,
+                C: colab.especialidade,
+                D: colab.classe
+              };
+
+              let col = 4;
+              diasDoPeriodo.forEach(dia => {
+                const horas = colab.horasPorDia[dia] || 0;
+                linha[String.fromCharCode(65 + col)] = horas > 0 ? horas.toFixed(1) : '';
+                col++;
+              });
+
+              linha[String.fromCharCode(65 + col)] = colab.totalHoras.toFixed(1);
+              linha[String.fromCharCode(65 + col + 1)] = colab.diasTrabalhados;
+
+              dadosExcel.push(linha);
+
+              totalObraHoras += colab.totalHoras;
+            });
+
+          // Linha de total da obra
+          const linhaTotalObra = {
+            A: 'TOTAL OBRA',
+            B: '',
+            C: '',
+            D: ''
+          };
+
+          let col = 4;
+          diasDoPeriodo.forEach(dia => {
+            let totalDia = 0;
+            obraData.colaboradores.forEach(colab => {
+              totalDia += colab.horasPorDia[dia] || 0;
+            });
+            linhaTotalObra[String.fromCharCode(65 + col)] = totalDia > 0 ? totalDia.toFixed(1) : '';
+            col++;
+          });
+
+          linhaTotalObra[String.fromCharCode(65 + col)] = totalObraHoras.toFixed(1);
+
+          dadosExcel.push(linhaTotalObra);
+          dadosExcel.push({ A: '' }); // Linha em branco entre obras
+
+          totalGeralHoras += totalObraHoras;
+        });
+
+      // Linha de total geral
+      const linhaTotalGeral = {
+        A: 'TOTAL GERAL',
+        B: '',
+        C: '',
+        D: ''
+      };
+
+      let colGeral = 4;
+      diasDoPeriodo.forEach(dia => {
+        let totalDiaGeral = 0;
+        dadosPorObra.forEach(obraData => {
+          obraData.colaboradores.forEach(colab => {
+            totalDiaGeral += colab.horasPorDia[dia] || 0;
+          });
+        });
+        linhaTotalGeral[String.fromCharCode(65 + colGeral)] = totalDiaGeral > 0 ? totalDiaGeral.toFixed(1) : '';
+        colGeral++;
+      });
+
+      linhaTotalGeral[String.fromCharCode(65 + colGeral)] = totalGeralHoras.toFixed(1);
+
+      dadosExcel.push(linhaTotalGeral);
+
+      // ===== SEÇÃO DE ESTATÍSTICAS =====
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '📊 ESTATÍSTICAS DETALHADAS' });
+      dadosExcel.push({ A: '' });
+
+      // Top 10 Trabalhadores
+      dadosExcel.push({ A: '🏆 TOP 10 TRABALHADORES' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({
+        A: 'Posição',
+        B: 'Trabalhador',
+        C: 'Total Horas',
+        D: 'Dias Trabalhados',
+        E: 'Média Horas/Dia'
+      });
+
+      const topColaboradores = Array.from(estatisticasGlobais.porColaborador.entries())
+        .map(([id, data]) => ({ id, ...data }))
+        .sort((a, b) => b.totalHoras - a.totalHoras)
+        .slice(0, 10);
+
+      topColaboradores.forEach((colab, index) => {
+        dadosExcel.push({
+          A: `#${index + 1}`,
+          B: colab.nome,
+          C: colab.totalHoras.toFixed(1),
+          D: colab.diasTrabalhados,
+          E: (colab.totalHoras / colab.diasTrabalhados).toFixed(1)
+        });
+      });
+
+      // Horas por Especialidade
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '👷 HORAS POR ESPECIALIDADE' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({
+        A: 'Especialidade',
+        B: 'Total Horas',
+        C: 'Nº Colaboradores',
+        D: '% do Total'
+      });
+
+      const especialidadesOrdenadas = Array.from(estatisticasGlobais.porEspecialidade.entries())
+        .sort((a, b) => b[1].totalHoras - a[1].totalHoras);
+
+      especialidadesOrdenadas.forEach(([especialidade, data]) => {
+        const percentagem = ((data.totalHoras / totalGeralHoras) * 100).toFixed(1);
+        dadosExcel.push({
+          A: especialidade,
+          B: data.totalHoras.toFixed(1),
+          C: data.colaboradores,
+          D: `${percentagem}%`
+        });
+      });
+
+      // Horas por Classe
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '🎯 HORAS POR CLASSE' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({
+        A: 'Classe',
+        B: 'Total Horas',
+        C: 'Nº Colaboradores',
+        D: '% do Total'
+      });
+
+      const classesOrdenadas = Array.from(estatisticasGlobais.porClasse.entries())
+        .sort((a, b) => b[1].totalHoras - a[1].totalHoras);
+
+      classesOrdenadas.forEach(([classe, data]) => {
+        const percentagem = ((data.totalHoras / totalGeralHoras) * 100).toFixed(1);
+        dadosExcel.push({
+          A: classe,
+          B: data.totalHoras.toFixed(1),
+          C: data.colaboradores,
+          D: `${percentagem}%`
+        });
+      });
+
+      // Resumo Executivo
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({ A: '📈 RESUMO EXECUTIVO' });
+      dadosExcel.push({ A: '' });
+      dadosExcel.push({
+        A: 'Métrica',
+        B: 'Valor'
+      });
+
+      const totalColaboradoresUnicos = estatisticasGlobais.porColaborador.size;
+      const mediaDiasTrabalhadosPorColab = Array.from(estatisticasGlobais.porColaborador.values())
+        .reduce((sum, c) => sum + c.diasTrabalhados, 0) / totalColaboradoresUnicos;
+      const mediaHorasPorColab = totalGeralHoras / totalColaboradoresUnicos;
+
+      dadosExcel.push({ A: 'Total de Horas', B: totalGeralHoras.toFixed(1) });
+      dadosExcel.push({ A: 'Total de Colaboradores', B: totalColaboradoresUnicos });
+      dadosExcel.push({ A: 'Total de Especialidades', B: estatisticasGlobais.porEspecialidade.size });
+      dadosExcel.push({ A: 'Total de Classes', B: estatisticasGlobais.porClasse.size });
+      dadosExcel.push({ A: 'Média de Dias Trabalhados/Colaborador', B: mediaDiasTrabalhadosPorColab.toFixed(1) });
+      dadosExcel.push({ A: 'Média de Horas/Colaborador', B: mediaHorasPorColab.toFixed(1) });
+
+      console.log('📝 Dados Excel preparados:', dadosExcel.length, 'linhas');
+      console.log('💾 Criando arquivo Excel...');
+
+      // Criar workbook
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(dadosExcel, { skipHeader: true });
+
+      // Ajustar largura das colunas
+      const colWidths = [
+        { wch: 35 }, // Obra
+        { wch: 30 }, // Trabalhador
+        { wch: 25 }, // Especialidade
+        { wch: 25 }, // Classe
+      ];
+
+      // Adicionar largura para cada dia
+      diasDoPeriodo.forEach(() => {
+        colWidths.push({ wch: 7 });
+      });
+
+      colWidths.push({ wch: 12 }); // TOTAL HORAS
+      colWidths.push({ wch: 15 }); // DIAS TRABALHADOS
+
+      ws['!cols'] = colWidths;
+
+      // Aplicar formatação
+      const range = XLSX.utils.decode_range(ws['!ref']);
+
+      const bordaFina = {
+        top: { style: 'thin' },
+        bottom: { style: 'thin' },
+        left: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+
+      const fundoCabecalho = { patternType: 'solid', fgColor: { rgb: '4472C4' } };
+      const fundoSecaoTitulo = { patternType: 'solid', fgColor: { rgb: 'FFA500' } }; // Laranja para títulos de seção
+      const fonteBranca = { color: { rgb: 'FFFFFF' }, bold: true };
+      const fundoVerde = { patternType: 'solid', fgColor: { rgb: '92D050' } };
+      const fundoAmarelo = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } };
+
+      for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+
+          if (!ws[cellAddress]) {
+            ws[cellAddress] = { t: 's', v: '' };
+          }
+
+          if (!ws[cellAddress].s) ws[cellAddress].s = {};
+
+          const cellA = ws[XLSX.utils.encode_cell({ r: R, c: 0 })];
+          const cellValue = cellA?.v || '';
+
+          // Títulos de seções de estatísticas (com emojis)
+          if (cellValue.includes('📊') || cellValue.includes('🏆') || cellValue.includes('👷') ||
+              cellValue.includes('🎯') || cellValue.includes('📈')) {
+            ws[cellAddress].s = {
+              fill: fundoSecaoTitulo,
+              font: { bold: true, size: 14, color: { rgb: 'FFFFFF' } },
+              alignment: { horizontal: 'left', vertical: 'center' },
+              border: bordaFina
+            };
+          }
+          // Cabeçalhos de tabelas de estatísticas
+          else if (R > 4 && cellValue &&
+                   (cellValue === 'Posição' || cellValue === 'Especialidade' ||
+                    cellValue === 'Classe' || cellValue === 'Métrica')) {
+            ws[cellAddress].s = {
+              fill: fundoCabecalho,
+              font: fonteBranca,
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: bordaFina
+            };
+          }
+          // Linha do cabeçalho principal (linha 4 no Excel, index 4)
+          else if (R === 4) {
+            ws[cellAddress].s = {
+              fill: fundoCabecalho,
+              font: fonteBranca,
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: bordaFina
+            };
+          }
+          else if (R > 4) {
+            // Aplicar bordas em todas as células com dados (exceto linhas vazias de separação)
+            const temDados = ws[cellAddress].v !== undefined && ws[cellAddress].v !== null && ws[cellAddress].v !== '';
+            if (temDados) {
+              ws[cellAddress].s.border = bordaFina;
+            }
+
+            // Aplicar cores nas células de horas (colunas dos dias) - apenas na tabela principal
+            if (C >= 4 && C < 4 + diasDoPeriodo.length &&
+                !cellValue.includes('📊') && !cellValue.includes('🏆') &&
+                !cellValue.includes('👷') && !cellValue.includes('🎯') && !cellValue.includes('📈')) {
+              const cellVal = ws[cellAddress].v;
+              let horas = 0;
+
+              if (cellVal !== null && cellVal !== undefined && cellVal !== '') {
+                horas = typeof cellVal === 'number' ? cellVal : parseFloat(cellVal);
+              }
+
+              if (!isNaN(horas) && horas > 0) {
+                if (horas >= 8.0) {
+                  ws[cellAddress].s = {
+                    fill: fundoVerde,
+                    font: { bold: true },
+                    alignment: { horizontal: 'center', vertical: 'center' },
+                    border: bordaFina
+                  };
+                } else {
+                  ws[cellAddress].s = {
+                    fill: fundoAmarelo,
+                    alignment: { horizontal: 'center', vertical: 'center' },
+                    border: bordaFina
+                  };
+                }
+              } else if (temDados) {
+                ws[cellAddress].s.alignment = { horizontal: 'center', vertical: 'center' };
+              }
+            }
+
+            // Centralizar colunas numéricas nas estatísticas
+            if (temDados && C >= 2 && C <= 4 &&
+                (cellValue === 'Posição' || cellValue === 'Especialidade' ||
+                 cellValue === 'Classe' || cellValue === 'Métrica' ||
+                 String(cellValue).startsWith('#'))) {
+              if (!ws[cellAddress].s.alignment) {
+                ws[cellAddress].s.alignment = { horizontal: 'center', vertical: 'center' };
+              }
+            }
+
+            // Negrito para linhas de total e tops
+            if (cellA && (cellA.v === 'TOTAL OBRA' || cellA.v === 'TOTAL GERAL' ||
+                          String(cellA.v).startsWith('#1'))) {
+              if (!ws[cellAddress].s.font) {
+                ws[cellAddress].s.font = { bold: true };
+              } else {
+                ws[cellAddress].s.font.bold = true;
+              }
+              // Fundo para #1
+              if (String(cellA.v).startsWith('#1') && C === 0) {
+                ws[cellAddress].s.fill = { patternType: 'solid', fgColor: { rgb: 'FFD700' } }; // Dourado
+              }
+            }
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Relatório de Horas');
+
+      // Gerar nome do arquivo
+      const nomeObra = exportObraFiltro ?
+        obrasSelecionadas[0]?.codigo.replace(/[^a-zA-Z0-9]/g, '_') :
+        'TodasObras';
+      const nomeArquivo = `Relatorio_Horas_${nomeObra}_${periodoLabel.replace(/\s|\//g, '_')}.xlsx`;
+
+      console.log('📁 Nome do arquivo:', nomeArquivo);
+      console.log('⬇️ Iniciando download...');
+
+      // Exportar
+      XLSX.writeFile(wb, nomeArquivo);
+
+      console.log('✅ Exportação concluída com sucesso!');
+
+      Alert.alert('Sucesso', `Relatório exportado com sucesso!\n\nTotal de horas: ${totalGeralHoras.toFixed(1)}h`);
+      fecharModalExport();
+
+    } catch (error) {
+      console.error('❌ Erro ao exportar para Excel:', error);
+      Alert.alert('Erro', error.message || 'Erro ao exportar dados para Excel.');
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const renderGrelhaPorUtilizador = (colaboradorId) => {
     const nomeColaborador = colaboradoresMap[colaboradorId] || colaboradorId;
     
@@ -859,7 +1483,12 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Visualização em Grelha</Text>
-            <View style={{ width: 40 }} />
+            <TouchableOpacity
+              style={styles.exportButton}
+              onPress={abrirModalExport}
+            >
+              <MaterialCommunityIcons name="file-excel" size={24} color="#fff" />
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -1147,6 +1776,110 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
           </View>
         </Modal>
 
+        {/* Modal de Exportação Excel */}
+        <Modal
+          visible={modalExportVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={fecharModalExport}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { width: width * 0.9 }]}>
+              <View style={styles.modalHeader}>
+                <MaterialCommunityIcons name="file-excel" size={24} color="#28a745" />
+                <Text style={styles.modalTitle}>Exportar para Excel</Text>
+                <TouchableOpacity onPress={fecharModalExport}>
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalBody}>
+                {/* Filtro de Obra */}
+                <View style={styles.exportFormGroup}>
+                  <Text style={styles.exportLabel}>Obra (opcional)</Text>
+                  <View style={styles.pickerContainer}>
+                    <select
+                      style={styles.picker}
+                      value={exportObraFiltro}
+                      onChange={(e) => setExportObraFiltro(e.target.value)}
+                    >
+                      <option value="">Todas as obras</option>
+                      {obras.map((obra) => (
+                        <option key={obra.id} value={obra.id}>
+                          {obra.codigo} - {obra.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </View>
+                </View>
+
+                {/* Data Início */}
+                <View style={styles.exportFormGroup}>
+                  <Text style={styles.exportLabel}>Data Início *</Text>
+                  <TextInput
+                    style={styles.exportInput}
+                    value={exportDataInicio}
+                    onChangeText={setExportDataInicio}
+                    placeholder="AAAA-MM-DD"
+                    type="date"
+                  />
+                </View>
+
+                {/* Data Fim */}
+                <View style={styles.exportFormGroup}>
+                  <Text style={styles.exportLabel}>Data Fim *</Text>
+                  <TextInput
+                    style={styles.exportInput}
+                    value={exportDataFim}
+                    onChangeText={setExportDataFim}
+                    placeholder="AAAA-MM-DD"
+                    type="date"
+                  />
+                </View>
+
+                <View style={styles.exportInfoBox}>
+                  <Ionicons name="information-circle" size={20} color="#1792FE" />
+                  <Text style={styles.exportInfoText}>
+                    O relatório incluirá: horas por dia, total de horas, dias trabalhados,
+                    especialidades e classes de cada colaborador, agrupado por obra.
+                  </Text>
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={fecharModalExport}
+                >
+                  <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    styles.modalButtonConfirm,
+                    exportando && styles.modalButtonDisabled
+                  ]}
+                  onPress={exportarParaExcel}
+                  disabled={exportando}
+                >
+                  {exportando ? (
+                    <>
+                      <ActivityIndicator size="small" color="#fff" />
+                      <Text style={styles.modalButtonTextConfirm}>Exportando...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="file-excel" size={20} color="#fff" />
+                      <Text style={styles.modalButtonTextConfirm}>Exportar</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* Modal de Relatório Completo */}
         <Modal
           visible={modalRelatorio}
@@ -1354,6 +2087,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  exportButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1943,6 +2684,97 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   modalCloseButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  // Estilos do Modal de Exportação
+  exportFormGroup: {
+    marginBottom: 20,
+  },
+  exportLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  exportInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: "#333",
+    backgroundColor: "#fff",
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+  picker: {
+    padding: 12,
+    fontSize: 14,
+    color: "#333",
+    border: "none",
+    outline: "none",
+    width: "100%",
+    backgroundColor: "transparent",
+  },
+  exportInfoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#e3f2fd",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: "#1792FE",
+    marginTop: 10,
+  },
+  exportInfoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#333",
+    lineHeight: 18,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    gap: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  modalButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 14,
+    borderRadius: 8,
+    elevation: 2,
+  },
+  modalButtonCancel: {
+    backgroundColor: "#f0f0f0",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#28a745",
+  },
+  modalButtonDisabled: {
+    backgroundColor: "#a0a0a0",
+    opacity: 0.6,
+  },
+  modalButtonTextCancel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+  modalButtonTextConfirm: {
     fontSize: 14,
     fontWeight: "600",
     color: "#fff",
