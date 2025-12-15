@@ -672,6 +672,174 @@ const obterResumoObra = async (req, res) => {
 };
 
 
+/**
+ * Obter relatório de pontos de todas as obras com pontos registados hoje
+ * Retorna obras agrupadas com colaboradores, entrada e tempo trabalhado até agora
+ */
+const obterRelatorioObrasPontos = async (req, res) => {
+  try {
+    const { data, empresa_id } = req.query;
+    const dataConsulta = data || new Date().toISOString().split('T')[0];
+
+    console.log(`📊 Obtendo relatório de pontos para data ${dataConsulta}`);
+    console.log(`🏢 Empresa ID recebido:`, empresa_id || 'TODAS');
+
+    // Construir filtro de obra se empresa_id for fornecida
+    let whereObra = {};
+    if (empresa_id) {
+      whereObra = { empresa_id };
+      console.log(`🔍 Aplicando filtro empresa_id:`, empresa_id);
+    }
+
+    // Obter todos os registos do dia
+    const registosHoje = await RegistoPontoObra.findAll({
+      where: {
+        timestamp: {
+          [Op.between]: [
+            new Date(dataConsulta + 'T00:00:00.000Z'),
+            new Date(dataConsulta + 'T23:59:59.999Z')
+          ]
+        }
+      },
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'nome', 'username', 'email']
+        },
+        {
+          model: Obra,
+          attributes: ['id', 'nome', 'localizacao', 'codigo', 'empresa_id'],
+          where: whereObra,
+          required: false // Alterado para LEFT JOIN para debug
+        }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    console.log(`📋 Total de registos encontrados: ${registosHoje.length}`);
+
+    // Debug: mostrar empresas das obras encontradas
+    if (registosHoje.length > 0) {
+      const obrasUnicas = [...new Set(registosHoje.map(r => r.Obra?.id))];
+      console.log(`🏗️ Obras encontradas (IDs):`, obrasUnicas);
+      registosHoje.slice(0, 3).forEach(r => {
+        console.log(`  📍 Obra ${r.Obra?.id} (${r.Obra?.nome}) - empresa_id: ${r.Obra?.empresa_id}`);
+      });
+    }
+
+    // Agrupar por obra
+    const obrasPorId = {};
+
+    registosHoje.forEach(registo => {
+      const obraId = registo.obra_id;
+      const userId = registo.user_id;
+
+      // Inicializar obra se não existir
+      if (!obrasPorId[obraId]) {
+        obrasPorId[obraId] = {
+          obraId: obraId,
+          obraNome: registo.Obra?.nome || 'Obra sem nome',
+          obraCodigo: registo.Obra?.codigo || '',
+          obraLocalizacao: registo.Obra?.localizacao || '',
+          colaboradores: {}
+        };
+      }
+
+      // Inicializar colaborador se não existir
+      if (!obrasPorId[obraId].colaboradores[userId]) {
+        obrasPorId[obraId].colaboradores[userId] = {
+          userId: userId,
+          nome: registo.User?.nome || 'Nome não disponível',
+          email: registo.User?.email || '',
+          registos: []
+        };
+      }
+
+      // Adicionar registo ao colaborador
+      obrasPorId[obraId].colaboradores[userId].registos.push({
+        tipo: registo.tipo,
+        timestamp: registo.timestamp
+      });
+    });
+
+    // Calcular tempo trabalhado para cada colaborador
+    const relatorioObras = [];
+
+    Object.values(obrasPorId).forEach(obra => {
+      const colaboradoresArray = [];
+
+      Object.values(obra.colaboradores).forEach(colab => {
+        // Ordenar registos por timestamp
+        const registosOrdenados = colab.registos.sort((a, b) =>
+          new Date(a.timestamp) - new Date(b.timestamp)
+        );
+
+        // Encontrar primeira entrada
+        const primeiraEntrada = registosOrdenados.find(r => r.tipo === 'entrada');
+
+        if (!primeiraEntrada) {
+          return; // Skip se não houver entrada
+        }
+
+        // Calcular tempo trabalhado até agora
+        let tempoTrabalhado = 0;
+        let ultimaEntrada = null;
+
+        registosOrdenados.forEach(registo => {
+          if (registo.tipo === 'entrada') {
+            ultimaEntrada = new Date(registo.timestamp);
+          } else if (registo.tipo === 'saida' && ultimaEntrada) {
+            const saida = new Date(registo.timestamp);
+            tempoTrabalhado += (saida - ultimaEntrada) / (1000 * 60 * 60); // em horas
+            ultimaEntrada = null;
+          }
+        });
+
+        // Se ainda há entrada ativa, adicionar tempo até agora
+        if (ultimaEntrada) {
+          const agora = new Date();
+          tempoTrabalhado += (agora - ultimaEntrada) / (1000 * 60 * 60);
+        }
+
+        colaboradoresArray.push({
+          nome: colab.nome,
+          email: colab.email,
+          horaEntrada: primeiraEntrada.timestamp,
+          tempoTrabalhadoHoras: Math.round(tempoTrabalhado * 100) / 100, // 2 casas decimais
+          estaAtivo: ultimaEntrada !== null
+        });
+      });
+
+      // Só adicionar obras com colaboradores
+      if (colaboradoresArray.length > 0) {
+        relatorioObras.push({
+          obraId: obra.obraId,
+          obraNome: obra.obraNome,
+          obraCodigo: obra.obraCodigo,
+          obraLocalizacao: obra.obraLocalizacao,
+          totalColaboradores: colaboradoresArray.length,
+          colaboradores: colaboradoresArray
+        });
+      }
+    });
+
+    console.log(`✅ Relatório gerado: ${relatorioObras.length} obras com pontos`);
+
+    res.json({
+      data: dataConsulta,
+      totalObras: relatorioObras.length,
+      obras: relatorioObras
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao gerar relatório de pontos:', error);
+    res.status(500).json({
+      message: 'Erro ao gerar relatório de pontos',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registarPonto,
   listarRegistosPorDia,
@@ -689,4 +857,5 @@ module.exports = {
   eliminarRegisto,
   obterRegistosObraPorDia,
   obterResumoObra,
+  obterRelatorioObrasPontos,
 };

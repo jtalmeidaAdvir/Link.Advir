@@ -15,6 +15,8 @@ const sendEmail = require('./servives/emailServicos');
 const sendEmailContactForm = require('./servives/emailcontactos');
 const sendmailoficios = require('./routes/Oficios/sendEmailOficios');
 const sendEmailExternos = require('./routes/Externos/sendEmailExternos');
+const sendEmailRelatorioPontos = require('./servives/emailRelatorioPontos');
+const { enviarRelatoriosPontosObras, enviarRelatorioPontoObra } = require('./servives/enviarRelatoriosPontosObras');
 const oficio = require('./routes/Oficios/oficios');
  
 const app = express();
@@ -58,6 +60,9 @@ app.use('/oficio', oficio);
 app.post('/send-email', sendEmail);
 app.post('/send-email-contact', sendEmailContactForm);
 app.post('/send-email-externos', sendEmailExternos);
+app.post('/send-email-relatorio-pontos', sendEmailRelatorioPontos);
+app.post('/enviar-relatorios-pontos-obras', enviarRelatoriosPontosObras);
+app.post('/enviar-relatorio-ponto-obra', enviarRelatorioPontoObra);
  
 app.post('/connect-database/token', async (req, res) => {
     const { username, password, company, instance, line, urlempresa } = req.body;

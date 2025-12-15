@@ -55,7 +55,7 @@ router.get('/:empresaId', async (req, res) => {
  
         // Obter a empresa
         const empresa = await Empresa.findByPk(empresaId, {
-            attributes: ['id', 'empresa', 'maxUsers', 'tempoIntervaloPadrao'], // Inclui o novo campo tempoIntervaloPadrao
+            attributes: ['id', 'empresa', 'maxUsers', 'tempoIntervaloPadrao', 'urlempresa', 'username', 'password', 'linha'], // Inclui credenciais para Primavera
         });
  
         if (!empresa) {
@@ -73,8 +73,11 @@ router.get('/:empresaId', async (req, res) => {
             empresa: empresa.empresa,
             maxUsers: empresa.maxUsers,
             tempoIntervaloPadrao: empresa.tempoIntervaloPadrao,
- 
-            currentUsers: currentUsers, // Inclui o currentUsers na resposta
+            urlempresa: empresa.urlempresa,
+            username: empresa.username, // Credenciais para autenticação Primavera
+            password: empresa.password,
+            linha: empresa.linha,
+            currentUsers: currentUsers,
         });
     } catch (error) {
         console.error('Erro ao obter informações da empresa:', error);

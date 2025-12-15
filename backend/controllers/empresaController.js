@@ -98,8 +98,21 @@ const atualizarUrlEmpresa = async (req, res) => {
 // 1. Listar todas as empresas
 const listarEmpresas = async (req, res) => {
     try {
-        const empresas = await Empresa.findAll();
-        res.status(200).json(empresas);
+        const empresas = await Empresa.findAll({
+            attributes: ['id', 'empresa', 'maxUsers', 'tempoIntervaloPadrao'],
+            order: [['empresa', 'ASC']]
+        });
+
+        // Formatar resposta com campo nome para compatibilidade
+        const empresasFormatadas = empresas.map(emp => ({
+            id: emp.id,
+            nome: emp.empresa, // alias para compatibilidade
+            empresa: emp.empresa,
+            maxUsers: emp.maxUsers,
+            tempoIntervaloPadrao: emp.tempoIntervaloPadrao
+        }));
+
+        res.status(200).json({ empresas: empresasFormatadas });
     } catch (error) {
         console.error('Erro ao listar empresas:', error);
         res.status(500).json({ message: 'Erro ao listar empresas.' });

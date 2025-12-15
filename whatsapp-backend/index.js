@@ -27,6 +27,7 @@ app.use("/api/whatsapp", relatoriosRoutes);
 app.use("/api/whatsapp/verificacao-ponto", verificacaoPontoRoutes);
 app.use("/api/intervencoes", intervencaoRoutes);
 app.use("/api/configuracao-automatica", require("./routes/configuracaoAutomaticaRoutes"));
+app.use("/api/relatorio-pontos", require("./routes/relatorioPontosRoutes"));
 
 // Rota de saúde
 app.get("/health", (req, res) => {
@@ -57,7 +58,7 @@ const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 WhatsApp Backend running on port ${PORT}`);
     console.log(`📱 WhatsApp Web available at http://0.0.0.0:${PORT}`);
     console.log(`✅ Rotas registadas:`);
-    
+
     // Listar todas as rotas registadas
     const routes = [];
     app._router.stack.forEach((middleware) => {
@@ -82,10 +83,16 @@ const server = app.listen(PORT, "0.0.0.0", () => {
             });
         }
     });
-    
+
     routes.forEach(route => {
         console.log(`   ${route.methods.join(', ').toUpperCase()} ${route.path}`);
     });
+
+    // Iniciar scheduler de relatórios de pontos
+    console.log('');
+    console.log('📊 Iniciando scheduler de relatórios de pontos...');
+    const relatoriosPontosScheduler = require('./services/relatorioPontosScheduler');
+    relatoriosPontosScheduler.start();
 });
 
 // Tratamento de erros de porta ocupada

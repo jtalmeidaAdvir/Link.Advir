@@ -18,6 +18,7 @@ const {
   eliminarRegisto,
   obterRegistosObraPorDia,
   obterResumoObra,
+  obterRelatorioObrasPontos,
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
@@ -51,5 +52,8 @@ router.get('/obra/:obraId/registos-dia', authMiddleware, obterRegistosObraPorDia
 
 // Adiciona rota para obter resumo da obra (pessoas a trabalhar + últimos registos)
 router.get('/resumo-obra/:obraId', authMiddleware, obterResumoObra);
+
+// Rota para obter relatório de pontos agrupado por obra (para envio de emails)
+router.get('/relatorio-pontos', authMiddleware, obterRelatorioObrasPontos);
 
 module.exports = router;

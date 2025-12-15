@@ -6,6 +6,7 @@ import { secureStorage } from '../../utils/secureStorage';
 import ConfiguracaoAutomaticaTab from "./components/ConfiguracaoAutomaticaTab";
 import RelatoriosTab from "./components/RelatoriosTab";
 import VerificacaoPontoTab from "./components/VerificacaoPontoTab";
+import RelatoriosPontosTab from "./components/RelatoriosPontosTab";
 import useWhatsAppData from "./hooks/useWhatsAppData";
 import { getWhatsAppStyles } from "./styles/whatsAppStyles";
 
@@ -1062,6 +1063,7 @@ const WhatsAppWebConfig = () => {
                     { id: "configuracao", icon: "🍽️", label: "Almoços" },
                     { id: "relatorios", icon: "📧", label: "Relatórios" },
                     { id: "verificacao", icon: "⚠️", label: "Verificação Ponto" },
+                    { id: "relatoriospontos", icon: "📊", label: "Relatórios Pontos" },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -1084,6 +1086,7 @@ const WhatsAppWebConfig = () => {
                 {activeTab === "configuracao" && renderConfiguracaoAutomaticaTab()}
                 {activeTab === "relatorios" && renderRelatoriosTab()}
                 {activeTab === "verificacao" && <VerificacaoPontoTab styles={styles} API_BASE_URL={API_BASE_URL} />}
+                {activeTab === "relatoriospontos" && <RelatoriosPontosTab styles={styles} />}
             </div>
         </div>
     );
