@@ -54,7 +54,11 @@ async function getAuthToken(credentials, urlEmpresa) {
             },
             timeout: 10000
         });
+        // 👉 MOSTRAR RESPOSTA COMPLETA
+        console.log('📦 Resposta completa da API:', response.data);
 
+        // 👉 MOSTRAR APENAS O TOKEN
+        console.log('🔐 Access Token:', response.data.access_token);
         console.log(`✅ Token obtido com sucesso para empresa ${credentials.company}`);
         return response.data.access_token;
     } catch (error) {
