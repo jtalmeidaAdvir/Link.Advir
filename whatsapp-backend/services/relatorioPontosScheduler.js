@@ -4,6 +4,65 @@ const Schedule = require('../models/Schedule');
 const WEBAPI_URL = process.env.WEBAPI_URL || 'https://webapiprimavera.advir.pt';
 const BACKEND_URL = process.env.BACKEND_URL || 'https://backend.advir.pt';
 
+// Mapeamento de credenciais por empresa_id
+const EMPRESA_CREDENTIALS = {
+    5: { // JPA
+        username: 'Advir',
+        password: 'Code495@',
+        company: 'JPA',
+        instance: 'DEFAULT',
+        line: 'Evolution'
+    }
+};
+
+/**
+ * Normaliza URL da empresa (adiciona protocolo se não tiver)
+ */
+function normalizeUrl(urlEmpresa) {
+    if (!urlEmpresa) return '';
+    
+    // Se já tem protocolo, retornar como está
+    if (urlEmpresa.startsWith('http://') || urlEmpresa.startsWith('https://')) {
+        return urlEmpresa;
+    }
+    
+    // Adicionar http:// por defeito
+    return `http://${urlEmpresa}`;
+}
+
+/**
+ * Obtém token de autenticação do Primavera WebAPI
+ */
+async function getAuthToken(credentials, urlEmpresa) {
+    try {
+        const baseUrl = normalizeUrl(urlEmpresa);
+        const tokenUrl = `${baseUrl}/WebApi/token`;
+        
+        const params = new URLSearchParams();
+        params.append('grant_type', 'password');
+        params.append('username', credentials.username);
+        params.append('password', credentials.password);
+        params.append('company', credentials.company);
+        params.append('instance', credentials.instance);
+        params.append('line', credentials.line);
+
+        console.log(`🔑 Obtendo token de: ${tokenUrl}`);
+
+        const response = await axios.post(tokenUrl, params.toString(), {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            timeout: 10000
+        });
+
+        console.log(`✅ Token obtido com sucesso para empresa ${credentials.company}`);
+        return response.data.access_token;
+    } catch (error) {
+        console.error('❌ Erro ao obter token:', error.message);
+        throw error;
+    }
+}
+
 class RelatorioPontosScheduler {
     constructor() {
         this.checkInterval = null;
@@ -154,14 +213,27 @@ class RelatorioPontosScheduler {
                 console.warn(`⚠️ Erro ao buscar URL da empresa: ${error.message}`);
             }
 
-            // Buscar token do sistema (você pode precisar ajustar isso baseado em como autenticam)
-            // Por enquanto vou assumir que não precisa de token ou que você tem um token de sistema
+            // Obter token automaticamente baseado no empresa_id
+            let token = null;
+            const credentials = EMPRESA_CREDENTIALS[agendamento.empresa_id];
+            
+            if (credentials && urlempresa) {
+                try {
+                    console.log(`🔐 Obtendo token para empresa ${agendamento.empresa_id}...`);
+                    token = await getAuthToken(credentials, urlempresa);
+                } catch (tokenError) {
+                    console.error(`⚠️ Erro ao obter token: ${tokenError.message}`);
+                    // Continuar sem token se falhar
+                }
+            } else if (!credentials) {
+                console.warn(`⚠️ Credenciais não configuradas para empresa ${agendamento.empresa_id}`);
+            }
+
             const response = await axios.post(
                 `${WEBAPI_URL}/enviar-relatorios-pontos-obras`,
                 {
                     empresa_id: agendamento.empresa_id,
-                    // Se precisar de token, você pode armazená-lo no agendamento ou em variável de ambiente
-                    token: process.env.SYSTEM_TOKEN || null,
+                    token: token,
                     urlempresa: urlempresa
                 },
                 {
@@ -209,6 +281,19 @@ class RelatorioPontosScheduler {
                     console.log(`🌐 URL da empresa obtido: ${urlempresa}`);
                 } catch (error) {
                     console.warn(`⚠️ Erro ao buscar URL da empresa: ${error.message}`);
+                }
+            }
+
+            // Se token não foi fornecido, tentar obter automaticamente
+            if (!token && urlempresa) {
+                const credentials = EMPRESA_CREDENTIALS[empresaId];
+                if (credentials) {
+                    try {
+                        console.log(`🔐 Obtendo token automaticamente para empresa ${empresaId}...`);
+                        token = await getAuthToken(credentials, urlempresa);
+                    } catch (tokenError) {
+                        console.error(`⚠️ Erro ao obter token: ${tokenError.message}`);
+                    }
                 }
             }
 
