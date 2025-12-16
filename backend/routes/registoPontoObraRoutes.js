@@ -54,6 +54,6 @@ router.get('/obra/:obraId/registos-dia', authMiddleware, obterRegistosObraPorDia
 router.get('/resumo-obra/:obraId', authMiddleware, obterResumoObra);
 
 // Rota para obter relatório de pontos agrupado por obra (para envio de emails)
-router.get('/relatorio-pontos', authMiddleware, obterRelatorioObrasPontos);
+router.get('/relatorio-pontos', obterRelatorioObrasPontos);
 
 module.exports = router;
