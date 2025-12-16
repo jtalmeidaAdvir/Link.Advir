@@ -52,10 +52,12 @@ class RelatorioPontosScheduler {
     async checkAndExecute() {
         try {
             const agora = new Date();
-            const horaAtual = agora.getHours();
-            const minutoAtual = agora.getMinutes();
-            const diaAtual = agora.toDateString();
-            const diaSemanaAtual = agora.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+            // Usar timezone de Portugal para comparação correcta de horários
+            const portugalTime = new Date(agora.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }));
+            const horaAtual = portugalTime.getHours();
+            const minutoAtual = portugalTime.getMinutes();
+            const diaAtual = portugalTime.toDateString();
+            const diaSemanaAtual = portugalTime.getDay(); // 0 = Domingo, 1 = Segunda, etc.
 
             // Buscar todos os agendamentos ativos
             const agendamentos = await Schedule.findAll({
