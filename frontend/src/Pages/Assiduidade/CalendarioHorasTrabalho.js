@@ -1866,6 +1866,9 @@ const CalendarioHorasTrabalho = () => {
             return classes;
         }
 
+        // Verificar se é fim de semana (sábado ou domingo)
+        const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+
         if (isSelecionado) classes += ' btn-primary';
         else if (existeFalta) classes += ' dia-falta';
         else if (isHoje) classes += ' btn-outline-primary';
@@ -1878,7 +1881,11 @@ const CalendarioHorasTrabalho = () => {
             } else {
                 classes += ' btn-menor-8h';
             }
-        } else classes += ' btn-outline-secondary';
+        } else if (isFimDeSemana) {
+            classes += ' dia-weekend'; // Azul claro para fins de semana
+        } else {
+            classes += ' btn-outline-secondary';
+        }
 
         return classes;
     };
@@ -1951,6 +1958,11 @@ const CalendarioHorasTrabalho = () => {
                     color: #8d6e63 !important;
                     border: 1px solid #ffb74d;
                     position: relative;
+                }
+                .dia-weekend {
+                    background-color: #e0f7fa !important;
+                    color: #006064 !important;
+                    border: 1px solid #b2ebf2;
                 }
                 @media (min-width: 768px) {
                     .calendario-dia {
