@@ -1828,6 +1828,13 @@ const RegistosPorUtilizador = () => {
         }
     };
 
+    // Função auxiliar para formatar horas decimais em horas e minutos
+    const formatarHorasParaExibicao = (horasDecimais) => {
+        if (!horasDecimais || horasDecimais === 0) return '0h';
+        const horas = Math.floor(horasDecimais);
+        const minutos = Math.round((horasDecimais - horas) * 60);
+        return minutos > 0 ? `${horas}h${minutos}m` : `${horas}h`;
+    };
 
     // Function to get cell content (including absence data and overtime)
     const obterConteudoCelula = (estatisticas) => {
@@ -1891,20 +1898,20 @@ const RegistosPorUtilizador = () => {
             // Se NÃO tem registos, mostrar apenas HE
             if (!estatisticas.totalRegistos || estatisticas.totalRegistos === 0) {
                 return {
-                    texto: `+${totalHE}h`,
+                    texto: `+${formatarHorasParaExibicao(totalHE)}`,
                     cor: '#e3f2fd',
                     textoCor: '#1976d2',
-                    title: `Horas Extras: ${totalHE}h (${tiposHE})`
+                    title: `Horas Extras: ${formatarHorasParaExibicao(totalHE)} (${tiposHE})`
                 };
             }
 
             // Se tem registos, mostrar horas normais + HE
             const horasNormais = parseFloat(estatisticas.horasEstimadas) || 0;
             return {
-                texto: `${horasNormais}h+${totalHE}h`,
+                texto: `${formatarHorasParaExibicao(horasNormais)} + ${formatarHorasParaExibicao(totalHE)}`,
                 cor: '#e8f5e9',
                 textoCor: '#2e7d32',
-                title: `Horas Trabalhadas: ${horasNormais}h | Horas Extras: ${totalHE}h (${tiposHE})`
+                title: `Horas Trabalhadas: ${formatarHorasParaExibicao(horasNormais)} | Horas Extras: ${formatarHorasParaExibicao(totalHE)} (${tiposHE})`
             };
         }
 
@@ -1916,29 +1923,30 @@ const RegistosPorUtilizador = () => {
         // PRIORIDADE 4: Mostrar horas normais baseado na percentagem de confirmação
         const percentagemConfirmados = (estatisticas.confirmados / estatisticas.totalRegistos) * 100;
         const horas = parseFloat(estatisticas.horasEstimadas);
+        const horasFormatadas = formatarHorasParaExibicao(horas);
 
         if (percentagemConfirmados === 100 && horas >= 7) {
-            return { 
-                texto: `${estatisticas.horasEstimadas}h`, 
-                cor: '#e8f5e9', 
+            return {
+                texto: horasFormatadas,
+                cor: '#e8f5e9',
                 textoCor: '#2e7d32',
-                title: `${estatisticas.horasEstimadas}h - ${estatisticas.totalRegistos} registos`
+                title: `${horasFormatadas} - ${estatisticas.totalRegistos} registos`
             };
         }
         if (percentagemConfirmados >= 80 && horas >= 6) {
-            return { 
-                texto: `${estatisticas.horasEstimadas}h`, 
-                cor: '#fff3e0', 
+            return {
+                texto: horasFormatadas,
+                cor: '#fff3e0',
                 textoCor: '#f57c00',
-                title: `${estatisticas.horasEstimadas}h - ${estatisticas.totalRegistos} registos`
+                title: `${horasFormatadas} - ${estatisticas.totalRegistos} registos`
             };
         }
 
-        return { 
-            texto: `${estatisticas.horasEstimadas}h`, 
-            cor: '#ffebee', 
+        return {
+            texto: horasFormatadas,
+            cor: '#ffebee',
             textoCor: '#d32f2f',
-            title: `${estatisticas.horasEstimadas}h - ${estatisticas.totalRegistos} registos (problemas)`
+            title: `${horasFormatadas} - ${estatisticas.totalRegistos} registos (problemas)`
         };
     };
 
@@ -4923,7 +4931,7 @@ const RegistosPorUtilizador = () => {
                                                                         <div>• <strong>Funcionário:</strong> {funcionarioData.utilizador.nome}</div>
                                                                         <div>• <strong>Dia:</strong> {dia}/{mesSelecionado}/{anoSelecionado}</div>
                                                                         <div>• <strong>Registos a eliminar:</strong> {estatisticas?.totalRegistos || 0}</div>
-                                                                        <div>• <strong>Horas a perder:</strong> {estatisticas?.horasEstimadas || '0.0'}h</div>
+                                                                        <div>• <strong>Horas a perder:</strong> {formatarHorasParaExibicao(parseFloat(estatisticas?.horasEstimadas) || 0)}</div>
                                                                         {estatisticas?.obras && estatisticas.obras.length > 0 && (
                                                                             <div>• <strong>Obras afetadas:</strong> {estatisticas.obras.join(', ')}</div>
                                                                         )}
@@ -5051,7 +5059,7 @@ const RegistosPorUtilizador = () => {
                                                                     <div>
                                                                         <div>• <strong>Nome:</strong> {funcionarioData.utilizador.nome}</div>
                                                                         <div>• <strong>Total dias com registos:</strong> {funcionarioData.totalDias}</div>
-                                                                        <div>• <strong>Total horas trabalhadas:</strong> {funcionarioData.totalHorasEstimadas}h</div>
+                                                                        <div>• <strong>Total horas trabalhadas:</strong> {formatarHorasParaExibicao(parseFloat(funcionarioData.totalHorasEstimadas))}</div>
                                                                         <div>• <strong>Dias vazios encontrados:</strong> {diasVazios.length} dias ({diasVazios.length > 0 ? diasVazios.join(', ') : 'nenhum'})</div>
                                                                         {diasVazios.length > 0 && (
                                                                             <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#d1ecf1', borderRadius: '6px', border: '1px solid #bee5eb' }}>
@@ -5456,17 +5464,25 @@ const RegistosPorUtilizador = () => {
                                                         }}
                                                         style={{
                                                             ...styles.gradeCell,
-                                                            ...(new Date(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10) - 1, dia).getDay() === 0 || new Date(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10) - 1, dia).getDay() === 6 ? styles.weekendCell : {}),
                                                             border: selectedCells.includes(`${item.utilizador.id}-${dia}`)
                                                                 ? '3px solid #3182ce'
                                                                 : estatisticas
                                                                     ? '1px solid #e2e8f0'
                                                                     : '1px dashed #cbd5e1',
-                                                            backgroundColor: selectedCells.includes(`${item.utilizador.id}-${dia}`)
-                                                                ? '#bee3f8'
-                                                                : estatisticas
-                                                                    ? obterCorStatusDia(estatisticas)
-                                                                    : '#fafafa',
+                                                            backgroundColor: (() => {
+                                                                const isWeekend = new Date(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10) - 1, dia).getDay() === 0 ||
+                                                                                  new Date(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10) - 1, dia).getDay() === 6;
+
+                                                                if (selectedCells.includes(`${item.utilizador.id}-${dia}`)) {
+                                                                    return '#bee3f8';
+                                                                } else if (isWeekend) {
+                                                                    return '#e0f7fa'; // Azul claro para fins de semana
+                                                                } else if (estatisticas) {
+                                                                    return obterCorStatusDia(estatisticas);
+                                                                } else {
+                                                                    return '#fafafa';
+                                                                }
+                                                            })(),
                                                             cursor: 'pointer'
                                                         }}
 
@@ -5486,7 +5502,15 @@ const RegistosPorUtilizador = () => {
                                                                     color: cellData.textoCor,
                                                                     fontWeight: '600'
                                                                 }}>
-                                                                    <div style={{ whiteSpace: 'pre-line', fontSize: '0.75rem' }}>
+                                                                    <div style={{
+                                                                        whiteSpace: 'normal',
+                                                                        fontSize: '0.7rem',
+                                                                        wordBreak: 'break-word',
+                                                                        lineHeight: '1.2',
+                                                                        textAlign: 'center',
+                                                                        maxWidth: '100%',
+                                                                        overflow: 'hidden'
+                                                                    }}>
                                                                         {cellData.texto}
                                                                     </div>
                                                                     {estatisticas && estatisticas.totalRegistos > 0 && (
@@ -5698,7 +5722,7 @@ const RegistosPorUtilizador = () => {
                                         <div><strong>Funcionário:</strong> {horaExtraParaRemover.funcionarioNome}</div>
                                         <div><strong>Dia:</strong> {horaExtraParaRemover.dia}/{mesSelecionado}/{anoSelecionado}</div>
                                         <div><strong>Tipo:</strong> {tiposHorasExtras[horaExtraParaRemover.tipo] || horaExtraParaRemover.tipo}</div>
-                                        <div><strong>Tempo:</strong> {horaExtraParaRemover.tempo}h</div>
+                                        <div><strong>Tempo:</strong> {formatarHorasParaExibicao(parseFloat(horaExtraParaRemover.tempo))}</div>
                                         {horaExtraParaRemover.IdFuncRemCBL && (
                                             <div><strong>ID:</strong> {horaExtraParaRemover.IdFuncRemCBL}</div>
                                         )}
@@ -6273,7 +6297,7 @@ const styles = {
     },
     // Destacar células de fim-de-semana
     weekendCell: {
-        backgroundColor: '#f0f8ff'
+        backgroundColor: '#e0f7fa'
     },
     gradeHeaderFixed: {
         position: 'sticky',
