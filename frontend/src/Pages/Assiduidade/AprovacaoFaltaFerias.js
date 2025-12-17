@@ -1684,7 +1684,7 @@ const AprovacaoFaltaFerias = () => {
 
                                     <button
                                         onClick={() =>
-                                            carregarPedidos(estadoFiltro)
+                                            carregarTodosPedidos()
                                         }
                                         className="btn btn-outline-primary btn-responsive rounded-pill"
                                         disabled={loading}
