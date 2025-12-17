@@ -1018,8 +1018,9 @@ const AnaliseComplotaPontos = () => {
                     estatisticasDia.trabalhou = true;
 
                     if (pontosFicticios.temSaida) {
-                        const horasDia =
-                            horariosRef.current[user.id]?.horasPorDia || 8;
+                        // Calcular horas reais baseadas nos timestamps gerados (com variações)
+                        const intervaloAlmoco = horariosRef.current[user.id]?.intervaloAlmoco || 1.0;
+                        const horasDia = calcularHorasTrabalhadasReais(pontosFicticios, intervaloAlmoco);
                         dadosUsuario.totalHorasMes += horasDia;
                         dadosUsuario.diasTrabalhados++;
                     } else {
@@ -1413,7 +1414,9 @@ const AnaliseComplotaPontos = () => {
                     estatisticasDia.trabalhou = true;
 
                     if (pontosFicticios.temSaida) {
-                        const horasDia = horariosMap[user.id]?.horasPorDia || 8;
+                        // Calcular horas reais baseadas nos timestamps gerados (com variações)
+                        const intervaloAlmoco = horariosMap[user.id]?.intervaloAlmoco || 1.0;
+                        const horasDia = calcularHorasTrabalhadasReais(pontosFicticios, intervaloAlmoco);
                         dadosUsuario.totalHorasMes += horasDia;
                         dadosUsuario.diasTrabalhados++;
                     } else {
@@ -1460,6 +1463,45 @@ const AnaliseComplotaPontos = () => {
         }
 
         return null;
+    };
+
+    // Helper para formatar horas decimais em formato "Xh Ymin"
+    const formatarHorasParaExibicao = (horasDecimais) => {
+        if (!horasDecimais || horasDecimais === 0) return '0h';
+
+        const horas = Math.floor(horasDecimais);
+        const minutos = Math.round((horasDecimais - horas) * 60);
+
+        if (minutos === 0) {
+            return `${horas}h`;
+        } else if (horas === 0) {
+            return `${minutos}min`;
+        } else {
+            return `${horas}h ${minutos}min`;
+        }
+    };
+
+    // Helper para calcular horas trabalhadas a partir dos timestamps gerados
+    const calcularHorasTrabalhadasReais = (pontosFicticios, intervaloAlmoco = 1.0) => {
+        if (!pontosFicticios.horaEntrada || !pontosFicticios.horaSaida) {
+            return 0;
+        }
+
+        // Converter strings "HH:MM" para minutos totais
+        const horaParaMinutos = (horaStr) => {
+            const [h, m] = horaStr.split(':').map(Number);
+            return h * 60 + m;
+        };
+
+        const minutosEntrada = horaParaMinutos(pontosFicticios.horaEntrada);
+        const minutosSaida = horaParaMinutos(pontosFicticios.horaSaida);
+        const minutosIntervalo = intervaloAlmoco * 60;
+
+        // Total de minutos trabalhados (excluindo intervalo de almoço)
+        const minutosTrabalhados = minutosSaida - minutosEntrada - minutosIntervalo;
+
+        // Converter para horas decimais
+        return minutosTrabalhados / 60;
     };
 
     const carregarHorariosUtilizadores = async (utilizadores) => {
@@ -1645,14 +1687,17 @@ const AnaliseComplotaPontos = () => {
         // Lógica: almoço começa na metade do tempo total no local (entrada até saída)
         const totalMinutosNoLocal = minutosSaida - minutosEntrada;
         const minutosAteAlmoco = totalMinutosNoLocal / 2;
-        
+
         const minutosSaidaAlmoco = minutosEntrada + minutosAteAlmoco;
         const saidaAlmocoH = Math.floor(minutosSaidaAlmoco / 60);
         const saidaAlmocoM = minutosSaidaAlmoco % 60;
         const saidaAlmocoBase = `${String(saidaAlmocoH).padStart(2, "0")}:${String(saidaAlmocoM).padStart(2, "0")}`;
 
-        // ✅ Saída para almoço com variação de -2 a +5 minutos
-        pontos.saidaAlmoco = adicionarVariacaoHorario(saidaAlmocoBase, -2, 5);
+        // ✅ Saída para almoço com variação de -2 a +5 minutos (só se já passou da hora)
+        const saidaAlmocoGerada = adicionarVariacaoHorario(saidaAlmocoBase, -2, 5);
+        if (!isHoje || (isHoje && horaAtual >= saidaAlmocoBase)) {
+            pontos.saidaAlmoco = saidaAlmocoGerada;
+        }
 
         // Calcular entrada do almoço (saída + intervalo)
         const minutosEntradaAlmoco = minutosSaidaAlmoco + minutosIntervalo;
@@ -1660,12 +1705,15 @@ const AnaliseComplotaPontos = () => {
         const entradaAlmocoM = minutosEntradaAlmoco % 60;
         const entradaAlmocoBase = `${String(entradaAlmocoH).padStart(2, "0")}:${String(entradaAlmocoM).padStart(2, "0")}`;
 
-        // ✅ Entrada do almoço com variação de -2 a +5 minutos
-        pontos.entradaAlmoco = adicionarVariacaoHorario(
+        // ✅ Entrada do almoço com variação de -2 a +5 minutos (só se já passou da hora)
+        const entradaAlmocoGerada = adicionarVariacaoHorario(
             entradaAlmocoBase,
             -2,
             5,
         );
+        if (!isHoje || (isHoje && horaAtual >= entradaAlmocoBase)) {
+            pontos.entradaAlmoco = entradaAlmocoGerada;
+        }
 
         // Se for dia passado ou hoje após hora de saída, mostrar saída
         if (!isHoje || (isHoje && horaAtual >= horario.horaSaida)) {
@@ -1878,11 +1926,11 @@ const AnaliseComplotaPontos = () => {
                 });
 
                 row.push(
-                    `${dadosUsuario.totalHorasMes}h`,
+                    formatarHorasParaExibicao(dadosUsuario.totalHorasMes),
                     `${dadosUsuario.diasTrabalhados} dias`,
                     `${dadosUsuario.faltasTotal} faltas`,
                     `${dadosUsuario.feriadosTotal} feriados`,
-                    `${dadosUsuario.horasExtrasTotal.toFixed(2)}h extras`,
+                    `${formatarHorasParaExibicao(dadosUsuario.horasExtrasTotal)} extras`,
                 );
 
                 dadosExport.push(row);
@@ -1923,17 +1971,17 @@ const AnaliseComplotaPontos = () => {
 
             const resumoRow = Array(dias.length + 1).fill("");
             resumoRow[0] = "TOTAIS GERAIS:";
-            resumoRow[resumoRow.length - 5] = `${totalHorasTodos}h`;
+            resumoRow[resumoRow.length - 5] = formatarHorasParaExibicao(totalHorasTodos);
             resumoRow[resumoRow.length - 4] = `${totalDiasTodos} dias`;
             resumoRow[resumoRow.length - 3] = `${totalFaltasTodos} faltas`;
             resumoRow[resumoRow.length - 2] = `${totalFeriadosTodos} feriados`;
             resumoRow[resumoRow.length - 1] =
-                `${totalHorasExtrasTodos.toFixed(2)}h extras`;
+                `${formatarHorasParaExibicao(totalHorasExtrasTodos)} extras`;
             dadosExport.push(resumoRow);
 
             const mediaRow = Array(dias.length + 1).fill("");
             mediaRow[0] = "MÉDIAS POR FUNCIONÁRIO:";
-            mediaRow[mediaRow.length - 5] = `${mediaHorasPorFuncionario}h`;
+            mediaRow[mediaRow.length - 5] = formatarHorasParaExibicao(mediaHorasPorFuncionario);
             mediaRow[mediaRow.length - 4] = `${mediaDiasPorFuncionario} dias`;
             mediaRow[mediaRow.length - 3] =
                 `${(totalFaltasTodos / dadosGrade.length).toFixed(1)} faltas`;
@@ -1977,7 +2025,7 @@ const AnaliseComplotaPontos = () => {
                     "",
                     "",
                     "",
-                    `${user.totalHorasMes}h`,
+                    formatarHorasParaExibicao(user.totalHorasMes),
                 ]);
             });
 
@@ -1996,7 +2044,7 @@ const AnaliseComplotaPontos = () => {
                         "",
                         "",
                         "",
-                        `${user.horasExtrasTotal.toFixed(2)}h extras`,
+                        `${formatarHorasParaExibicao(user.horasExtrasTotal)} extras`,
                     ]);
                 });
             }
@@ -2033,19 +2081,19 @@ const AnaliseComplotaPontos = () => {
                 ["👥 Total de Funcionários:", dadosGrade.length],
                 [
                     "⏰ Total de Horas Trabalhadas (incl. extras):",
-                    `${totalHorasTodos}h`,
+                    formatarHorasParaExibicao(totalHorasTodos),
                 ],
                 ["📅 Total de Dias Trabalhados:", totalDiasTodos],
                 ["❌ Total de Faltas:", totalFaltasTodos],
                 ["🎉 Total de Feriados:", totalFeriadosTodos],
                 [
                     "🚀 Total de Horas Extras:",
-                    `${totalHorasExtrasTodos.toFixed(2)}h`,
+                    formatarHorasParaExibicao(totalHorasExtrasTodos),
                 ],
                 [""],
                 ["MÉDIAS:"],
                 [""],
-                ["⏰ Horas por Funcionário:", `${mediaHorasPorFuncionario}h`],
+                ["⏰ Horas por Funcionário:", formatarHorasParaExibicao(mediaHorasPorFuncionario)],
                 ["📅 Dias por Funcionário:", `${mediaDiasPorFuncionario} dias`],
                 [
                     "❌ Faltas por Funcionário:",
@@ -2082,7 +2130,7 @@ const AnaliseComplotaPontos = () => {
 
             Alert.alert(
                 "✅ Exportação Concluída",
-                `Relatório completo exportado com sucesso!\n\n📁 Arquivo: ${fileName}\n📊 ${dadosGrade.length} funcionários analisados\n⏰ ${totalHorasTodos}h totais registadas`,
+                `Relatório completo exportado com sucesso!\n\n📁 Arquivo: ${fileName}\n📊 ${dadosGrade.length} funcionários analisados\n⏰ ${formatarHorasParaExibicao(totalHorasTodos)} totais registadas`,
             );
         } catch (error) {
             console.error("Erro ao exportar para Excel:", error);
@@ -2183,14 +2231,14 @@ const AnaliseComplotaPontos = () => {
 
                 <View style={styles.totalCell}>
                     <Text style={styles.totalText}>
-                        {dadosUsuario.totalHorasMes}h
+                        {formatarHorasParaExibicao(dadosUsuario.totalHorasMes)}
                     </Text>
                     <Text style={styles.totalSubText}>
                         {dadosUsuario.diasTrabalhados} dias
                     </Text>
                     {dadosUsuario.horasExtrasTotal > 0 && (
                         <Text style={styles.totalSubTextExtra}>
-                            +{dadosUsuario.horasExtrasTotal.toFixed(2)}h extras
+                            +{formatarHorasParaExibicao(dadosUsuario.horasExtrasTotal)} extras
                         </Text>
                     )}
                 </View>
