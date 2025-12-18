@@ -30,6 +30,11 @@ const RegistosPorUtilizador = () => {
     const [tiposHorasExtras, setTiposHorasExtras] = useState({});
     const [horasExtrasUtilizadores, setHorasExtrasUtilizadores] = useState({});
 
+    // States para Bolsa de Horas
+    const [bolsaHoras, setBolsaHoras] = useState([]);
+    const [loadingBolsa, setLoadingBolsa] = useState(false);
+    const [horariosUtilizadores, setHorariosUtilizadores] = useState({});
+
     // Cache para codFuncionario (OTIMIZAÇÃO)
     const [cacheCodFuncionario, setCacheCodFuncionario] = useState({});
 
@@ -405,6 +410,269 @@ const RegistosPorUtilizador = () => {
             return {};
         }
     };
+
+    // Função para carregar horários dos utilizadores
+    const carregarHorariosUtilizadores = async () => {
+        try {
+            const token = secureStorage.getItem('loginToken');
+            const empresaId = secureStorage.getItem('empresa_id');
+
+            if (!token || !empresaId) {
+                console.warn('⚠️ Token ou empresa ID não encontrados');
+                return {};
+            }
+
+            // Buscar todos os utilizadores da empresa
+            const usersResponse = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!usersResponse.ok) {
+                console.error('Erro ao buscar utilizadores:', usersResponse.status);
+                return {};
+            }
+
+            const usersData = await usersResponse.json();
+            const horariosMap = {};
+
+            // Para cada utilizador, buscar o horário ativo
+            for (const user of usersData) {
+                try {
+                    const horarioResponse = await fetch(`https://backend.advir.pt/api/horarios/user/${user.id}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (horarioResponse.ok) {
+                        const horarioData = await horarioResponse.json();
+                        if (horarioData && horarioData.Horario) {
+                            horariosMap[user.id] = horarioData.Horario;
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Erro ao buscar horário do user ${user.id}:`, err);
+                }
+            }
+
+            console.log('✅ Horários carregados:', Object.keys(horariosMap).length);
+            return horariosMap;
+        } catch (err) {
+            console.error('❌ Erro ao carregar horários:', err);
+            return {};
+        }
+    };
+
+    // Função para calcular bolsa de horas GLOBAL (todos os registos desde o início)
+    const calcularBolsaHoras = async () => {
+        setLoadingBolsa(true);
+        try {
+            const empresaId = secureStorage.getItem('empresa_id');
+
+            // Carregar horários dos utilizadores
+            const horarios = await carregarHorariosUtilizadores();
+            setHorariosUtilizadores(horarios);
+
+            // Buscar todos os utilizadores
+            const usersResponse = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!usersResponse.ok) {
+                throw new Error('Erro ao carregar utilizadores');
+            }
+
+            const users = await usersResponse.json();
+            const bolsaCalculada = [];
+
+            // Para cada utilizador, calcular bolsa global
+            for (const user of users) {
+                console.log(`📊 [BOLSA] Processando ${user.nome || user.username} (ID: ${user.id})`);
+
+                const horarioUser = horarios[user.id];
+
+                if (!horarioUser) {
+                    console.warn(`⚠️ [BOLSA] ${user.nome || user.username} SEM horário definido - A IGNORAR`);
+                    // Só processar utilizadores com horário definido
+                    continue;
+                }
+
+                const horasPorDia = horarioUser ? parseFloat(horarioUser.horasPorDia) || 8 : 8;
+                const dataInicioHorario = horarioUser?.dataInicio ? new Date(horarioUser.dataInicio) : new Date('2020-01-01');
+                const dataAtual = new Date();
+
+                console.log(`✅ [BOLSA] ${user.nome || user.username} - Horário: ${horarioUser ? horarioUser.descricao : 'Padrão 8h'} (${horasPorDia}h/dia)`);
+
+                // Buscar TODOS os registos do utilizador desde o início do horário
+                // Dividir em períodos mensais (a API usa ano=YYYY&mes=MM)
+                const todosRegistos = [];
+                const anoInicio = dataInicioHorario.getFullYear();
+                const mesInicio = dataInicioHorario.getMonth() + 1; // 1-12
+                const anoFim = dataAtual.getFullYear();
+                const mesFim = dataAtual.getMonth() + 1; // 1-12
+
+                console.log(`📅 [BOLSA] ${user.nome || user.username} - Buscando de ${anoInicio}/${mesInicio} até ${anoFim}/${mesFim}`);
+
+                // Iterar por cada mês desde o início até agora
+                for (let ano = anoInicio; ano <= anoFim; ano++) {
+                    const primMes = (ano === anoInicio) ? mesInicio : 1;
+                    const ultMes = (ano === anoFim) ? mesFim : 12;
+
+                    for (let mes = primMes; mes <= ultMes; mes++) {
+                        const mesStr = String(mes).padStart(2, '0');
+                        console.log(`📆 [BOLSA] ${user.nome || user.username} - Buscando ${ano}/${mesStr}`);
+
+                        const registosResponse = await fetch(
+                            `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?user_id=${user.id}&ano=${ano}&mes=${mesStr}`,
+                            {
+                                headers: { Authorization: `Bearer ${token}` }
+                            }
+                        );
+
+                        if (registosResponse.ok) {
+                            const registosMes = await registosResponse.json();
+                            todosRegistos.push(...registosMes);
+                            if (registosMes.length > 0) {
+                                console.log(`✅ [BOLSA] ${user.nome || user.username} - ${ano}/${mesStr}: ${registosMes.length} registos`);
+                            }
+                        } else {
+                            console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - ${ano}/${mesStr}: Status ${registosResponse.status}`);
+                        }
+                    }
+                }
+
+                console.log(`📝 [BOLSA] ${user.nome || user.username} tem ${todosRegistos.length} registos totais`);
+
+                if (todosRegistos.length === 0) {
+                    console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - Sem registos encontrados`);
+                    bolsaCalculada.push({
+                        utilizador: user,
+                        horario: horarioUser,
+                        horasPorDia,
+                        totalHorasTrabalhadas: 0,
+                        totalHorasEsperadas: 0,
+                        saldoBolsa: 0,
+                        diasTrabalhados: 0,
+                        dataInicio: dataInicioHorario,
+                        detalhes: []
+                    });
+                    continue;
+                }
+
+                if (todosRegistos.length > 0) {
+                    console.log(`🔍 [BOLSA] Primeiro registo de ${user.nome || user.username}:`, todosRegistos[0]);
+                }
+
+                // Agrupar registos por data
+                const registosPorData = {};
+                todosRegistos.forEach(reg => {
+                    const dataReg = new Date(reg.timestamp);
+
+                    // Filtrar apenas registos após o início do horário
+                    if (dataReg >= dataInicioHorario && dataReg <= dataAtual) {
+                        const dataKey = `${dataReg.getFullYear()}-${String(dataReg.getMonth() + 1).padStart(2, '0')}-${String(dataReg.getDate()).padStart(2, '0')}`;
+
+                        if (!registosPorData[dataKey]) {
+                            registosPorData[dataKey] = [];
+                        }
+                        registosPorData[dataKey].push(reg);
+                    }
+                });
+
+                console.log(`📅 [BOLSA] ${user.nome || user.username} tem ${Object.keys(registosPorData).length} dias com registos válidos`);
+
+                let totalHorasTrabalhadas = 0;
+                let totalHorasEsperadas = 0;
+                let diasTrabalhadosDetalhes = [];
+                let totalDiasTrabalhados = 0;
+
+                // Calcular horas para cada dia
+                Object.keys(registosPorData).forEach(dataKey => {
+                    const registosDoDia = registosPorData[dataKey];
+
+                    // Calcular horas trabalhadas neste dia
+                    const eventosOrdenados = registosDoDia
+                        .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
+                        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                    let horasDia = 0;
+                    let ultimaEntrada = null;
+
+                    eventosOrdenados.forEach(reg => {
+                        if (reg.tipo === 'entrada') {
+                            ultimaEntrada = new Date(reg.timestamp);
+                        } else if (reg.tipo === 'saida' && ultimaEntrada) {
+                            const saida = new Date(reg.timestamp);
+                            const horas = (saida - ultimaEntrada) / (1000 * 60 * 60);
+                            horasDia += horas;
+                            ultimaEntrada = null;
+                        }
+                    });
+
+                    if (horasDia > 0) {
+                        totalDiasTrabalhados++;
+                        totalHorasTrabalhadas += horasDia;
+                        totalHorasEsperadas += horasPorDia;
+
+                        const diferencaDia = horasDia - horasPorDia;
+
+                        // Guardar detalhes dos últimos 30 dias com diferença
+                        if (Math.abs(diferencaDia) > 0.1) {
+                            diasTrabalhadosDetalhes.push({
+                                data: dataKey,
+                                horasTrabalhadas: horasDia,
+                                horasEsperadas: horasPorDia,
+                                diferenca: diferencaDia
+                            });
+                        }
+                    }
+                });
+
+                const saldoBolsa = totalHorasTrabalhadas - totalHorasEsperadas;
+
+                console.log(`💰 [BOLSA] ${user.nome || user.username} - Saldo Final: ${saldoBolsa.toFixed(2)}h (${totalHorasTrabalhadas.toFixed(2)}h trabalhadas / ${totalHorasEsperadas.toFixed(2)}h esperadas em ${totalDiasTrabalhados} dias)`);
+
+                // Adicionar todos os utilizadores, mesmo com saldo zero
+                bolsaCalculada.push({
+                    utilizador: user,
+                    horario: horarioUser || { descricao: 'Horário Padrão', horasPorDia: 8 },
+                    horasPorDia,
+                    totalHorasTrabalhadas,
+                    totalHorasEsperadas,
+                    saldoBolsa,
+                    diasTrabalhados: totalDiasTrabalhados,
+                    dataInicio: dataInicioHorario,
+                    detalhes: diasTrabalhadosDetalhes.sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 30)
+                });
+            }
+
+            // Ordenar por saldo (do maior para o menor)
+            bolsaCalculada.sort((a, b) => b.saldoBolsa - a.saldoBolsa);
+
+            console.log(`✅ [BOLSA] CONCLUÍDO! Total de ${bolsaCalculada.length} colaboradores processados`);
+            console.log(`📊 [BOLSA] Resumo:`, {
+                comSaldoPositivo: bolsaCalculada.filter(b => b.saldoBolsa > 0).length,
+                comSaldoNegativo: bolsaCalculada.filter(b => b.saldoBolsa < 0).length,
+                comSaldoZero: bolsaCalculada.filter(b => b.saldoBolsa === 0).length
+            });
+
+            setBolsaHoras(bolsaCalculada);
+
+        } catch (err) {
+            console.error('❌ [BOLSA] Erro ao calcular bolsa de horas:', err);
+            alert('Erro ao calcular bolsa de horas: ' + err.message);
+        } finally {
+            setLoadingBolsa(false);
+        }
+    };
+
     useEffect(() => {
         if (utilizadorSelecionado) {
             carregarDetalhesUtilizador(utilizadores.find(u => u.id.toString() === utilizadorSelecionado.toString()));
@@ -3448,6 +3716,15 @@ const RegistosPorUtilizador = () => {
                 >
                     📅 Grade Mensal
                 </button>
+                <button
+                    style={{ ...styles.navTab, ...(viewMode === 'bolsa' ? styles.navTabActive : {}) }}
+                    onClick={() => {
+                        setViewMode('bolsa');
+                        calcularBolsaHoras();
+                    }}
+                >
+                    💰 Bolsa de Horas
+                </button>
                 {utilizadorDetalhado && (
                     <button
                         style={{ ...styles.navTab, ...(viewMode === 'detalhes' ? styles.navTabActive : {}) }}
@@ -5861,6 +6138,159 @@ const RegistosPorUtilizador = () => {
                 />
             )}
 
+            {/* Bolsa de Horas */}
+            {viewMode === 'bolsa' && (
+                <div style={styles.bolsaSection}>
+                    <h3 style={styles.sectionTitle}>
+                        <span style={styles.sectionIcon}>💰</span>
+                        Bolsa de Horas Acumulada (Global)
+                    </h3>
+                    <p style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '20px', marginTop: '-10px' }}>
+                        Saldo calculado desde o início do horário de cada colaborador até hoje
+                    </p>
+
+                    {loadingBolsa && (
+                        <div style={styles.loadingCard}>
+                            <div style={styles.spinner}></div>
+                            <p>A calcular bolsa de horas...</p>
+                        </div>
+                    )}
+
+                    {!loadingBolsa && bolsaHoras.length === 0 && (
+                        <div style={styles.emptyState}>
+                            <span style={styles.emptyIcon}>💼</span>
+                            <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '10px' }}>
+                                Nenhum dado de bolsa de horas disponível para o período selecionado.
+                            </p>
+                            <p style={{ fontSize: '0.85rem', color: '#999', marginTop: '5px' }}>
+                                Certifique-se de que os horários estão definidos para os colaboradores.
+                            </p>
+                        </div>
+                    )}
+
+                    {!loadingBolsa && bolsaHoras.length > 0 && (
+                        <>
+                            {/* Resumo Geral */}
+                            <div style={styles.bolsaResumo}>
+                                <div style={styles.bolsaResumoCard}>
+                                    <div style={styles.bolsaResumoIcon}>👥</div>
+                                    <div>
+                                        <div style={styles.bolsaResumoValor}>{bolsaHoras.length}</div>
+                                        <div style={styles.bolsaResumoLabel}>Colaboradores</div>
+                                    </div>
+                                </div>
+                                <div style={styles.bolsaResumoCard}>
+                                    <div style={{...styles.bolsaResumoIcon, backgroundColor: '#e8f5e9', color: '#4caf50'}}>+</div>
+                                    <div>
+                                        <div style={{...styles.bolsaResumoValor, color: '#4caf50'}}>
+                                            {bolsaHoras.filter(b => b.saldoBolsa > 0).length}
+                                        </div>
+                                        <div style={styles.bolsaResumoLabel}>Com Saldo Positivo</div>
+                                    </div>
+                                </div>
+                                <div style={styles.bolsaResumoCard}>
+                                    <div style={{...styles.bolsaResumoIcon, backgroundColor: '#ffebee', color: '#f44336'}}>-</div>
+                                    <div>
+                                        <div style={{...styles.bolsaResumoValor, color: '#f44336'}}>
+                                            {bolsaHoras.filter(b => b.saldoBolsa < 0).length}
+                                        </div>
+                                        <div style={styles.bolsaResumoLabel}>Com Saldo Negativo</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Lista de Colaboradores */}
+                            <div style={styles.bolsaLista}>
+                                {bolsaHoras.map((bolsa, index) => (
+                                    <div
+                                        key={bolsa.utilizador.id}
+                                        style={{
+                                            ...styles.bolsaCard,
+                                            borderLeft: `5px solid ${bolsa.saldoBolsa >= 0 ? '#4caf50' : '#f44336'}`
+                                        }}
+                                    >
+                                        {/* Cabeçalho do Card */}
+                                        <div style={styles.bolsaCardHeader}>
+                                            <div>
+                                                <h4 style={styles.bolsaNome}>👤 {bolsa.utilizador.nome}</h4>
+                                                <p style={styles.bolsaEmail}>{bolsa.utilizador.email}</p>
+                                                <p style={styles.bolsaHorario}>
+                                                    Horário: {bolsa.horario.descricao} ({bolsa.horasPorDia}h/dia)
+                                                </p>
+                                                <p style={styles.bolsaHorario}>
+                                                    📅 Desde: {new Date(bolsa.dataInicio).toLocaleDateString('pt-PT')}
+                                                </p>
+                                            </div>
+                                            <div style={styles.bolsaSaldo}>
+                                                <div style={{
+                                                    ...styles.bolsaSaldoValor,
+                                                    color: bolsa.saldoBolsa >= 0 ? '#4caf50' : '#f44336'
+                                                }}>
+                                                    {bolsa.saldoBolsa >= 0 ? '+' : ''}{bolsa.saldoBolsa.toFixed(2)}h
+                                                </div>
+                                                <div style={styles.bolsaSaldoLabel}>Saldo</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Estatísticas */}
+                                        <div style={styles.bolsaStats}>
+                                            <div style={styles.bolsaStatItem}>
+                                                <span style={styles.bolsaStatLabel}>Horas Trabalhadas:</span>
+                                                <span style={styles.bolsaStatValue}>{bolsa.totalHorasTrabalhadas.toFixed(2)}h</span>
+                                            </div>
+                                            <div style={styles.bolsaStatItem}>
+                                                <span style={styles.bolsaStatLabel}>Horas Esperadas:</span>
+                                                <span style={styles.bolsaStatValue}>{bolsa.totalHorasEsperadas.toFixed(2)}h</span>
+                                            </div>
+                                            <div style={styles.bolsaStatItem}>
+                                                <span style={styles.bolsaStatLabel}>Dias Trabalhados:</span>
+                                                <span style={styles.bolsaStatValue}>{bolsa.diasTrabalhados}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Detalhes (opcional, pode expandir) */}
+                                        {bolsa.detalhes.length > 0 && (
+                                            <details style={styles.bolsaDetalhes}>
+                                                <summary style={styles.bolsaDetalhesSummary}>
+                                                    Ver últimos 30 dias com diferença ({bolsa.detalhes.length} dias no total)
+                                                </summary>
+                                                <div style={styles.bolsaDetalhesConteudo}>
+                                                    {bolsa.detalhes.slice(0, 30).map((dia, idx) => (
+                                                        <div key={idx} style={styles.bolsaDiaItem}>
+                                                            <span style={styles.bolsaDiaData}>
+                                                                {new Date(dia.data).toLocaleDateString('pt-PT', {
+                                                                    day: '2-digit',
+                                                                    month: '2-digit',
+                                                                    year: 'numeric'
+                                                                })}
+                                                            </span>
+                                                            <span style={styles.bolsaDiaHoras}>
+                                                                {dia.horasTrabalhadas.toFixed(2)}h / {dia.horasEsperadas.toFixed(2)}h
+                                                            </span>
+                                                            <span style={{
+                                                                ...styles.bolsaDiaDiff,
+                                                                color: dia.diferenca >= 0 ? '#4caf50' : '#f44336'
+                                                            }}>
+                                                                {dia.diferenca >= 0 ? '+' : ''}{dia.diferenca.toFixed(2)}h
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {bolsa.detalhes.length > 30 && (
+                                                        <p style={styles.bolsaDetalhesMore}>
+                                                            ... e mais {bolsa.detalhes.length - 30} dias
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </details>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+
             {/* Empty States */}
 
 
@@ -6536,6 +6966,178 @@ const styles = {
     unconfirmed: {
         backgroundColor: '#fed7d7',
         color: '#742a2a'
+    },
+    // Bolsa de Horas Styles
+    bolsaSection: {
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        padding: '30px',
+        boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+        border: '1px solid #e2e8f0'
+    },
+    bolsaResumo: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '20px',
+        marginBottom: '30px'
+    },
+    bolsaResumoCard: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: '12px',
+        padding: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        border: '1px solid #e2e8f0'
+    },
+    bolsaResumoIcon: {
+        width: '50px',
+        height: '50px',
+        borderRadius: '12px',
+        backgroundColor: '#e3f2fd',
+        color: '#1976d2',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px',
+        fontWeight: '700'
+    },
+    bolsaResumoValor: {
+        fontSize: '28px',
+        fontWeight: '700',
+        color: '#2d3748',
+        marginBottom: '4px'
+    },
+    bolsaResumoLabel: {
+        fontSize: '13px',
+        color: '#718096',
+        fontWeight: '500'
+    },
+    bolsaLista: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px'
+    },
+    bolsaCard: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: '12px',
+        padding: '20px',
+        border: '1px solid #e2e8f0',
+        transition: 'box-shadow 0.2s ease'
+    },
+    bolsaCardHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '15px',
+        flexWrap: 'wrap',
+        gap: '15px'
+    },
+    bolsaNome: {
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#2d3748',
+        margin: '0 0 5px 0'
+    },
+    bolsaEmail: {
+        fontSize: '14px',
+        color: '#718096',
+        margin: '0 0 5px 0'
+    },
+    bolsaHorario: {
+        fontSize: '13px',
+        color: '#a0aec0',
+        margin: 0,
+        fontStyle: 'italic'
+    },
+    bolsaSaldo: {
+        textAlign: 'right'
+    },
+    bolsaSaldoValor: {
+        fontSize: '32px',
+        fontWeight: '700',
+        marginBottom: '4px'
+    },
+    bolsaSaldoLabel: {
+        fontSize: '12px',
+        color: '#718096',
+        fontWeight: '500',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    bolsaStats: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: '15px',
+        paddingTop: '15px',
+        borderTop: '1px solid #e2e8f0'
+    },
+    bolsaStatItem: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px'
+    },
+    bolsaStatLabel: {
+        fontSize: '12px',
+        color: '#718096',
+        fontWeight: '500'
+    },
+    bolsaStatValue: {
+        fontSize: '16px',
+        fontWeight: '600',
+        color: '#2d3748'
+    },
+    bolsaDetalhes: {
+        marginTop: '15px',
+        paddingTop: '15px',
+        borderTop: '1px solid #e2e8f0'
+    },
+    bolsaDetalhesSummary: {
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500',
+        color: '#1976d2',
+        padding: '8px 0',
+        userSelect: 'none'
+    },
+    bolsaDetalhesConteudo: {
+        marginTop: '10px',
+        padding: '10px',
+        backgroundColor: '#ffffff',
+        borderRadius: '8px'
+    },
+    bolsaDiaItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '8px 12px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '6px',
+        marginBottom: '6px',
+        fontSize: '13px'
+    },
+    bolsaDiaData: {
+        fontWeight: '500',
+        color: '#2d3748',
+        flex: '0 0 95px',
+        fontSize: '12px'
+    },
+    bolsaDiaHoras: {
+        color: '#718096',
+        flex: '1',
+        textAlign: 'center'
+    },
+    bolsaDiaDiff: {
+        fontWeight: '600',
+        flex: '0 0 70px',
+        textAlign: 'right'
+    },
+    bolsaDetalhesMore: {
+        fontSize: '12px',
+        color: '#a0aec0',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        margin: '10px 0 0 0'
     },
     emptyState: {
         backgroundColor: '#ffffff',
