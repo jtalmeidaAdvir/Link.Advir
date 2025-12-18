@@ -1895,23 +1895,29 @@ const RegistosPorUtilizador = () => {
                 return tiposHorasExtras[tipo] || tipo;
             }))].join(', ');
 
+            // Formatar o total de horas extras
+            const horasExtrasFormatadas = formatarHorasParaExibicao(totalHE);
+            const textoExtras = totalHE === 1 ? '1h extra' : `${horasExtrasFormatadas} extras`;
+
             // Se NÃO tem registos, mostrar apenas HE
             if (!estatisticas.totalRegistos || estatisticas.totalRegistos === 0) {
                 return {
-                    texto: `+${formatarHorasParaExibicao(totalHE)}`,
+                    texto: textoExtras,
                     cor: '#e3f2fd',
                     textoCor: '#1976d2',
-                    title: `Horas Extras: ${formatarHorasParaExibicao(totalHE)} (${tiposHE})`
+                    title: `Horas Extras: ${horasExtrasFormatadas} (${tiposHE})`
                 };
             }
 
-            // Se tem registos, mostrar horas normais + HE
+            // Se tem registos, mostrar horas normais + extras (sem o +)
             const horasNormais = parseFloat(estatisticas.horasEstimadas) || 0;
+            const horasNormaisFormatadas = formatarHorasParaExibicao(horasNormais);
+
             return {
-                texto: `${formatarHorasParaExibicao(horasNormais)} + ${formatarHorasParaExibicao(totalHE)}`,
+                texto: `${horasNormaisFormatadas} ${textoExtras}`,
                 cor: '#e8f5e9',
                 textoCor: '#2e7d32',
-                title: `Horas Trabalhadas: ${formatarHorasParaExibicao(horasNormais)} | Horas Extras: ${formatarHorasParaExibicao(totalHE)} (${tiposHE})`
+                title: `Horas Trabalhadas: ${horasNormaisFormatadas}\nHoras Extras: ${horasExtrasFormatadas} (${tiposHE})`
             };
         }
 
