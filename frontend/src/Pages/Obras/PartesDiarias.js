@@ -341,34 +341,55 @@ const adicionarLinhaPessoalEquip = async () => {
     }
 
     // ✅ VALIDAÇÕES DE HORAS APENAS PARA MÃO DE OBRA (não para Equipamentos)
-    if (categoria !== "Equipamentos" && !linhaPessoalEquipAtual.horaExtra) {
-      const horasNaObraDia = linhasPessoalEquip
-        .filter(l => l.dia === dia &&
-                     l.colaboradorId === colId && // Verifica para o colaborador atual
-                     String(l.obraId) === String(obraId) &&
-                     l.categoria !== "Equipamentos" && // Ignorar equipamentos no cálculo
-                     !l.horaExtra)
-        .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+    if (categoria !== "Equipamentos") {
+      // Validação de horas extras - máximo 2h por dia
+      if (linhaPessoalEquipAtual.horaExtra) {
+        const horasExtrasJaRegistadas = linhasPessoalEquip
+          .filter(l => l.dia === dia &&
+                       l.colaboradorId === colId &&
+                       l.categoria !== "Equipamentos" &&
+                       l.horaExtra)
+          .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
 
-      if (horasNaObraDia + minutos > 8 * 60) {
-        Alert.alert(
-          "Limite de Horas Excedido",
-          `Não é possível registar mais de 8 horas normais por dia nesta obra para ${col.nome}.\n\nJá registadas nesta obra: ${formatarHorasMinutos(horasNaObraDia)}\n\nPara mais horas, marque como "Hora Extra".`
-        );
-        return; // Interrompe o loop se exceder o limite
+        if (horasExtrasJaRegistadas + minutos > 2 * 60) {
+          Alert.alert(
+            "Limite de Horas Extras Excedido",
+            `Não é possível registar mais de 2 horas extras por dia para ${col.nome}.\n\nHoras extras já registadas no dia ${dia}: ${formatarHorasMinutos(horasExtrasJaRegistadas)}\n\nMáximo permitido: 2h`
+          );
+          return;
+        }
       }
 
-      // Validar 10h totais por dia (todas as obras)
-      const totalHorasDia = linhasPessoalEquip
-        .filter(l => l.dia === dia && l.colaboradorId === colId && l.categoria !== "Equipamentos") // Ignorar equipamentos
-        .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+      // Validações para horas normais
+      if (!linhaPessoalEquipAtual.horaExtra) {
+        const horasNaObraDia = linhasPessoalEquip
+          .filter(l => l.dia === dia &&
+                       l.colaboradorId === colId && // Verifica para o colaborador atual
+                       String(l.obraId) === String(obraId) &&
+                       l.categoria !== "Equipamentos" && // Ignorar equipamentos no cálculo
+                       !l.horaExtra)
+          .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
 
-      if (totalHorasDia + minutos > 10 * 60) {
-        Alert.alert(
-          "Limite de Horas Diário Excedido",
-          `Não é possível registar mais de 10 horas totais por dia para ${col.nome}.\n\nHoras totais já registadas no dia ${dia} (todas as obras): ${formatarHorasMinutos(totalHorasDia)}\n\nPara mais horas, marque como "Hora Extra".`
-        );
-        return; // Interrompe o loop se exceder o limite
+        if (horasNaObraDia + minutos > 8 * 60) {
+          Alert.alert(
+            "Limite de Horas Excedido",
+            `Não é possível registar mais de 8 horas normais por dia nesta obra para ${col.nome}.\n\nJá registadas nesta obra: ${formatarHorasMinutos(horasNaObraDia)}\n\nPara mais horas, marque como "Hora Extra".`
+          );
+          return; // Interrompe o loop se exceder o limite
+        }
+
+        // Validar 10h totais por dia (todas as obras)
+        const totalHorasDia = linhasPessoalEquip
+          .filter(l => l.dia === dia && l.colaboradorId === colId && l.categoria !== "Equipamentos") // Ignorar equipamentos
+          .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+
+        if (totalHorasDia + minutos > 10 * 60) {
+          Alert.alert(
+            "Limite de Horas Diário Excedido",
+            `Não é possível registar mais de 10 horas totais por dia para ${col.nome}.\n\nHoras totais já registadas no dia ${dia} (todas as obras): ${formatarHorasMinutos(totalHorasDia)}\n\nPara mais horas, marque como "Hora Extra".`
+          );
+          return; // Interrompe o loop se exceder o limite
+        }
       }
     }
 
@@ -947,6 +968,24 @@ const submeterPessoalEquip = async () => {
         if (minutos <= 0) {
             Alert.alert("Validação", "Horas inválidas.");
             return;
+        }
+
+        // Validação de horas extras - máximo 2h por dia
+        if (linhaAtual.horaExtra) {
+            const horasExtrasJaRegistadas = linhasExternos
+                .filter((l) => String(l.trabalhadorId) === String(trabalhadorId) &&
+                              l.dia === dia &&
+                              l.horaExtra)
+                .reduce((total, l) => total + parseHorasToMinutos(l.horas), 0);
+
+            if (horasExtrasJaRegistadas + minutos > 2 * 60) {
+                Alert.alert(
+                    "Limite de Horas Extras Excedido",
+                    `Não é possível registar mais de 2 horas extras por dia para ${trab.funcionario}.\n\nHoras extras já registadas no dia ${dia}: ${formatarHorasMinutos(horasExtrasJaRegistadas)}\n\nMáximo permitido: 2h`,
+                    [{ text: "OK" }],
+                );
+                return;
+            }
         }
 
         // Validação de horas:
@@ -6284,6 +6323,39 @@ for (const l of linhasParaSubmeter) {
                                                     }
 
                                                     const horasDecimais = minutos / 60;
+
+                                                    // Validação em tempo real para horas extras - máximo 2h
+                                                    if (espItem.horaExtra) {
+                                                        // Calcular total de horas extras incluindo esta alteração
+                                                        const outrasHorasExtras =
+                                                            (
+                                                                editData.especialidadesDia || []
+                                                            )
+                                                                .filter(
+                                                                    (esp, idx) => idx !== index && esp.horaExtra,
+                                                                )
+                                                                .reduce(
+                                                                    (total, esp) =>
+                                                                        total + (parseFloat(esp.horas) || 0),
+                                                                    0,
+                                                                );
+
+                                                        const totalHorasExtras =
+                                                            outrasHorasExtras + horasDecimais;
+
+                                                        if (totalHorasExtras > 2) {
+                                                            const horasDisponiveisExtras = Math.max(
+                                                                0,
+                                                                2 - outrasHorasExtras,
+                                                            );
+                                                            Alert.alert(
+                                                                "Limite de Horas Extras Excedido",
+                                                                `Máximo de 2 horas extras por dia.\n\nHoras extras disponíveis: ${horasDisponiveisExtras.toFixed(2)}h`,
+                                                                [{ text: "OK" }],
+                                                            );
+                                                            return;
+                                                        }
+                                                    }
 
                                                     // Validação em tempo real para horas normais
                                                     if (!espItem.horaExtra) {
