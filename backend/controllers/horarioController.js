@@ -4,6 +4,24 @@ const PlanoHorario = require('../models/planoHorario');
 const User = require('../models/user');
 const Empresa = require('../models/empresa');
 
+// Função auxiliar para converter hora ISO para HH:MM
+const formatarHora = (hora) => {
+    if (!hora) return null;
+    // Se já está no formato HH:MM, retornar como está
+    if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(hora)) {
+        return hora;
+    }
+    // Se está no formato ISO, extrair apenas HH:MM
+    try {
+        const date = new Date(hora);
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    } catch (e) {
+        return null;
+    }
+};
+
 // Listar todos os horários de uma empresa
 const listarHorarios = async (req, res) => {
     const { empresaId } = req.params;
@@ -24,7 +42,7 @@ const listarHorarios = async (req, res) => {
 // Criar novo horário
 const criarHorario = async (req, res) => {
     const { empresaId } = req.params;
-    const { descricao, horasPorDia, horasSemanais, diasSemana, horaEntrada, horaSaida, intervaloAlmoco, observacoes } = req.body;
+    const { descricao, horasPorDia, horasSemanais, diasSemana, horaEntrada, horaSaida, intervaloAlmoco, tempoArredondamento, observacoes } = req.body;
 
     try {
         const novoHorario = await Horario.create({
@@ -33,9 +51,10 @@ const criarHorario = async (req, res) => {
             horasPorDia,
             horasSemanais,
             diasSemana,
-            horaEntrada,
-            horaSaida,
+            horaEntrada: formatarHora(horaEntrada),
+            horaSaida: formatarHora(horaSaida),
             intervaloAlmoco,
+            tempoArredondamento: formatarHora(tempoArredondamento),
             observacoes
         });
 
@@ -49,13 +68,24 @@ const criarHorario = async (req, res) => {
 // Atualizar horário
 const atualizarHorario = async (req, res) => {
     const { horarioId } = req.params;
-    const dadosAtualizacao = req.body;
+    const dadosAtualizacao = { ...req.body };
 
     try {
         const horario = await Horario.findByPk(horarioId);
-        
+
         if (!horario) {
             return res.status(404).json({ message: 'Horário não encontrado.' });
+        }
+
+        // Formatar campos de hora se estiverem presentes
+        if (dadosAtualizacao.horaEntrada) {
+            dadosAtualizacao.horaEntrada = formatarHora(dadosAtualizacao.horaEntrada);
+        }
+        if (dadosAtualizacao.horaSaida) {
+            dadosAtualizacao.horaSaida = formatarHora(dadosAtualizacao.horaSaida);
+        }
+        if (dadosAtualizacao.tempoArredondamento) {
+            dadosAtualizacao.tempoArredondamento = formatarHora(dadosAtualizacao.tempoArredondamento);
         }
 
         await horario.update(dadosAtualizacao);
