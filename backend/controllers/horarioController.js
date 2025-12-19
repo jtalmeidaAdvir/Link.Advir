@@ -42,7 +42,7 @@ const listarHorarios = async (req, res) => {
 // Criar novo horário
 const criarHorario = async (req, res) => {
     const { empresaId } = req.params;
-    const { descricao, horasPorDia, horasSemanais, diasSemana, horaEntrada, horaSaida, intervaloAlmoco, tempoArredondamento, observacoes } = req.body;
+    const { descricao, horasPorDia, horasSemanais, diasSemana, horaEntrada, horaSaida, intervaloAlmoco, horaInicioAlmoco, horaFimAlmoco, tempoArredondamento, observacoes } = req.body;
 
     try {
         const novoHorario = await Horario.create({
@@ -54,6 +54,8 @@ const criarHorario = async (req, res) => {
             horaEntrada: formatarHora(horaEntrada),
             horaSaida: formatarHora(horaSaida),
             intervaloAlmoco,
+            horaInicioAlmoco: formatarHora(horaInicioAlmoco),
+            horaFimAlmoco: formatarHora(horaFimAlmoco),
             tempoArredondamento: formatarHora(tempoArredondamento),
             observacoes
         });
@@ -83,6 +85,12 @@ const atualizarHorario = async (req, res) => {
         }
         if (dadosAtualizacao.horaSaida) {
             dadosAtualizacao.horaSaida = formatarHora(dadosAtualizacao.horaSaida);
+        }
+        if (dadosAtualizacao.horaInicioAlmoco) {
+            dadosAtualizacao.horaInicioAlmoco = formatarHora(dadosAtualizacao.horaInicioAlmoco);
+        }
+        if (dadosAtualizacao.horaFimAlmoco) {
+            dadosAtualizacao.horaFimAlmoco = formatarHora(dadosAtualizacao.horaFimAlmoco);
         }
         if (dadosAtualizacao.tempoArredondamento) {
             dadosAtualizacao.tempoArredondamento = formatarHora(dadosAtualizacao.tempoArredondamento);

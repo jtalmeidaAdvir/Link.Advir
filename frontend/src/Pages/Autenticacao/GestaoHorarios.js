@@ -28,6 +28,8 @@ const GestaoHorarios = () => {
         horaEntrada: '09:00',
         horaSaida: '18:00',
         intervaloAlmoco: 1.00,
+        horaInicioAlmoco: '12:00',
+        horaFimAlmoco: '13:00',
         tempoArredondamento: '08:45',
         observacoes: ''
     });
@@ -331,6 +333,8 @@ const GestaoHorarios = () => {
             horaEntrada: '09:00',
             horaSaida: '18:00',
             intervaloAlmoco: 1.00,
+            horaInicioAlmoco: '12:00',
+            horaFimAlmoco: '13:00',
             tempoArredondamento: '08:45',
             observacoes: ''
         });
@@ -641,6 +645,14 @@ const GestaoHorarios = () => {
                                         <span style={styles.value}>{horario.intervaloAlmoco}h</span>
                                     </div>
                                     <div style={styles.infoRow}>
+                                        <span style={styles.label}>Almoço:</span>
+                                        <span style={styles.value}>
+                                            {formatHora(horario.horaInicioAlmoco) && formatHora(horario.horaFimAlmoco)
+                                                ? `${formatHora(horario.horaInicioAlmoco)} - ${formatHora(horario.horaFimAlmoco)}`
+                                                : 'Não definido'}
+                                        </span>
+                                    </div>
+                                    <div style={styles.infoRow}>
                                         <span style={styles.label}>Arredondamento:</span>
                                         <span style={styles.value}>
                                             {formatHora(horario.tempoArredondamento) || 'Não definido'}
@@ -797,16 +809,38 @@ const GestaoHorarios = () => {
                                 </div>
                             </div>
 
+                            <div style={styles.formRow}>
+                                <div style={styles.formGroup}>
+                                    <label style={styles.formLabel}>Início do Almoço</label>
+                                    <input
+                                        type="time"
+                                        style={styles.formInput}
+                                        value={novoHorario.horaInicioAlmoco || ''}
+                                        onChange={e => setNovoHorario({ ...novoHorario, horaInicioAlmoco: e.target.value })}
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.formLabel}>Fim do Almoço</label>
+                                    <input
+                                        type="time"
+                                        style={styles.formInput}
+                                        value={novoHorario.horaFimAlmoco || ''}
+                                        onChange={e => setNovoHorario({ ...novoHorario, horaFimAlmoco: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
                             <div style={styles.formGroup}>
                                 <label style={styles.formLabel}>Tempo de Arredondamento (Bolsa de Horas)</label>
                                 <input
                                     type="time"
                                     style={styles.formInput}
-                                    value={novoHorario.tempoArredondamento || '08:45'}
+                                    value={novoHorario.tempoArredondamento || '-'}
                                     onChange={e => setNovoHorario({ ...novoHorario, tempoArredondamento: e.target.value })}
                                 />
                                 <small style={{ color: '#757575', fontSize: '12px', display: 'block', marginTop: '5px' }}>
-                                    Define a partir de que tempo é feito o arredondamento para a bolsa de horas (ex: 08:45 = a partir de 8h45min conta como dia completo)
+                                    Define a partir de que tempo é feita a contabilização para a bolsa de horas (ex: 08:45 = a partir de 8h45min conta como 1h)
                                 </small>
                             </div>
 
