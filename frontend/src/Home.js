@@ -430,6 +430,8 @@ const mapearPrioridade = (prioridadeId) => {
     // Função para buscar notícias
     const fetchNoticias = async () => {
         setNoticiasLoading(true);
+        setNoticiasError('');
+
         try {
             const token = secureStorage.getItem('loginToken');
 
@@ -457,13 +459,22 @@ const mapearPrioridade = (prioridadeId) => {
     };
 
     useEffect(() => {
+        let isMounted = true;
+        let timeoutId = null;
+
         const fetchPedidosInfo = async () => {
+            if (!isMounted) return;
+
             setPedidosLoading(true);
             setLoading(true);
+            setPedidosError('');
+
             try {
                 const token = await secureStorage.getItem('painelAdminTokenAdvir');
                 const urlempresa = await secureStorage.getItem('urlempresaAdvir');
                 const id = await secureStorage.getItem('empresa_areacliente');
+
+                if (!isMounted) return;
 
                 if (!id || !token || !urlempresa) {
                     throw new Error(t('error') + 'Token or URL missing.');
@@ -476,21 +487,44 @@ const mapearPrioridade = (prioridadeId) => {
                     }
                 );
 
+                if (!isMounted) return;
+
                 if (!response.ok) throw new Error(t('error') + response.statusText);
                 const data = await response.json();
-                setPedidosInfo(data);
+
+                if (isMounted) {
+                    setPedidosInfo(data);
+                }
             } catch (error) {
-                setPedidosError(error.message);
+                if (isMounted) {
+                    setPedidosError(error.message);
+                }
             } finally {
-                setPedidosLoading(false);
-                setLoading(false);
-                console.log("Finalizado fetch de dados iniciais e contrato.");
+                if (isMounted) {
+                    setPedidosLoading(false);
+                    setLoading(false);
+                    console.log("Finalizado fetch de dados iniciais e contrato.");
+                }
             }
         };
 
         if (activeMenu === t('Home.menu.orders')) {
-            fetchPedidosInfo();
+            // Debounce de 300ms para evitar múltiplas chamadas rápidas
+            timeoutId = setTimeout(() => {
+                fetchPedidosInfo();
+            }, 300);
+        } else {
+            // Limpar dados quando sair da aba
+            setPedidosLoading(false);
+            setLoading(false);
         }
+
+        return () => {
+            isMounted = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
     }, [activeMenu, t]);
 
     useEffect(() => {
@@ -567,9 +601,26 @@ const mapearPrioridade = (prioridadeId) => {
 
 
     useEffect(() => {
+        let isMounted = true;
+        let timeoutId = null;
+
         if (activeMenu === t('Notícias')) {
-            fetchNoticias();
+            timeoutId = setTimeout(() => {
+                if (isMounted) {
+                    fetchNoticias();
+                }
+            }, 300);
+        } else {
+            // Limpar estado de loading quando sair da aba
+            setNoticiasLoading(false);
         }
+
+        return () => {
+            isMounted = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
     }, [activeMenu]);
 
     // Função para buscar dados gerais (contactos e prioridades)
@@ -618,25 +669,35 @@ const mapearPrioridade = (prioridadeId) => {
 
     // UseEffect para carregar dados do contrato
     useEffect(() => {
+        let isMounted = true;
+        let timeoutId = null;
+
         const fetchData = async () => {
+            if (!isMounted) return;
+
             console.log("Iniciando fetch de dados iniciais e contrato.");
             setContratoLoading(true);
             setLoading(true);
+            setErrorMessage('');
 
             try {
                 const token = await secureStorage.getItem('painelAdminTokenAdvir');
                 const urlempresa = await secureStorage.getItem('urlempresaAdvir');
                 const clienteID = await secureStorage.getItem('empresa_areacliente');
 
-                console.log('Dados obtidos do storage:', { 
-                    token: token ? 'Presente' : 'Ausente', 
-                    urlempresa, 
-                    clienteID 
+                if (!isMounted) return;
+
+                console.log('Dados obtidos do storage:', {
+                    token: token ? 'Presente' : 'Ausente',
+                    urlempresa,
+                    clienteID
                 });
 
                 if (!clienteID || !token || !urlempresa) {
                     console.error('Token, URL ou ID de cliente estão ausentes.');
-                    setErrorMessage('Dados de autenticação não encontrados. Tente fazer login novamente.');
+                    if (isMounted) {
+                        setErrorMessage('Dados de autenticação não encontrados. Tente fazer login novamente.');
+                    }
                     return;
                 }
 
@@ -645,12 +706,16 @@ const mapearPrioridade = (prioridadeId) => {
                     headers: { Authorization: `Bearer ${token}`, urlempresa },
                 });
 
+                if (!isMounted) return;
+
                 if (!contratoResponse.ok) {
                     throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
                 }
 
                 const contratoData = await contratoResponse.json();
                 console.log('Contrato Data:', contratoData);
+
+                if (!isMounted) return;
 
                 // Filtrar contrato com estado === 3
                 const contratosFiltrados = contratoData?.DataSet?.Table?.filter(c => c.Estado === 3) || [];
@@ -663,30 +728,62 @@ const mapearPrioridade = (prioridadeId) => {
                 }
 
                 // Carregar também os dados do formulário se ainda não foram carregados
-                if (dataLists.contactos.length === 0 || dataLists.prioridades.length === 0) {
+                if (isMounted && (dataLists.contactos.length === 0 || dataLists.prioridades.length === 0)) {
                     await fetchFormData();
                 }
 
             } catch (error) {
                 console.error('Erro ao buscar dados:', error);
-                setErrorMessage(error.message);
+                if (isMounted) {
+                    setErrorMessage(error.message);
+                }
             } finally {
-                setContratoLoading(false);
-                setLoading(false);
-                console.log("Finalizado fetch de dados iniciais e contrato.");
+                if (isMounted) {
+                    setContratoLoading(false);
+                    setLoading(false);
+                    console.log("Finalizado fetch de dados iniciais e contrato.");
+                }
             }
         };
 
         if (activeMenu === t('Home.menu.contract')) {
-            fetchData();
+            // Debounce de 300ms para evitar múltiplas chamadas rápidas
+            timeoutId = setTimeout(() => {
+                fetchData();
+            }, 300);
+        } else {
+            // Limpar estados quando sair da aba
+            setContratoLoading(false);
+            setLoading(false);
         }
+
+        return () => {
+            isMounted = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
     }, [activeMenu, t]);
 
     // UseEffect para carregar dados do formulário quando necessário
     useEffect(() => {
+        let isMounted = true;
+        let timeoutId = null;
+
         if (activeMenu === t('Home.menu.orders') && (dataLists.contactos.length === 0 || dataLists.prioridades.length === 0)) {
-            fetchFormData();
+            timeoutId = setTimeout(() => {
+                if (isMounted) {
+                    fetchFormData();
+                }
+            }, 300);
         }
+
+        return () => {
+            isMounted = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
     }, [activeMenu, t]);
 
     const navigate = (route) => {
