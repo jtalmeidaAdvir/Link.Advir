@@ -28,6 +28,7 @@ const GestaoHorarios = () => {
         horaEntrada: '09:00',
         horaSaida: '18:00',
         intervaloAlmoco: 1.00,
+        tempoArredondamento: '08:45',
         observacoes: ''
     });
 
@@ -330,6 +331,7 @@ const GestaoHorarios = () => {
             horaEntrada: '09:00',
             horaSaida: '18:00',
             intervaloAlmoco: 1.00,
+            tempoArredondamento: '08:45',
             observacoes: ''
         });
     };
@@ -638,6 +640,12 @@ const GestaoHorarios = () => {
                                         <span style={styles.label}>Intervalo:</span>
                                         <span style={styles.value}>{horario.intervaloAlmoco}h</span>
                                     </div>
+                                    <div style={styles.infoRow}>
+                                        <span style={styles.label}>Arredondamento:</span>
+                                        <span style={styles.value}>
+                                            {formatHora(horario.tempoArredondamento) || 'Não definido'}
+                                        </span>
+                                    </div>
                                     <div style={styles.diasSemana}>
                                         {diasSemanaLabels.map((dia, idx) => (
                                             <span
@@ -787,6 +795,19 @@ const GestaoHorarios = () => {
                                         onChange={e => setNovoHorario({ ...novoHorario, intervaloAlmoco: parseFloat(e.target.value) || 0 })}
                                     />
                                 </div>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.formLabel}>Tempo de Arredondamento (Bolsa de Horas)</label>
+                                <input
+                                    type="time"
+                                    style={styles.formInput}
+                                    value={novoHorario.tempoArredondamento || '08:45'}
+                                    onChange={e => setNovoHorario({ ...novoHorario, tempoArredondamento: e.target.value })}
+                                />
+                                <small style={{ color: '#757575', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                                    Define a partir de que tempo é feito o arredondamento para a bolsa de horas (ex: 08:45 = a partir de 8h45min conta como dia completo)
+                                </small>
                             </div>
 
                             <div style={styles.formGroup}>

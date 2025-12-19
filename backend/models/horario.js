@@ -78,6 +78,15 @@ const Horario = sequelize.define('Horario', {
         defaultValue: 1.00,
         comment: 'Duração do intervalo de almoço em horas'
     },
+    tempoArredondamento: {
+        type: DataTypes.STRING(5),
+        allowNull: true,
+        defaultValue: '08:45',
+        comment: 'Tempo mínimo para arredondamento na bolsa de horas (ex: 08:45)',
+        validate: {
+            is: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
+        }
+    },
     ativo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
