@@ -141,12 +141,12 @@ const atribuirHorarioUser = async (req, res) => {
     // Aceitar tanto userId/horarioId quanto user_id/horario_id
     const userId = req.body.userId || req.body.user_id;
     const horarioId = req.body.horarioId || req.body.horario_id;
-    const { dataInicio, tipoPeriodo, diaEspecifico, mesEspecifico, anoEspecifico, prioridade, observacoes } = req.body;
+    const { dataInicio, observacoes } = req.body;
 
     try {
         // Validar dados recebidos
         if (!userId || !horarioId) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: 'userId/user_id e horarioId/horario_id são obrigatórios.',
                 recebido: { userId, horarioId, body: req.body }
             });
@@ -157,7 +157,7 @@ const atribuirHorarioUser = async (req, res) => {
         const horarioIdNum = parseInt(horarioId, 10);
 
         if (isNaN(userIdNum) || isNaN(horarioIdNum)) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: 'userId e horarioId devem ser números válidos.',
                 recebido: { userId, horarioId }
             });
@@ -166,7 +166,7 @@ const atribuirHorarioUser = async (req, res) => {
         // Verificar se o utilizador existe
         const user = await User.findByPk(userIdNum);
         if (!user) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 message: 'Utilizador não encontrado.',
                 userId: userIdNum
             });
@@ -175,61 +175,51 @@ const atribuirHorarioUser = async (req, res) => {
         // Verificar se o horário existe
         const horario = await Horario.findByPk(horarioIdNum);
         if (!horario) {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 message: 'Horário não encontrado.',
                 horarioId: horarioIdNum
             });
         }
 
         // Desativar planos anteriores do utilizador
-        const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        
+        const hoje = new Date();
+
         await PlanoHorario.update(
             { ativo: false, dataFim: hoje },
             { where: { user_id: userIdNum, ativo: true } }
         );
 
-        // Criar novo plano - usar apenas a data (YYYY-MM-DD)
+        // Criar novo plano
         let dataInicioFormatted = hoje;
-        
+
         if (dataInicio) {
             const dataInicioDate = new Date(dataInicio);
-            
+
             // Validar se a data é válida
             if (isNaN(dataInicioDate.getTime())) {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     message: 'Data de início inválida.',
                     dataInicio
                 });
             }
-            
-            dataInicioFormatted = dataInicioDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            dataInicioFormatted = dataInicioDate;
         }
 
         console.log('Criando plano com dados:', {
             user_id: userIdNum,
             horario_id: horarioIdNum,
             dataInicio: dataInicioFormatted,
-            tipoPeriodo: tipoPeriodo || 'permanente',
-            diaEspecifico,
-            mesEspecifico,
-            anoEspecifico,
-            prioridade: prioridade || 0,
             ativo: true,
-            observacoes
+            observacoes: observacoes || null
         });
 
         const novoPlano = await PlanoHorario.create({
             user_id: userIdNum,
             horario_id: horarioIdNum,
             dataInicio: dataInicioFormatted,
-            tipoPeriodo: tipoPeriodo || 'permanente',
-            diaEspecifico: diaEspecifico || null,
-            mesEspecifico: mesEspecifico || null,
-            anoEspecifico: anoEspecifico || null,
-            prioridade: prioridade || 0,
             ativo: true,
-            observacoes
+            observacoes: observacoes || null
         });
 
         const planoComHorario = await PlanoHorario.findByPk(novoPlano.id, {
