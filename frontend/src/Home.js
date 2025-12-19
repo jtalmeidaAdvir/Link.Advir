@@ -22,7 +22,6 @@ const Home = () => {
     const [activeMenu, setActiveMenu] = useState(t('Home.menu.products')); // Estado para o menu ativo
     const [contratoInfo, setContratoInfo] = useState([]);
     const [pedidosInfo, setPedidosInfo] = useState(null);
-    const [pedidosError, setPedidosError] = useState('');
     const [pedidosLoading, setPedidosLoading] = useState(false);
     const [expandedIndex, setExpandedIndex] = useState(null); // Estado para controlar qual pergunta está expandida
     const [groupedPedidos, setGroupedPedidos] = useState({});
@@ -32,6 +31,7 @@ const Home = () => {
     const itemsPerPage = 5; // Número de processos por página
     const [contratoLoading, setContratoLoading] = useState(false);
     const [initialDataLoading, setInitialDataLoading] = useState(true);
+    const [advirTokensReady, setAdvirTokensReady] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showEmpresaModal, setShowEmpresaModal] = useState(false);
@@ -81,7 +81,7 @@ const Home = () => {
 
     const [selectedEstado, setSelectedEstado] = useState(''); // Estado para o filtro
 
-    const estadosDisponiveis = pedidosInfo
+    const estadosDisponiveis = pedidosInfo?.DataSet?.Table
         ? [...new Set(pedidosInfo.DataSet.Table.map((pedido) => pedido.DescricaoEstado))]
         : [];
 
@@ -395,7 +395,7 @@ const mapearPrioridade = (prioridadeId) => {
 
 
     useEffect(() => {
-        if (pedidosInfo) {
+        if (pedidosInfo?.DataSet?.Table) {
             const grouped = pedidosInfo.DataSet.Table.reduce((acc, pedido) => {
                 console.log("Antes da conversão - DataHoraInicio:", pedido.DataHoraInicio); // Confirma o formato original
 
@@ -421,6 +421,9 @@ const mapearPrioridade = (prioridadeId) => {
             });
 
             setGroupedPedidos(grouped);
+        } else {
+            // Limpar pedidos agrupados se não houver dados
+            setGroupedPedidos({});
         }
     }, [pedidosInfo]);
 
@@ -460,14 +463,41 @@ const mapearPrioridade = (prioridadeId) => {
 
     useEffect(() => {
         let isMounted = true;
-        let timeoutId = null;
 
         const fetchPedidosInfo = async () => {
             if (!isMounted) return;
 
+            console.log("Iniciando carregamento de pedidos...");
+            console.log("Tokens da Advir prontos?", advirTokensReady);
+
             setPedidosLoading(true);
             setLoading(true);
-            setPedidosError('');
+
+            // Aguardar até que os tokens da Advir estejam prontos
+            if (!advirTokensReady) {
+                console.log("Aguardando tokens da Advir...");
+                // Verificar a cada 100ms se os tokens ficaram prontos
+                const checkInterval = setInterval(() => {
+                    if (advirTokensReady) {
+                        clearInterval(checkInterval);
+                        if (isMounted) {
+                            fetchPedidosInfo();
+                        }
+                    }
+                }, 100);
+
+                // Timeout de 10 segundos
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    if (isMounted && !advirTokensReady) {
+                        console.error('Timeout aguardando tokens da Advir');
+                        setPedidosLoading(false);
+                        setLoading(false);
+                    }
+                }, 10000);
+
+                return;
+            }
 
             try {
                 const token = await secureStorage.getItem('painelAdminTokenAdvir');
@@ -476,7 +506,10 @@ const mapearPrioridade = (prioridadeId) => {
 
                 if (!isMounted) return;
 
+                console.log("Tokens obtidos:", { token: !!token, urlempresa: !!urlempresa, id: !!id });
+
                 if (!id || !token || !urlempresa) {
+                    console.error('Faltam credenciais para carregar pedidos');
                     throw new Error(t('error') + 'Token or URL missing.');
                 }
 
@@ -489,47 +522,46 @@ const mapearPrioridade = (prioridadeId) => {
 
                 if (!isMounted) return;
 
-                if (!response.ok) throw new Error(t('error') + response.statusText);
+                if (!response.ok) {
+                    console.error('Erro na resposta:', response.status, response.statusText);
+                    throw new Error(t('error') + response.statusText);
+                }
+
                 const data = await response.json();
+                console.log("Dados de pedidos carregados com sucesso!");
 
                 if (isMounted) {
                     setPedidosInfo(data);
                 }
             } catch (error) {
+                console.error('Erro ao carregar pedidos:', error);
+                // Silenciar erros - mostrar apenas loading state
                 if (isMounted) {
-                    setPedidosError(error.message);
+                    setPedidosInfo(null);
                 }
             } finally {
                 if (isMounted) {
                     setPedidosLoading(false);
                     setLoading(false);
-                    console.log("Finalizado fetch de dados iniciais e contrato.");
+                    console.log("Finalizado carregamento de pedidos.");
                 }
             }
         };
 
         if (activeMenu === t('Home.menu.orders')) {
-            // Debounce de 300ms para evitar múltiplas chamadas rápidas
-            timeoutId = setTimeout(() => {
-                fetchPedidosInfo();
-            }, 300);
-        } else {
-            // Limpar dados quando sair da aba
-            setPedidosLoading(false);
-            setLoading(false);
+            // Carregar imediatamente quando entrar na aba
+            fetchPedidosInfo();
         }
 
         return () => {
             isMounted = false;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
         };
-    }, [activeMenu, t]);
+    }, [activeMenu, t, advirTokensReady]);
 
     useEffect(() => {
         const entrarNaEmpresaAdvir = async () => {
             try {
+                console.log('Iniciando carregamento de tokens da Advir...');
                 const loginToken = secureStorage.getItem('loginToken');
                 if (!loginToken) {
                     throw new Error('Token de login não encontrado.');
@@ -582,9 +614,11 @@ const mapearPrioridade = (prioridadeId) => {
 
                 const tokenData = await tokenResponse.json();
                 secureStorage.setItem('painelAdminTokenAdvir', tokenData.token);
-                console.log('Login automático na empresa Advir concluído.');
+                console.log('Login automático na empresa Advir concluído - tokens prontos!');
+                setAdvirTokensReady(true);
             } catch (error) {
                 console.error('Erro ao entrar automaticamente na empresa Advir:', error.message);
+                setAdvirTokensReady(false);
             }
         };
 
@@ -670,15 +704,40 @@ const mapearPrioridade = (prioridadeId) => {
     // UseEffect para carregar dados do contrato
     useEffect(() => {
         let isMounted = true;
-        let timeoutId = null;
 
         const fetchData = async () => {
             if (!isMounted) return;
 
             console.log("Iniciando fetch de dados iniciais e contrato.");
+            console.log("Tokens da Advir prontos?", advirTokensReady);
+
             setContratoLoading(true);
             setLoading(true);
             setErrorMessage('');
+
+            // Aguardar até que os tokens da Advir estejam prontos
+            if (!advirTokensReady) {
+                console.log("Aguardando tokens da Advir para contrato...");
+                const checkInterval = setInterval(() => {
+                    if (advirTokensReady) {
+                        clearInterval(checkInterval);
+                        if (isMounted) {
+                            fetchData();
+                        }
+                    }
+                }, 100);
+
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    if (isMounted && !advirTokensReady) {
+                        console.error('Timeout aguardando tokens da Advir');
+                        setContratoLoading(false);
+                        setLoading(false);
+                    }
+                }, 10000);
+
+                return;
+            }
 
             try {
                 const token = await secureStorage.getItem('painelAdminTokenAdvir');
@@ -713,7 +772,7 @@ const mapearPrioridade = (prioridadeId) => {
                 }
 
                 const contratoData = await contratoResponse.json();
-                console.log('Contrato Data:', contratoData);
+                console.log('Contrato carregado com sucesso!');
 
                 if (!isMounted) return;
 
@@ -747,23 +806,14 @@ const mapearPrioridade = (prioridadeId) => {
         };
 
         if (activeMenu === t('Home.menu.contract')) {
-            // Debounce de 300ms para evitar múltiplas chamadas rápidas
-            timeoutId = setTimeout(() => {
-                fetchData();
-            }, 300);
-        } else {
-            // Limpar estados quando sair da aba
-            setContratoLoading(false);
-            setLoading(false);
+            // Carregar imediatamente quando entrar na aba
+            fetchData();
         }
 
         return () => {
             isMounted = false;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
         };
-    }, [activeMenu, t]);
+    }, [activeMenu, t, advirTokensReady]);
 
     // UseEffect para carregar dados do formulário quando necessário
     useEffect(() => {
@@ -1187,11 +1237,14 @@ const mapearPrioridade = (prioridadeId) => {
                     <div ref={contractRef}>
                         {activeMenu === t('Home.menu.contract') && (
                             <>
-                                {loading ? (
-                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-                                        <div className="spinner-border text-primary" role="status">
+                                {loading || contratoLoading ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '20px' }}>
+                                        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
                                             <span className="visually-hidden">{t('loading')}</span>
                                         </div>
+                                        <p style={{ color: '#1976D2', fontSize: '16px', fontWeight: '500' }}>
+                                            {t('A carregar informações do contrato...')}
+                                        </p>
                                     </div>
                                 ) : errorMessage ? (
                                     <div style={{
@@ -1390,26 +1443,16 @@ const mapearPrioridade = (prioridadeId) => {
                     <div ref={ordersRef}>
                         {activeMenu === t('Home.menu.orders') && (
                             <>
-                                {pedidosLoading ? (
-                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-                                        <div className="spinner-border text-primary" role="status">
+                                {(pedidosLoading || loading) && !pedidosInfo ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '20px' }}>
+                                        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
                                             <span className="visually-hidden">{t('loading')}</span>
                                         </div>
+                                        <p style={{ color: '#1976D2', fontSize: '16px', fontWeight: '500' }}>
+                                            {t('A carregar pedidos...')}
+                                        </p>
                                     </div>
-                                ) : pedidosError ? (
-                                    <div style={{
-                                        maxWidth: '800px',
-                                        margin: '0 auto',
-                                        padding: '20px',
-                                        backgroundColor: '#fff0f0',
-                                        borderRadius: '8px',
-                                        border: '1px solid #ffcccb',
-                                        color: '#d8000c',
-                                        textAlign: 'center'
-                                    }}>
-                                        <p style={{ fontSize: '18px' }}>{pedidosError}</p>
-                                    </div>
-                                ) : (
+                                ) : pedidosInfo ? (
                                     <>
                                         <div style={{
                                             maxWidth: '950px',
@@ -2098,6 +2141,21 @@ const mapearPrioridade = (prioridadeId) => {
                                             )}
                                         </div>
                                     </>
+                                ) : (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: '40px 20px',
+                                        backgroundColor: '#f8f9fa',
+                                        borderRadius: '12px',
+                                        color: '#6c757d',
+                                        maxWidth: '800px',
+                                        margin: '0 auto'
+                                    }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '15px' }}>📋</div>
+                                        <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
+                                            {t('Sem dados de pedidos')}
+                                        </p>
+                                    </div>
                                 )}
                             </>
                         )}
