@@ -244,10 +244,30 @@ const atribuirHorarioUser = async (req, res) => {
             plano: planoComHorario 
         });
     } catch (error) {
-        console.error('Erro ao atribuir horário:', error);
-        res.status(500).json({ 
+        console.error('========================================');
+        console.error('ERRO AO ATRIBUIR HORÁRIO:');
+        console.error('Error message:', error.message);
+        console.error('Error name:', error.name);
+        console.error('Error stack:', error.stack);
+
+        // Detalhes específicos do Sequelize/SQL
+        if (error.sql) {
+            console.error('SQL Query:', error.sql);
+        }
+        if (error.original) {
+            console.error('Database Error:', error.original);
+            console.error('Database Error Message:', error.original.message);
+        }
+        if (error.parent) {
+            console.error('Parent Error:', error.parent);
+        }
+        console.error('========================================');
+
+        res.status(500).json({
             message: 'Erro ao atribuir horário.',
-            error: error.message 
+            error: error.message,
+            sqlError: error.original?.message || null,
+            errorName: error.name
         });
     }
 };
