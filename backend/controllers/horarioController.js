@@ -141,7 +141,7 @@ const atribuirHorarioUser = async (req, res) => {
     // Aceitar tanto userId/horarioId quanto user_id/horario_id
     const userId = req.body.userId || req.body.user_id;
     const horarioId = req.body.horarioId || req.body.horario_id;
-    const { dataInicio, observacoes } = req.body;
+    const { dataInicio, tipoPeriodo, diaEspecifico, mesEspecifico, anoEspecifico, prioridade, observacoes } = req.body;
 
     try {
         // Validar dados recebidos
@@ -181,13 +181,50 @@ const atribuirHorarioUser = async (req, res) => {
             });
         }
 
-        // Desativar planos anteriores do utilizador
         const hoje = new Date();
         const hojeFormatted = hoje.toISOString().slice(0, 19).replace('T', ' '); // YYYY-MM-DD HH:MM:SS
 
+        // Determinar tipo de período e prioridade
+        const tipoPeriodoFinal = tipoPeriodo || 'permanente';
+        let prioridadeFinal = prioridade || 0;
+
+        // Calcular prioridade automaticamente se não fornecida
+        if (!prioridade) {
+            if (tipoPeriodoFinal === 'dia') prioridadeFinal = 3;
+            else if (tipoPeriodoFinal === 'mes') prioridadeFinal = 2;
+            else if (tipoPeriodoFinal === 'ano') prioridadeFinal = 1;
+            else prioridadeFinal = 0; // permanente
+        }
+
+        // LÓGICA DE DESATIVAÇÃO SELETIVA:
+        // Se é permanente -> desativa apenas outros permanentes
+        // Se é dia/mes/ano -> NÃO desativa o permanente, apenas outros do mesmo tipo
+
+        const whereDesativar = {
+            user_id: userIdNum,
+            ativo: true
+        };
+
+        if (tipoPeriodoFinal === 'permanente') {
+            // Permanente desativa apenas outros permanentes
+            whereDesativar.tipoPeriodo = 'permanente';
+        } else if (tipoPeriodoFinal === 'dia' && diaEspecifico) {
+            // Dia específico desativa apenas outros planos para o mesmo dia
+            whereDesativar.tipoPeriodo = 'dia';
+            whereDesativar.diaEspecifico = diaEspecifico;
+        } else if (tipoPeriodoFinal === 'mes' && mesEspecifico) {
+            // Mês específico desativa apenas outros planos para o mesmo mês
+            whereDesativar.tipoPeriodo = 'mes';
+            whereDesativar.mesEspecifico = mesEspecifico;
+        } else if (tipoPeriodoFinal === 'ano' && anoEspecifico) {
+            // Ano específico desativa apenas outros planos para o mesmo ano
+            whereDesativar.tipoPeriodo = 'ano';
+            whereDesativar.anoEspecifico = anoEspecifico;
+        }
+
         await PlanoHorario.update(
             { ativo: false, dataFim: hojeFormatted },
-            { where: { user_id: userIdNum, ativo: true } }
+            { where: whereDesativar }
         );
 
         // Criar novo plano
@@ -207,10 +244,24 @@ const atribuirHorarioUser = async (req, res) => {
             dataInicioFormatted = dataInicioDate.toISOString().slice(0, 19).replace('T', ' '); // YYYY-MM-DD HH:MM:SS
         }
 
+        // Formatar diaEspecifico se fornecido
+        let diaEspecificoFormatted = null;
+        if (diaEspecifico) {
+            const diaDate = new Date(diaEspecifico);
+            if (!isNaN(diaDate.getTime())) {
+                diaEspecificoFormatted = diaDate.toISOString().split('T')[0]; // YYYY-MM-DD
+            }
+        }
+
         console.log('Criando plano com dados:', {
             user_id: userIdNum,
             horario_id: horarioIdNum,
             dataInicio: dataInicioFormatted,
+            tipoPeriodo: tipoPeriodoFinal,
+            diaEspecifico: diaEspecificoFormatted,
+            mesEspecifico: mesEspecifico ? parseInt(mesEspecifico, 10) : null,
+            anoEspecifico: anoEspecifico ? parseInt(anoEspecifico, 10) : null,
+            prioridade: prioridadeFinal,
             ativo: true,
             observacoes: observacoes || null
         });
@@ -219,6 +270,11 @@ const atribuirHorarioUser = async (req, res) => {
             user_id: userIdNum,
             horario_id: horarioIdNum,
             dataInicio: dataInicioFormatted,
+            tipoPeriodo: tipoPeriodoFinal,
+            diaEspecifico: diaEspecificoFormatted,
+            mesEspecifico: mesEspecifico ? parseInt(mesEspecifico, 10) : null,
+            anoEspecifico: anoEspecifico ? parseInt(anoEspecifico, 10) : null,
+            prioridade: prioridadeFinal,
             ativo: true,
             observacoes: observacoes || null
         });
