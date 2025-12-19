@@ -34,6 +34,41 @@ const PlanoHorario = sequelize.define('PlanoHorario', {
         allowNull: true,
         comment: 'Data de fim (null = horário atual)'
     },
+    tipoPeriodo: {
+        type: DataTypes.ENUM('dia', 'mes', 'ano', 'permanente'),
+        allowNull: false,
+        defaultValue: 'permanente',
+        comment: 'Tipo de período: dia específico, mês, ano ou permanente'
+    },
+    diaEspecifico: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+        comment: 'Data específica quando tipoPeriodo = dia'
+    },
+    mesEspecifico: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Mês específico (1-12) quando tipoPeriodo = mes',
+        validate: {
+            min: 1,
+            max: 12
+        }
+    },
+    anoEspecifico: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Ano específico quando tipoPeriodo = ano',
+        validate: {
+            min: 2020,
+            max: 2100
+        }
+    },
+    prioridade: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Prioridade (maior = mais importante). dia=3, mes=2, ano=1, permanente=0'
+    },
     ativo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
@@ -50,6 +85,12 @@ const PlanoHorario = sequelize.define('PlanoHorario', {
     indexes: [
         {
             fields: ['user_id', 'ativo']
+        },
+        {
+            fields: ['user_id', 'tipoPeriodo', 'ativo']
+        },
+        {
+            fields: ['diaEspecifico']
         }
     ]
 });

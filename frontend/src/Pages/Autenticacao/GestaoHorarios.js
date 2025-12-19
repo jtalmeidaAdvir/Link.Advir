@@ -20,6 +20,12 @@ const GestaoHorarios = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('todos'); // 'todos', 'com-horario', 'sem-horario'
 
+    // Estados para o calendário
+    const [calendarioUser, setCalendarioUser] = useState(null);
+    const [calendarioMes, setCalendarioMes] = useState(new Date().getMonth());
+    const [calendarioAno, setCalendarioAno] = useState(new Date().getFullYear());
+    const [planosCalendario, setPlanosCalendario] = useState([]);
+
     const [novoHorario, setNovoHorario] = useState({
         descricao: '',
         horasPorDia: 8.00,
@@ -38,6 +44,10 @@ const GestaoHorarios = () => {
         user_id: '',
         horario_id: '',
         dataInicio: new Date().toISOString().split('T')[0],
+        tipoPeriodo: 'permanente',
+        diaEspecifico: '',
+        mesEspecifico: '',
+        anoEspecifico: '',
         observacoes: ''
     });
 
@@ -226,10 +236,21 @@ const GestaoHorarios = () => {
                 return;
             }
 
+            // Calcular prioridade baseada no tipo de período
+            let prioridade = 0;
+            if (novoPlano.tipoPeriodo === 'dia') prioridade = 3;
+            else if (novoPlano.tipoPeriodo === 'mes') prioridade = 2;
+            else if (novoPlano.tipoPeriodo === 'ano') prioridade = 1;
+
             const payload = {
                 userId: parseInt(novoPlano.user_id, 10),
                 horarioId: parseInt(novoPlano.horario_id, 10),
                 dataInicio: novoPlano.dataInicio,
+                tipoPeriodo: novoPlano.tipoPeriodo,
+                diaEspecifico: novoPlano.tipoPeriodo === 'dia' ? novoPlano.diaEspecifico : null,
+                mesEspecifico: novoPlano.tipoPeriodo === 'mes' ? parseInt(novoPlano.mesEspecifico, 10) : null,
+                anoEspecifico: novoPlano.tipoPeriodo === 'ano' ? parseInt(novoPlano.anoEspecifico, 10) : null,
+                prioridade: prioridade,
                 observacoes: novoPlano.observacoes || ''
             };
 
@@ -248,10 +269,14 @@ const GestaoHorarios = () => {
                 setSuccessMessage('Horário atribuído com sucesso!');
                 setShowPlanoModal(false);
                 resetNovoPlano();
-                
+
                 // Aguardar um pouco antes de recarregar para garantir que o backend processou
                 setTimeout(() => {
                     fetchPlanosAtivos();
+                    // Se estamos no calendário, recarregar os planos do calendário
+                    if (calendarioUser && activeTab === 'calendario') {
+                        carregarPlanosCalendario(calendarioUser.userId, calendarioMes, calendarioAno);
+                    }
                 }, 500);
             } else {
                 setErrorMessage(data.message || data.error || 'Erro ao atribuir horário');
@@ -345,6 +370,10 @@ const GestaoHorarios = () => {
             user_id: '',
             horario_id: '',
             dataInicio: new Date().toISOString().split('T')[0],
+            tipoPeriodo: 'permanente',
+            diaEspecifico: '',
+            mesEspecifico: '',
+            anoEspecifico: '',
             observacoes: ''
         });
     };
@@ -356,6 +385,102 @@ const GestaoHorarios = () => {
                 ? prev.diasSemana.filter(d => d !== dia)
                 : [...prev.diasSemana, dia].sort()
         }));
+    };
+
+    // Funções para o calendário
+    const getDiasDoMes = (mes, ano) => {
+        const primeiroDia = new Date(ano, mes, 1);
+        const ultimoDia = new Date(ano, mes + 1, 0);
+        const diasNoMes = ultimoDia.getDate();
+        const diaSemanaInicio = primeiroDia.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+
+        const dias = [];
+
+        // Adicionar dias vazios no início
+        for (let i = 0; i < diaSemanaInicio; i++) {
+            dias.push(null);
+        }
+
+        // Adicionar os dias do mês
+        for (let dia = 1; dia <= diasNoMes; dia++) {
+            dias.push(dia);
+        }
+
+        return dias;
+    };
+
+    const carregarPlanosCalendario = async (userId, mes, ano) => {
+        try {
+            const token = secureStorage.getItem('loginToken');
+            const response = await fetch(`https://backend.advir.pt/api/horarios/user/${userId}/historico`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setPlanosCalendario(data);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar planos do calendário:', error);
+        }
+    };
+
+    const getPlanoParaDia = (dia) => {
+        if (!calendarioUser || !dia) return null;
+
+        const dataAtual = new Date(calendarioAno, calendarioMes, dia);
+        const dataAtualStr = dataAtual.toISOString().split('T')[0];
+
+        // Buscar planos que se aplicam a este dia, ordenados por prioridade
+        const planosAplicaveis = planosCalendario.filter(plano => {
+            if (!plano.ativo) return false;
+
+            // Verificar se está dentro do período de vigência
+            const dataInicio = new Date(plano.dataInicio);
+            const dataFim = plano.dataFim ? new Date(plano.dataFim) : null;
+
+            if (dataAtual < dataInicio) return false;
+            if (dataFim && dataAtual > dataFim) return false;
+
+            // Verificar tipo de período
+            if (plano.tipoPeriodo === 'dia' && plano.diaEspecifico) {
+                return plano.diaEspecifico === dataAtualStr;
+            } else if (plano.tipoPeriodo === 'mes' && plano.mesEspecifico) {
+                return (dataAtual.getMonth() + 1) === plano.mesEspecifico;
+            } else if (plano.tipoPeriodo === 'ano' && plano.anoEspecifico) {
+                return dataAtual.getFullYear() === plano.anoEspecifico;
+            } else if (plano.tipoPeriodo === 'permanente') {
+                return true;
+            }
+
+            return false;
+        }).sort((a, b) => (b.prioridade || 0) - (a.prioridade || 0));
+
+        return planosAplicaveis.length > 0 ? planosAplicaveis[0] : null;
+    };
+
+    const atribuirHorarioDia = async (dia) => {
+        if (!calendarioUser) {
+            setErrorMessage('Selecione um utilizador primeiro');
+            return;
+        }
+
+        const dataEspecifica = new Date(calendarioAno, calendarioMes, dia).toISOString().split('T')[0];
+
+        setNovoPlano({
+            user_id: calendarioUser.userId,
+            horario_id: '',
+            dataInicio: dataEspecifica,
+            tipoPeriodo: 'dia',
+            diaEspecifico: dataEspecifica,
+            mesEspecifico: '',
+            anoEspecifico: '',
+            observacoes: `Horário para ${dia}/${calendarioMes + 1}/${calendarioAno}`
+        });
+
+        setShowPlanoModal(true);
     };
 
     // Estatísticas
@@ -410,6 +535,12 @@ const GestaoHorarios = () => {
                     onClick={() => setActiveTab('horarios')}
                 >
                     <FaClock /> Horários
+                </button>
+                <button
+                    style={activeTab === 'calendario' ? styles.activeTab : styles.tab}
+                    onClick={() => setActiveTab('calendario')}
+                >
+                    <FaHistory /> Calendário
                 </button>
             </div>
 
@@ -527,10 +658,19 @@ const GestaoHorarios = () => {
                                             <h4 style={styles.userName}>{plano.userName}</h4>
                                             <p style={styles.userEmail}></p>
                                             {plano.hasPlano && plano.plano?.Horario && (
-                                                <div style={styles.horarioTag}>
-                                                    <FaClock style={{fontSize: '12px', marginRight: '5px'}} />
-                                                    {plano.plano.Horario.descricao} ({plano.plano.Horario.horasSemanais}h/sem)
-                                                </div>
+                                                <>
+                                                    <div style={styles.horarioTag}>
+                                                        <FaClock style={{fontSize: '12px', marginRight: '5px'}} />
+                                                        {plano.plano.Horario.descricao} ({plano.plano.Horario.horasSemanais}h/sem)
+                                                    </div>
+                                                    {plano.plano.tipoPeriodo && plano.plano.tipoPeriodo !== 'permanente' && (
+                                                        <div style={{...styles.horarioTag, backgroundColor: '#fff3e0', color: '#f57c00', fontSize: '12px', marginTop: '5px'}}>
+                                                            {plano.plano.tipoPeriodo === 'dia' && `📅 Dia: ${new Date(plano.plano.diaEspecifico).toLocaleDateString('pt-PT')}`}
+                                                            {plano.plano.tipoPeriodo === 'mes' && `📅 Mês: ${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][plano.plano.mesEspecifico - 1]}`}
+                                                            {plano.plano.tipoPeriodo === 'ano' && `📅 Ano: ${plano.plano.anoEspecifico}`}
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </div>
@@ -727,6 +867,149 @@ const GestaoHorarios = () => {
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Tab Calendário */}
+            {activeTab === 'calendario' && (
+                <div style={styles.content}>
+                    <h3 style={styles.sectionTitle}>Calendário de Horários</h3>
+
+                    {/* Seletor de Utilizador */}
+                    <div style={styles.calendarioControls}>
+                        <div style={styles.formGroup}>
+                            <label style={styles.formLabel}>Utilizador *</label>
+                            <select
+                                style={styles.formInput}
+                                value={calendarioUser?.userId || ''}
+                                onChange={(e) => {
+                                    const userId = parseInt(e.target.value);
+                                    const user = planosAtivos.find(p => p.userId === userId);
+                                    setCalendarioUser(user);
+                                    if (user) {
+                                        carregarPlanosCalendario(userId, calendarioMes, calendarioAno);
+                                    }
+                                }}
+                            >
+                                <option value="">Selecione um utilizador</option>
+                                {planosAtivos.map(plano => (
+                                    <option key={plano.userId} value={plano.userId}>
+                                        {plano.userName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Navegação do Calendário */}
+                        <div style={styles.calendarioNav}>
+                            <button
+                                style={styles.btnSecondary}
+                                onClick={() => {
+                                    if (calendarioMes === 0) {
+                                        setCalendarioMes(11);
+                                        setCalendarioAno(calendarioAno - 1);
+                                    } else {
+                                        setCalendarioMes(calendarioMes - 1);
+                                    }
+                                    if (calendarioUser) {
+                                        carregarPlanosCalendario(calendarioUser.userId, calendarioMes - 1, calendarioAno);
+                                    }
+                                }}
+                            >
+                                ← Anterior
+                            </button>
+                            <h3 style={styles.calendarioMesAno}>
+                                {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][calendarioMes]} {calendarioAno}
+                            </h3>
+                            <button
+                                style={styles.btnSecondary}
+                                onClick={() => {
+                                    if (calendarioMes === 11) {
+                                        setCalendarioMes(0);
+                                        setCalendarioAno(calendarioAno + 1);
+                                    } else {
+                                        setCalendarioMes(calendarioMes + 1);
+                                    }
+                                    if (calendarioUser) {
+                                        carregarPlanosCalendario(calendarioUser.userId, calendarioMes + 1, calendarioAno);
+                                    }
+                                }}
+                            >
+                                Próximo →
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Calendário */}
+                    {calendarioUser ? (
+                        <div style={styles.calendarioContainer}>
+                            {/* Cabeçalho dos dias da semana */}
+                            <div style={styles.calendarioHeader}>
+                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(dia => (
+                                    <div key={dia} style={styles.calendarioDiaSemana}>{dia}</div>
+                                ))}
+                            </div>
+
+                            {/* Grid de dias */}
+                            <div style={styles.calendarioGrid}>
+                                {getDiasDoMes(calendarioMes, calendarioAno).map((dia, index) => {
+                                    if (!dia) {
+                                        return <div key={`empty-${index}`} style={styles.calendarioDiaVazio}></div>;
+                                    }
+
+                                    const plano = getPlanoParaDia(dia);
+                                    const temHorario = !!plano;
+                                    const hoje = new Date();
+                                    const ehHoje = dia === hoje.getDate() &&
+                                                   calendarioMes === hoje.getMonth() &&
+                                                   calendarioAno === hoje.getFullYear();
+
+                                    return (
+                                        <div
+                                            key={dia}
+                                            style={{
+                                                ...styles.calendarioDia,
+                                                ...(ehHoje ? styles.calendarioDiaHoje : {}),
+                                                ...(temHorario ? styles.calendarioDiaComHorario : {})
+                                            }}
+                                            onClick={() => atribuirHorarioDia(dia)}
+                                        >
+                                            <div style={styles.calendarioDiaNumero}>{dia}</div>
+                                            {temHorario && plano.Horario && (
+                                                <div style={styles.calendarioDiaHorario}>
+                                                    <div style={styles.calendarioHorarioNome}>{plano.Horario.descricao}</div>
+                                                    <div style={styles.calendarioHorarioHoras}>
+                                                        {formatHora(plano.Horario.horaEntrada)} - {formatHora(plano.Horario.horaSaida)}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Legenda */}
+                            <div style={styles.calendarioLegenda}>
+                                <div style={styles.legendaItem}>
+                                    <div style={{...styles.legendaCor, backgroundColor: '#e3f2fd', border: '2px solid #1976D2'}}></div>
+                                    <span>Hoje</span>
+                                </div>
+                                <div style={styles.legendaItem}>
+                                    <div style={{...styles.legendaCor, backgroundColor: '#e8f5e9'}}></div>
+                                    <span>Com horário definido</span>
+                                </div>
+                                <div style={styles.legendaItem}>
+                                    <div style={{...styles.legendaCor, backgroundColor: '#f5f5f5'}}></div>
+                                    <span>Sem horário específico</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={styles.calendarioPlaceholder}>
+                            <FaUsers style={{fontSize: '48px', color: '#ccc', marginBottom: '15px'}} />
+                            <p>Selecione um utilizador para ver e gerir o calendário de horários</p>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -937,6 +1220,88 @@ const GestaoHorarios = () => {
                             </div>
 
                             <div style={styles.formGroup}>
+                                <label style={styles.formLabel}>Tipo de Período *</label>
+                                <select
+                                    style={styles.formInput}
+                                    value={novoPlano.tipoPeriodo}
+                                    onChange={e => setNovoPlano({
+                                        ...novoPlano,
+                                        tipoPeriodo: e.target.value,
+                                        diaEspecifico: '',
+                                        mesEspecifico: '',
+                                        anoEspecifico: ''
+                                    })}
+                                    required
+                                >
+                                    <option value="permanente">Permanente</option>
+                                    <option value="ano">Anual (Ano Específico)</option>
+                                    <option value="mes">Mensal (Mês Específico)</option>
+                                    <option value="dia">Diário (Dia Específico)</option>
+                                </select>
+                                <small style={{ color: '#757575', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                                    {novoPlano.tipoPeriodo === 'permanente' && 'Horário será aplicado permanentemente'}
+                                    {novoPlano.tipoPeriodo === 'ano' && 'Horário será aplicado apenas no ano específico'}
+                                    {novoPlano.tipoPeriodo === 'mes' && 'Horário será aplicado apenas no mês específico todos os anos'}
+                                    {novoPlano.tipoPeriodo === 'dia' && 'Horário será aplicado apenas no dia específico'}
+                                </small>
+                            </div>
+
+                            {novoPlano.tipoPeriodo === 'dia' && (
+                                <div style={styles.formGroup}>
+                                    <label style={styles.formLabel}>Dia Específico *</label>
+                                    <input
+                                        type="date"
+                                        style={styles.formInput}
+                                        value={novoPlano.diaEspecifico}
+                                        onChange={e => setNovoPlano({ ...novoPlano, diaEspecifico: e.target.value })}
+                                        required
+                                    />
+                                </div>
+                            )}
+
+                            {novoPlano.tipoPeriodo === 'mes' && (
+                                <div style={styles.formGroup}>
+                                    <label style={styles.formLabel}>Mês Específico *</label>
+                                    <select
+                                        style={styles.formInput}
+                                        value={novoPlano.mesEspecifico}
+                                        onChange={e => setNovoPlano({ ...novoPlano, mesEspecifico: e.target.value })}
+                                        required
+                                    >
+                                        <option value="">Selecione o mês</option>
+                                        <option value="1">Janeiro</option>
+                                        <option value="2">Fevereiro</option>
+                                        <option value="3">Março</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Maio</option>
+                                        <option value="6">Junho</option>
+                                        <option value="7">Julho</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Setembro</option>
+                                        <option value="10">Outubro</option>
+                                        <option value="11">Novembro</option>
+                                        <option value="12">Dezembro</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            {novoPlano.tipoPeriodo === 'ano' && (
+                                <div style={styles.formGroup}>
+                                    <label style={styles.formLabel}>Ano Específico *</label>
+                                    <input
+                                        type="number"
+                                        style={styles.formInput}
+                                        value={novoPlano.anoEspecifico}
+                                        onChange={e => setNovoPlano({ ...novoPlano, anoEspecifico: e.target.value })}
+                                        min="2020"
+                                        max="2100"
+                                        placeholder="ex: 2025"
+                                        required
+                                    />
+                                </div>
+                            )}
+
+                            <div style={styles.formGroup}>
                                 <label style={styles.formLabel}>Data Início *</label>
                                 <input
                                     type="date"
@@ -945,6 +1310,9 @@ const GestaoHorarios = () => {
                                     onChange={e => setNovoPlano({ ...novoPlano, dataInicio: e.target.value })}
                                     required
                                 />
+                                <small style={{ color: '#757575', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                                    Data de início da vigência deste plano de horário
+                                </small>
                             </div>
 
                             <div style={styles.formGroup}>
@@ -1663,6 +2031,127 @@ userItemLeft: {
         borderRadius: '8px',
         marginBottom: '20px',
         border: '1px solid #c8e6c9'
+    },
+
+    // Estilos do Calendário
+    calendarioControls: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        marginBottom: '30px'
+    },
+    calendarioNav: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '15px'
+    },
+    calendarioMesAno: {
+        fontSize: '20px',
+        fontWeight: '600',
+        color: '#1976D2',
+        margin: 0
+    },
+    calendarioContainer: {
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        padding: '20px',
+        border: '1px solid #e0e0e0'
+    },
+    calendarioHeader: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: '10px',
+        marginBottom: '10px'
+    },
+    calendarioDiaSemana: {
+        textAlign: 'center',
+        fontWeight: '600',
+        color: '#1976D2',
+        fontSize: '14px',
+        padding: '10px 0'
+    },
+    calendarioGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: '10px',
+        marginBottom: '20px'
+    },
+    calendarioDiaVazio: {
+        minHeight: '80px'
+    },
+    calendarioDia: {
+        minHeight: '80px',
+        padding: '8px',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        border: '2px solid transparent',
+        display: 'flex',
+        flexDirection: 'column'
+    },
+    calendarioDiaHoje: {
+        backgroundColor: '#e3f2fd',
+        border: '2px solid #1976D2'
+    },
+    calendarioDiaComHorario: {
+        backgroundColor: '#e8f5e9',
+        border: '2px solid #4caf50'
+    },
+    calendarioDiaNumero: {
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: '5px'
+    },
+    calendarioDiaHorario: {
+        fontSize: '11px',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px'
+    },
+    calendarioHorarioNome: {
+        fontWeight: '600',
+        color: '#1976D2',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+    },
+    calendarioHorarioHoras: {
+        color: '#757575',
+        fontSize: '10px'
+    },
+    calendarioLegenda: {
+        display: 'flex',
+        gap: '20px',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        paddingTop: '20px',
+        borderTop: '1px solid #e0e0e0'
+    },
+    legendaItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        fontSize: '14px',
+        color: '#555'
+    },
+    legendaCor: {
+        width: '20px',
+        height: '20px',
+        borderRadius: '4px',
+        border: '1px solid #ddd'
+    },
+    calendarioPlaceholder: {
+        textAlign: 'center',
+        padding: '60px 20px',
+        color: '#999',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
     }
 };
 

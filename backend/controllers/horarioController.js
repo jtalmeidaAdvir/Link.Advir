@@ -141,7 +141,7 @@ const atribuirHorarioUser = async (req, res) => {
     // Aceitar tanto userId/horarioId quanto user_id/horario_id
     const userId = req.body.userId || req.body.user_id;
     const horarioId = req.body.horarioId || req.body.horario_id;
-    const { dataInicio, observacoes } = req.body;
+    const { dataInicio, tipoPeriodo, diaEspecifico, mesEspecifico, anoEspecifico, prioridade, observacoes } = req.body;
 
     try {
         // Validar dados recebidos
@@ -210,6 +210,11 @@ const atribuirHorarioUser = async (req, res) => {
             user_id: userIdNum,
             horario_id: horarioIdNum,
             dataInicio: dataInicioFormatted,
+            tipoPeriodo: tipoPeriodo || 'permanente',
+            diaEspecifico,
+            mesEspecifico,
+            anoEspecifico,
+            prioridade: prioridade || 0,
             ativo: true,
             observacoes
         });
@@ -218,6 +223,11 @@ const atribuirHorarioUser = async (req, res) => {
             user_id: userIdNum,
             horario_id: horarioIdNum,
             dataInicio: dataInicioFormatted,
+            tipoPeriodo: tipoPeriodo || 'permanente',
+            diaEspecifico: diaEspecifico || null,
+            mesEspecifico: mesEspecifico || null,
+            anoEspecifico: anoEspecifico || null,
+            prioridade: prioridade || 0,
             ativo: true,
             observacoes
         });
@@ -319,6 +329,11 @@ const obterHorarioUser = async (req, res) => {
             horario_id: planoAtivo.horario_id,
             dataInicio: planoAtivo.dataInicio,
             dataFim: planoAtivo.dataFim,
+            tipoPeriodo: planoAtivo.tipoPeriodo,
+            diaEspecifico: planoAtivo.diaEspecifico,
+            mesEspecifico: planoAtivo.mesEspecifico,
+            anoEspecifico: planoAtivo.anoEspecifico,
+            prioridade: planoAtivo.prioridade,
             ativo: planoAtivo.ativo,
             observacoes: planoAtivo.observacoes,
             Horario: {
