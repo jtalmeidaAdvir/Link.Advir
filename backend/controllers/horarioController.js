@@ -183,14 +183,15 @@ const atribuirHorarioUser = async (req, res) => {
 
         // Desativar planos anteriores do utilizador
         const hoje = new Date();
+        const hojeFormatted = hoje.toISOString().slice(0, 19).replace('T', ' '); // YYYY-MM-DD HH:MM:SS
 
         await PlanoHorario.update(
-            { ativo: false, dataFim: hoje },
+            { ativo: false, dataFim: hojeFormatted },
             { where: { user_id: userIdNum, ativo: true } }
         );
 
         // Criar novo plano
-        let dataInicioFormatted = hoje;
+        let dataInicioFormatted = hojeFormatted;
 
         if (dataInicio) {
             const dataInicioDate = new Date(dataInicio);
@@ -203,7 +204,7 @@ const atribuirHorarioUser = async (req, res) => {
                 });
             }
 
-            dataInicioFormatted = dataInicioDate;
+            dataInicioFormatted = dataInicioDate.toISOString().slice(0, 19).replace('T', ' '); // YYYY-MM-DD HH:MM:SS
         }
 
         console.log('Criando plano com dados:', {
