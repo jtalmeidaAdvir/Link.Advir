@@ -369,8 +369,8 @@ router.post("/:id/executar", async (req, res) => {
                     const minutosAtual = horaAtualH * 60 + horaAtualM;
                     const diferencaMinutos = minutosAtual - minutosEntrada;
 
-                    // Só enviar se já passou pelo menos 30 minutos da hora de entrada
-                    if (diferencaMinutos < 30) {
+                    // Só enviar se já passou pelo menos 10 minutos da hora de entrada
+                    if (diferencaMinutos < 10) {
                         console.log(`⏰ Ainda não passou tempo suficiente desde a hora de entrada (${horaEntrada}). Diferença: ${diferencaMinutos} min`);
                         continue;
                     }

@@ -254,8 +254,8 @@ class VerificacaoPontoScheduler {
 
                         console.log(`   ⏰ Verificação tempo: Entrada ${horaEntrada}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min`);
 
-                        if (diferencaMinutos < 30) {
-                            console.log(`   ⏭️ Ainda não passaram 30min da entrada`);
+                        if (diferencaMinutos < 10) {
+                            console.log(`   ⏭️ Ainda não passaram 10min da entrada`);
                             continue;
                         }
                     }
