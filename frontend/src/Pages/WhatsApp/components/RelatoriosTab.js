@@ -50,7 +50,8 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
             }
 
             const data = await response.json();
-            setEmpresas(data);
+            // Ensure data is an array
+            setEmpresas(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Erro ao carregar empresas:", error);
             setEmpresas([]);
@@ -292,7 +293,7 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
                                         }}
                                     >
                                         <option value="">Todas as empresas</option>
-                                        {empresas.map((empresa) => (
+                                        {Array.isArray(empresas) && empresas.map((empresa) => (
                                             <option key={empresa.id} value={empresa.id}>
                                                 {empresa.empresa}
                                             </option>

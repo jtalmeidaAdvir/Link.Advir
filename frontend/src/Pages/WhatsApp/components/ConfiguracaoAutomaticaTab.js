@@ -124,10 +124,14 @@ const ConfiguracaoAutomaticaTab = ({
 
             if (response.ok) {
                 const data = await response.json();
-                setEmpresas(data || []);
+                // Ensure data is an array
+                setEmpresas(Array.isArray(data) ? data : []);
+            } else {
+                setEmpresas([]);
             }
         } catch (error) {
             console.error("Erro ao carregar empresas:", error);
+            setEmpresas([]);
         }
     };
 
@@ -250,7 +254,7 @@ const ConfiguracaoAutomaticaTab = ({
                             required
                         >
                             <option value="">Selecione uma empresa...</option>
-                            {empresas.map((empresa) => (
+                            {Array.isArray(empresas) && empresas.map((empresa) => (
                                 <option key={empresa.id} value={empresa.id}>
                                     {empresa.empresa}
                                 </option>
