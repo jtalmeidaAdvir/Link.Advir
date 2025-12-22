@@ -1239,8 +1239,8 @@ const submeterPessoalEquip = async () => {
             console.log("📊 Total de cabeçalhos carregados:", cabecalhos.length);
             console.log("📊 Exemplo de cabeçalho:", cabecalhos[0]);
 
-            // Filtrar cabeçalhos criados pelo utilizador logado (exceto para administradores)
-            const cabecalhosFiltrados = tipoUser === "Administrador"
+            // Filtrar cabeçalhos criados pelo utilizador logado (exceto para administradores e diretores)
+            const cabecalhosFiltrados = (tipoUser === "Administrador" || tipoUser === "Diretor")
                 ? cabecalhos
                 : cabecalhos.filter(
                     (cab) => {
@@ -2367,8 +2367,8 @@ const carregarRascunho = useCallback(async () => {
             console.log("Carregando equipas...");
             let equipasData;
 
-            if (tipoUser === "Administrador") {
-                // Administradores veem todos os utilizadores
+            if (tipoUser === "Administrador" || tipoUser === "Diretor") {
+                // Administradores e Diretores veem todos os utilizadores
                 const empresaId = await secureStorage.getItem("empresa_id");
                 const usersResponse = await fetch(
                     `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
@@ -2432,8 +2432,8 @@ const carregarRascunho = useCallback(async () => {
                 membros: equipa.membros || [],
             }));
 
-            // Adicionar o próprio utilizador à primeira equipa se não existir (apenas para não-administradores)
-            if (userId && userName && tipoUser !== "Administrador") {
+            // Adicionar o próprio utilizador à primeira equipa se não existir (apenas para não-administradores/não-diretores)
+            if (userId && userName && tipoUser !== "Administrador" && tipoUser !== "Diretor") {
                 const primeiraEquipa = equipasFormatadas[0];
                 if (primeiraEquipa) {
                     const jaExiste = primeiraEquipa.membros.some(m => String(m.id) === String(userId));
