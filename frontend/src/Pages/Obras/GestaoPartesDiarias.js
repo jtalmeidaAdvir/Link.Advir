@@ -1173,58 +1173,80 @@ const GestaoPartesDiarias = ({ navigation }) => {
         }
     }, []);
 
-    const fetchResponsavelObra = async (codigoObra) => {
-        try {
-            const token = await secureStorage.getItem("painelAdminToken");
-            const urlempresa = await secureStorage.getItem("urlempresa");
+    const fetchResponsavelObra = async (codigoObra, retries = 3) => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const token = await secureStorage.getItem("painelAdminToken");
+                const urlempresa = await secureStorage.getItem("urlempresa");
 
-            if (!token || !urlempresa) {
-                return null;
-            }
+                if (!token || !urlempresa) {
+                    console.warn(`⚠️ Token ou urlempresa não encontrados para obra ${codigoObra}`);
+                    return null;
+                }
 
-            const encodedCodigo = encodeURIComponent(codigoObra);
+                const encodedCodigo = encodeURIComponent(codigoObra);
 
-            const response = await fetch(
-                `https://webapiprimavera.advir.pt/listarObras/GetResponsavel/${encodedCodigo}`,
-                {
-                    method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        urlempresa: urlempresa,
-                        "Content-Type": "application/json",
+                const response = await fetch(
+                    `https://webapiprimavera.advir.pt/listarObras/GetResponsavel/${encodedCodigo}`,
+                    {
+                        method: "GET",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            urlempresa: urlempresa,
+                            "Content-Type": "application/json",
+                        },
+                        timeout: 10000, // 10 segundos timeout
                     },
-                },
-            );
+                );
 
-            if (response.ok) {
-                const data = await response.json();
-                if (
-                    data &&
-                    data.DataSet &&
-                    data.DataSet.Table &&
-                    data.DataSet.Table.length > 0
-                ) {
-                    return (
-                        data.DataSet.Table[0].CDU_AcessoUtilizador1 ||
-                        data.DataSet.Table[0].Nome ||
-                        data.DataSet.Table[0].name ||
-                        null
-                    );
+                if (response.ok) {
+                    const data = await response.json();
+                    if (
+                        data &&
+                        data.DataSet &&
+                        data.DataSet.Table &&
+                        data.DataSet.Table.length > 0
+                    ) {
+                        const responsavel = data.DataSet.Table[0].CDU_AcessoUtilizador1 ||
+                            data.DataSet.Table[0].Nome ||
+                            data.DataSet.Table[0].name ||
+                            null;
+                        console.log(`✅ Responsável da obra ${codigoObra}: ${responsavel}`);
+                        return responsavel;
+                    } else {
+                        console.warn(`⚠️ Obra ${codigoObra}: sem dados de responsável`);
+                        return null;
+                    }
+                } else {
+                    console.warn(`⚠️ Obra ${codigoObra}: resposta HTTP ${response.status}`);
+                    if (attempt < retries) {
+                        console.log(`🔄 Tentativa ${attempt}/${retries} falhou, a tentar novamente...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // backoff exponencial
+                        continue;
+                    }
+                }
+            } catch (error) {
+                console.error(
+                    `❌ Erro ao buscar responsável da obra ${codigoObra} (tentativa ${attempt}/${retries}):`,
+                    error.message,
+                );
+                if (attempt < retries) {
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // backoff exponencial
+                    continue;
                 }
             }
-        } catch (error) {
-            console.error(
-                `Erro ao buscar responsável da obra ${codigoObra}:`,
-                error,
-            );
         }
+        console.error(`❌ Falha após ${retries} tentativas para obra ${codigoObra}`);
         return null;
     };
 
   const fetchObras = async () => {
   try {
+    console.log("🏗️ A iniciar carregamento de obras...");
     const logintoken = await secureStorage.getItem("loginToken");
     const tipoUser   = await secureStorage.getItem("tipoUser");
+
+    console.log(`👤 Tipo de utilizador: ${tipoUser}`);
 
     // tenta várias chaves comuns para o id da empresa
     const empresaIdStr =
@@ -1233,6 +1255,7 @@ const GestaoPartesDiarias = ({ navigation }) => {
       (await secureStorage.getItem("companyId")) ?? null;
 
     const empresaId = empresaIdStr ? Number(empresaIdStr) : null;
+    console.log(`🏢 Empresa ID: ${empresaId || 'não definido'}`);
 
     const res = await fetch("https://backend.advir.pt/api/obra", {
       headers: {
@@ -1243,6 +1266,8 @@ const GestaoPartesDiarias = ({ navigation }) => {
     if (!res.ok) throw new Error("Falha ao obter obras");
     const obrasRaw = await res.json();
 
+    console.log(`📥 Total de obras recebidas da API: ${obrasRaw?.length || 0}`);
+
     // 1) Filtrar por empresa (quando soubermos qual é)
     const obrasFiltradas = Array.isArray(obrasRaw)
       ? obrasRaw.filter(o => {
@@ -1251,6 +1276,8 @@ const GestaoPartesDiarias = ({ navigation }) => {
           return !Number.isNaN(empresaId) && oEmpresaId === empresaId;
         })
       : [];
+
+    console.log(`🔍 Obras após filtro por empresa: ${obrasFiltradas.length}`);
 
     // 2) Ordenar por código (natural order: 1,2,10 em vez de 1,10,2)
     obrasFiltradas.sort((a, b) =>
@@ -1272,6 +1299,7 @@ const GestaoPartesDiarias = ({ navigation }) => {
       const todasAsObras = new Set(
         obrasFiltradas.map(obra => Number(obra.id ?? obra.ID)).filter(n => !Number.isNaN(n))
       );
+      console.log(`👑 Administrador: ${todasAsObras.size} obras disponíveis`);
       setObrasMap(map);
       setObrasResponsavel(todasAsObras);
       return;
@@ -1281,26 +1309,58 @@ const GestaoPartesDiarias = ({ navigation }) => {
     const codRecursosHumanos = await secureStorage.getItem("codRecursosHumanos");
     const obrasDoResponsavel = new Set();
 
+    console.log(`🔍 A verificar responsabilidade de ${obrasFiltradas.length} obras para o utilizador ${codRecursosHumanos}`);
+
     const chunkSize = 10;
+    let totalProcessadas = 0;
+    let totalComErro = 0;
+    let totalResponsavel = 0;
+
     for (let i = 0; i < obrasFiltradas.length; i += chunkSize) {
       const chunk = obrasFiltradas.slice(i, i + chunkSize);
-      const resultados = await Promise.all(
+      console.log(`📦 A processar lote ${Math.floor(i / chunkSize) + 1}/${Math.ceil(obrasFiltradas.length / chunkSize)} (${chunk.length} obras)`);
+
+      const resultados = await Promise.allSettled(
         chunk.map(async (obra) => {
           const key = String(obra.id ?? obra.ID);
           if (codRecursosHumanos && obra.codigo) {
             const responsavel = await fetchResponsavelObra(obra.codigo);
-            return { key, isResponsavel: responsavel === codRecursosHumanos };
+            const isResponsavel = responsavel === codRecursosHumanos;
+            return { key, obra: obra.codigo, isResponsavel, responsavel };
           }
-          return { key, isResponsavel: false };
+          return { key, obra: obra.codigo, isResponsavel: false, responsavel: null };
         })
       );
-      resultados.forEach(({ key, isResponsavel }) => {
-        if (isResponsavel) obrasDoResponsavel.add(Number(key));
+
+      resultados.forEach((result, idx) => {
+        totalProcessadas++;
+        if (result.status === 'fulfilled') {
+          const { key, obra, isResponsavel, responsavel } = result.value;
+          if (isResponsavel) {
+            obrasDoResponsavel.add(Number(key));
+            totalResponsavel++;
+            console.log(`✅ Obra ${obra} (ID: ${key}): sou responsável`);
+          } else {
+            console.log(`ℹ️ Obra ${obra} (ID: ${key}): não sou responsável (responsável: ${responsavel || 'N/A'})`);
+          }
+        } else {
+          totalComErro++;
+          console.error(`❌ Erro ao processar obra ${chunk[idx]?.codigo}:`, result.reason);
+        }
       });
     }
 
+    console.log(`📊 Resumo do carregamento de obras:`);
+    console.log(`   - Total processadas: ${totalProcessadas}`);
+    console.log(`   - Obras onde sou responsável: ${totalResponsavel}`);
+    console.log(`   - Erros: ${totalComErro}`);
+
     setObrasMap(map);
     setObrasResponsavel(obrasDoResponsavel);
+
+    if (totalResponsavel === 0 && obrasFiltradas.length > 0) {
+      console.warn(`⚠️ ATENÇÃO: Nenhuma obra encontrada onde o utilizador ${codRecursosHumanos} seja responsável!`);
+    }
   } catch (err) {
     console.warn("Erro obras:", err.message);
   }
