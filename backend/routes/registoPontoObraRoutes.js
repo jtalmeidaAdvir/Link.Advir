@@ -56,4 +56,82 @@ router.get('/resumo-obra/:obraId', authMiddleware, obterResumoObra);
 // Rota para obter relatório de pontos agrupado por obra (para envio de emails)
 router.get('/relatorio-pontos', obterRelatorioObrasPontos);
 
+// Rota para verificar horário do utilizador
+router.get('/verificar-horario', async (req, res) => {
+    try {
+        const { user_id, data } = req.query;
+
+        if (!user_id || !data) {
+            return res.status(400).json({
+                error: "user_id e data são obrigatórios"
+            });
+        }
+
+        const PlanoHorario = require('../models/planoHorario');
+        const Horario = require('../models/horario');
+        const { Op } = require('sequelize');
+
+        // Buscar plano de horário ativo para o utilizador na data especificada
+        // Considerar prioridade: dia específico > mês > ano > permanente
+        const planoHorario = await PlanoHorario.findOne({
+            where: {
+                user_id: user_id,
+                ativo: true,
+                dataInicio: {
+                    [Op.lte]: data + ' 23:59:59'
+                },
+                [Op.or]: [
+                    { dataFim: null },
+                    { dataFim: { [Op.gte]: data + ' 00:00:00' } }
+                ]
+            },
+            order: [['prioridade', 'DESC'], ['dataInicio', 'DESC']]
+        });
+
+        if (!planoHorario) {
+            return res.json({
+                temHorario: false,
+                horario: null
+            });
+        }
+
+        // Buscar o horário associado
+        const horario = await Horario.findOne({
+            where: {
+                id: planoHorario.horario_id,
+                ativo: true
+            }
+        });
+
+        if (!horario) {
+            return res.json({
+                temHorario: false,
+                horario: null
+            });
+        }
+
+        res.json({
+            temHorario: true,
+            horario: {
+                id: horario.id,
+                descricao: horario.descricao,
+                horaEntrada: horario.horaEntrada,
+                horaSaida: horario.horaSaida,
+                diasSemana: horario.diasSemana,
+                dataInicio: planoHorario.dataInicio,
+                dataFim: planoHorario.dataFim,
+                horasPorDia: horario.horasPorDia,
+                horasSemanais: horario.horasSemanais
+            }
+        });
+
+    } catch (error) {
+        console.error("Erro ao verificar horário:", error);
+        res.status(500).json({
+            error: "Erro ao verificar horário do utilizador",
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;

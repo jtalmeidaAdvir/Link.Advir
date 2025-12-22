@@ -147,9 +147,22 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
             
             const data = await response.json();
             console.log('📦 Response data:', data);
-            
+
             if (response.ok) {
-                alert(`Verificação executada!\n\nMensagens enviadas: ${data.mensagensEnviadas}\nSem registo: ${data.semRegisto}\nErros: ${data.erros}`);
+                const resultadoMsg = [
+                    `📊 Verificação executada com sucesso!`,
+                    ``,
+                    `📤 Mensagens enviadas: ${data.mensagensEnviadas}`,
+                    `✅ Com registo de ponto: ${data.comRegisto}`,
+                    `⚠️ Sem registo de ponto: ${data.semRegisto}`,
+                    `⏰ Sem horário associado: ${data.semHorario}`,
+                    `📅 Fora do período: ${data.foraDoPeriodo}`,
+                    `❌ Erros: ${data.erros}`,
+                    ``,
+                    `👥 Total de contactos: ${data.totalContactos}`
+                ].join('\n');
+
+                alert(resultadoMsg);
             } else {
                 alert(`Erro: ${data.error || "Erro ao executar verificação"}`);
             }
@@ -367,23 +380,52 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
             <div style={styles.card}>
                 <h3 style={styles.cardTitle}>ℹ️ Como Funciona</h3>
                 <div style={{ padding: "10px 0" }}>
-                    <h5 style={{ color: "#1976d2", marginBottom: "15px" }}>Sistema de Verificação de Ponto</h5>
+                    <h5 style={{ color: "#1976d2", marginBottom: "15px" }}>Sistema Inteligente de Verificação de Ponto</h5>
 
                     <div style={{ marginBottom: "15px" }}>
                         <strong>🎯 Objetivo:</strong>
                         <p style={{ margin: "5px 0", color: "#666" }}>
-                            Enviar mensagens automáticas via WhatsApp para utilizadores que não registaram ponto no dia.
+                            Enviar mensagens automáticas via WhatsApp para utilizadores que não registaram ponto, respeitando os horários individuais de cada funcionário.
                         </p>
                     </div>
 
                     <div style={{ marginBottom: "15px" }}>
-                        <strong>⏰ Funcionamento:</strong>
-                        <ul style={{ marginLeft: "20px", color: "#666" }}>
-                            <li>Executa no horário configurado</li>
-                            <li>Verifica apenas os dias da semana selecionados</li>
-                            <li>Consulta os utilizadores da lista de contactos</li>
-                            <li>Envia mensagem apenas para quem não tem registo de ponto no dia</li>
+                        <strong>⏰ Lógica de Verificação:</strong>
+                        <ul style={{ marginLeft: "20px", color: "#666", lineHeight: "1.8" }}>
+                            <li><strong>Horário Obrigatório:</strong> Só envia para quem tem horário associado no sistema</li>
+                            <li><strong>Período Válido:</strong> Verifica se o horário está ativo na data atual (dataInicio até dataFim)</li>
+                            <li><strong>Dias de Trabalho:</strong> Respeita os dias da semana definidos no horário de cada utilizador</li>
+                            <li><strong>Hora de Entrada:</strong> Só envia a mensagem 30 minutos após a hora de entrada configurada</li>
+                            <li><strong>Verificação de Ponto:</strong> Confirma se já existe registo antes de enviar</li>
+                            <li><strong>Horários Diferentes:</strong> Cada utilizador pode ter horas de entrada diferentes</li>
                         </ul>
+                    </div>
+
+                    <div style={{ marginBottom: "15px" }}>
+                        <strong>📋 Processo de Execução:</strong>
+                        <ol style={{ marginLeft: "20px", color: "#666", lineHeight: "1.8" }}>
+                            <li>Verifica se o utilizador tem user_id associado</li>
+                            <li>Consulta o horário ativo do utilizador para a data atual</li>
+                            <li>Valida se a data está dentro do período do horário</li>
+                            <li>Confirma que hoje é um dia de trabalho para o utilizador</li>
+                            <li>Verifica se já passou tempo suficiente desde a hora de entrada</li>
+                            <li>Consulta se já existe registo de ponto</li>
+                            <li>Envia mensagem apenas se todas as condições forem satisfeitas</li>
+                        </ol>
+                    </div>
+
+                    <div style={{
+                        backgroundColor: "#d1ecf1",
+                        border: "1px solid #bee5eb",
+                        borderRadius: "6px",
+                        padding: "10px",
+                        marginTop: "15px"
+                    }}>
+                        <strong style={{ color: "#0c5460" }}>📊 Estatísticas Detalhadas:</strong>
+                        <p style={{ margin: "5px 0 0 0", color: "#0c5460" }}>
+                            O sistema fornece estatísticas completas: mensagens enviadas, utilizadores com/sem registo,
+                            utilizadores sem horário associado, e utilizadores fora do período de validade do horário.
+                        </p>
                     </div>
 
                     <div style={{
@@ -391,11 +433,12 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                         border: "1px solid #ffeaa7",
                         borderRadius: "6px",
                         padding: "10px",
-                        marginTop: "15px"
+                        marginTop: "10px"
                     }}>
                         <strong style={{ color: "#856404" }}>💡 Dica:</strong>
                         <p style={{ margin: "5px 0 0 0", color: "#856404" }}>
                             Use o botão "Executar" para testar a verificação manualmente antes de ativar o agendamento automático.
+                            Isto permite validar a configuração e verificar quem receberá as mensagens.
                         </p>
                     </div>
                 </div>

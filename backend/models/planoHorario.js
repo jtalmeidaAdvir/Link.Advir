@@ -88,4 +88,12 @@ const PlanoHorario = sequelize.define('PlanoHorario', {
     ]
 });
 
+// Definir associações
+PlanoHorario.associate = (models) => {
+    PlanoHorario.belongsTo(models.Horario, {
+        foreignKey: 'horario_id',
+        as: 'horario'
+    });
+};
+
 module.exports = PlanoHorario;

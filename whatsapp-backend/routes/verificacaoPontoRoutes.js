@@ -211,8 +211,7 @@ router.delete("/:id", async (req, res) => {
     }
 });
 
-// Endpoint para executar verificação manualmente
-// Endpoint para executar verificação manualmente
+// Endpoint para executar verificação manualmente com lógica melhorada
 router.post("/:id/executar", async (req, res) => {
     console.log(`🎯 [VERIFICAÇÃO PONTO] Executar verificação ID: ${req.params.id}`);
 
@@ -230,104 +229,178 @@ router.post("/:id/executar", async (req, res) => {
         console.log(`📌 Verificação encontrada: ${verificacao.nome_configuracao}`);
         console.log(`📋 Contact list raw:`, verificacao.contact_list);
 
-        // Processar contactos direto do schedule
-// Supondo que lista.contacts já é um JSON string ou array
-// Processar contactos direto do Schedule
-let contactos = [];
-try {
-    // Primeiro parse
-    let rawContacts = JSON.parse(verificacao.contact_list);
+        // Processar contactos direto do Schedule
+        let contactos = [];
+        try {
+            let rawContacts = JSON.parse(verificacao.contact_list);
 
-    // Se ainda for string, parse novamente
-if (typeof rawContacts === "string") {
-    rawContacts = JSON.parse(rawContacts);
-}
-if (!Array.isArray(rawContacts)) throw new Error("contact_list não é array");
+            // Se ainda for string, parse novamente
+            if (typeof rawContacts === "string") {
+                rawContacts = JSON.parse(rawContacts);
+            }
 
-    // Garantir que é array
-    if (!Array.isArray(rawContacts)) {
-        throw new Error("contact_list não é array");
-    }
+            if (!Array.isArray(rawContacts)) {
+                throw new Error("contact_list não é array");
+            }
 
-    contactos = rawContacts.map(c => ({
-        phone: c.phone || c.numeroTecnico || c.numero || c.telefone,
-        user_id: c.user_id || c.userID || null,
-    }));
+            contactos = rawContacts.map(c => ({
+                phone: c.phone || c.numeroTecnico || c.numero || c.telefone,
+                user_id: c.user_id || c.userID || null,
+            }));
 
-    console.log("👥 Total contactos processados:", contactos.length);
+            console.log("👥 Total contactos processados:", contactos.length);
 
-} catch (e) {
-    console.error("Erro ao processar contactos:", e);
-    return res.status(500).json({ error: "Contact_list inválido" });
-}
-
-
-
-console.log("👥 Total contactos processados:", contactos.length);
+        } catch (e) {
+            console.error("Erro ao processar contactos:", e);
+            return res.status(500).json({ error: "Contact_list inválido" });
+        }
 
         const hoje = new Date().toISOString().split("T")[0];
+        const agora = new Date();
+        const horaAtual = `${agora.getHours().toString().padStart(2, '0')}:${agora.getMinutes().toString().padStart(2, '0')}`;
 
         let mensagensEnviadas = 0;
         let semRegisto = 0;
         let erros = 0;
         let comRegisto = 0;
+        let semHorario = 0;
+        let foraDoPeriodo = 0;
 
-  for (const contacto of contactos) {
-    console.log(`🔍 Processando ${contacto.phone} (user_id: ${contacto.user_id ?? "N/A"})`);
+        for (const contacto of contactos) {
             const phone = contacto.phone;
             const user_id = contacto.user_id;
 
-            console.log(`🔍 Processando ${phone} (user_id: ${user_id ?? "N/A"})`);
+            console.log(`\n🔍 Processando ${phone} (user_id: ${user_id ?? "N/A"})`);
 
             try {
-                if (user_id) {
-                    const check = await axios.get(
-                        `https://backend.advir.pt/api/registo-ponto-obra/verificar-registo?user_id=${user_id}&data=${hoje}`,
-                        { headers: { Authorization: req.headers.authorization } }
-                    );
+                // 1. Verificar se tem user_id (obrigatório para verificação de horário e ponto)
+                if (!user_id) {
+                    console.log(`⚠️ Contacto sem user_id, pulando verificação`);
+                    semHorario++;
+                    continue;
+                }
 
-                    if (check.data.temRegisto) {
-                        comRegisto++;
+                // 2. Verificar se tem horário associado e se está no período válido
+                const horarioCheck = await axios.get(
+                    `https://backend.advir.pt/api/registo-ponto-obra/verificar-horario?user_id=${user_id}&data=${hoje}`,
+                    { headers: { Authorization: req.headers.authorization } }
+                );
+
+                if (!horarioCheck.data.temHorario) {
+                    console.log(`⏰ Utilizador sem horário associado, não enviando mensagem`);
+                    semHorario++;
+                    continue;
+                }
+
+                const horarioInfo = horarioCheck.data.horario;
+                console.log(`✅ Horário encontrado:`, horarioInfo);
+
+                // 3. Verificar se a data atual está dentro do período do horário
+                const dataInicio = new Date(horarioInfo.dataInicio);
+                const dataFim = horarioInfo.dataFim ? new Date(horarioInfo.dataFim) : null;
+                const dataHoje = new Date(hoje);
+
+                if (dataHoje < dataInicio) {
+                    console.log(`📅 Data atual (${hoje}) é anterior ao início do horário (${horarioInfo.dataInicio})`);
+                    foraDoPeriodo++;
+                    continue;
+                }
+
+                if (dataFim && dataHoje > dataFim) {
+                    console.log(`📅 Data atual (${hoje}) é posterior ao fim do horário (${horarioInfo.dataFim})`);
+                    foraDoPeriodo++;
+                    continue;
+                }
+
+                // 4. Verificar se hoje é um dia de trabalho segundo o horário
+                const diaSemana = agora.getDay(); // 0=Domingo, 1=Segunda, etc
+                if (horarioInfo.diasSemana && !horarioInfo.diasSemana.includes(diaSemana)) {
+                    console.log(`📅 Hoje (${diaSemana}) não é dia de trabalho para este utilizador`);
+                    continue;
+                }
+
+                // 5. Verificar se já passou tempo suficiente após a hora de entrada
+                // Para dar margem, só enviamos a mensagem depois de um certo tempo após a hora de entrada
+                if (horarioInfo.horaEntrada) {
+                    const [horaEntradaH, horaEntradaM] = horarioInfo.horaEntrada.split(':').map(Number);
+                    const [horaAtualH, horaAtualM] = horaAtual.split(':').map(Number);
+
+                    const minutosEntrada = horaEntradaH * 60 + horaEntradaM;
+                    const minutosAtual = horaAtualH * 60 + horaAtualM;
+                    const diferencaMinutos = minutosAtual - minutosEntrada;
+
+                    // Só enviar se já passou pelo menos 30 minutos da hora de entrada
+                    if (diferencaMinutos < 30) {
+                        console.log(`⏰ Ainda não passou tempo suficiente desde a hora de entrada (${horarioInfo.horaEntrada}). Diferença: ${diferencaMinutos} min`);
                         continue;
                     }
                 }
 
+                // 6. Verificar se já registou ponto hoje
+                const pontoCheck = await axios.get(
+                    `https://backend.advir.pt/api/registo-ponto-obra/verificar-registo?user_id=${user_id}&data=${hoje}`,
+                    { headers: { Authorization: req.headers.authorization } }
+                );
+
+                if (pontoCheck.data.temRegisto) {
+                    console.log(`✅ Utilizador já registou ponto hoje`);
+                    comRegisto++;
+                    continue;
+                }
+
+                console.log(`⚠️ Utilizador sem registo de ponto, enviando mensagem...`);
                 semRegisto++;
 
-           const whatsappService = req.app.get("whatsappService");
-if (!whatsappService?.isClientReady) {
-    console.error("❌ WhatsApp não está pronto");
-    erros++;
-    continue;
-}
+                // 7. Enviar mensagem via WhatsApp
+                const whatsappService = req.app.get("whatsappService");
+                if (!whatsappService?.isClientReady) {
+                    console.error("❌ WhatsApp não está pronto");
+                    erros++;
+                    continue;
+                }
 
                 await whatsappService.sendMessage(phone + "@c.us", verificacao.message);
+                console.log(`✅ Mensagem enviada com sucesso para ${phone}`);
                 mensagensEnviadas++;
+
+                // Delay entre mensagens para evitar bloqueio
                 await new Promise(r => setTimeout(r, 2000));
 
             } catch (e) {
-                console.error("Erro enviar:", e.message);
+                console.error(`❌ Erro ao processar ${phone}:`, e.message);
                 erros++;
             }
         }
 
+        // Atualizar estatísticas da verificação
         await verificacao.update({
             last_sent: new Date(),
             total_sent: (verificacao.total_sent || 0) + 1,
         });
+
+        console.log(`\n📊 Resumo da execução:`);
+        console.log(`   - Total contactos: ${contactos.length}`);
+        console.log(`   - Mensagens enviadas: ${mensagensEnviadas}`);
+        console.log(`   - Com registo: ${comRegisto}`);
+        console.log(`   - Sem registo: ${semRegisto}`);
+        console.log(`   - Sem horário: ${semHorario}`);
+        console.log(`   - Fora do período: ${foraDoPeriodo}`);
+        console.log(`   - Erros: ${erros}`);
 
         return res.json({
             success: true,
             mensagensEnviadas,
             semRegisto,
             comRegisto,
+            semHorario,
+            foraDoPeriodo,
             erros,
             totalContactos: contactos.length,
         });
 
     } catch (error) {
-        console.error("Erro exec:", error);
-        return res.status(500).json({ error: "Erro interno" });
+        console.error("❌ Erro na execução:", error);
+        return res.status(500).json({ error: "Erro interno: " + error.message });
     }
 });
 
