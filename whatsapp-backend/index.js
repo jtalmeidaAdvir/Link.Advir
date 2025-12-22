@@ -93,6 +93,13 @@ const server = app.listen(PORT, "0.0.0.0", () => {
     console.log('📊 Iniciando scheduler de relatórios de pontos...');
     const relatoriosPontosScheduler = require('./services/relatorioPontosScheduler');
     relatoriosPontosScheduler.start();
+
+    // Iniciar scheduler de verificação de ponto
+    console.log('');
+    console.log('⚠️ Iniciando scheduler de verificação de ponto...');
+    const verificacaoPontoScheduler = require('./services/verificacaoPontoScheduler');
+    verificacaoPontoScheduler.start(whatsappService);
+    console.log('✅ Scheduler de verificação de ponto iniciado - executa continuamente durante períodos configurados');
 });
 
 // Tratamento de erros de porta ocupada
