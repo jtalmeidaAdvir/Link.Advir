@@ -569,32 +569,32 @@ const updateContactList = async (contactListData) => {
                                     </label>
                                 </div>
 
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>
+                                        👤 Selecionar Utilizador
+                                    </label>
+                                    <select
+                                        style={styles.input}
+                                        value={contact.user_id || contact.userID || ""}
+                                        onChange={(e) => {
+                                            updateContactIfMissing(index, "user_id", e.target.value);
+                                            updateContactIfMissing(index, "userID", e.target.value);
+                                        }}
+                                    >
+                                        <option value="">Selecione um utilizador...</option>
+                                        {users.map((user) => (
+                                            <option key={user.id} value={user.id.toString()}>
+                                                {user.nome} ({user.email})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <small style={{ color: '#dc3545', fontSize: '0.85rem', marginTop: '5px', display: 'block', fontWeight: '600' }}>
+                                        ⚠️ Obrigatório para verificação automática de ponto
+                                    </small>
+                                </div>
+
                                 {contact.canRegisterPonto && (
                                     <>
-                                        <div style={styles.formGroup}>
-                                            <label style={styles.label}>
-                                                Selecionar Utilizador (opcional)
-                                            </label>
-                                            <select
-                                                style={styles.input}
-                                                value={contact.userID || ""}
-                                                onChange={(e) =>
-                                                    updateContactIfMissing(
-                                                        index,
-                                                        "userID",
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            >
-                                                <option value="">Selecione um utilizador...</option>
-                                                {users.map((user) => (
-                                                    <option key={user.id} value={user.id.toString()}>
-                                                        {user.nome} ({user.email})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
                                         <div style={styles.formGroup}>
                                             <label style={styles.label}>
                                                 Obras Autorizadas (opcional)
@@ -1353,24 +1353,19 @@ const updateContactList = async (contactListData) => {
                                                         <label
                                                             style={styles.label}
                                                         >
-                                                            Selecionar Utilizador
-                                                            (opcional)
+                                                            👤 Selecionar Utilizador
                                                         </label>
                                                         <select
                                                             style={styles.input}
                                                             value={
-                                                                contact.userID ||
                                                                 contact.user_id ||
+                                                                contact.userID ||
                                                                 ""
                                                             }
-                                                            onChange={(e) =>
-                                                                updateEditContactIfMissing(
-                                                                    index,
-                                                                    "userID",
-                                                                    e.target
-                                                                        .value,
-                                                                )
-                                                            }
+                                                            onChange={(e) => {
+                                                                updateEditContactIfMissing(index, "user_id", e.target.value);
+                                                                updateEditContactIfMissing(index, "userID", e.target.value);
+                                                            }}
                                                         >
                                                             <option value="">Selecione um utilizador...</option>
                                                             {users.map((user) => (
@@ -1379,6 +1374,9 @@ const updateContactList = async (contactListData) => {
                                                                 </option>
                                                             ))}
                                                         </select>
+                                                        <small style={{ color: '#dc3545', fontSize: '0.85rem', marginTop: '5px', display: 'block', fontWeight: '600' }}>
+                                                            ⚠️ Obrigatório para verificação automática de ponto
+                                                        </small>
                                                     </div>
 
                                                     <div

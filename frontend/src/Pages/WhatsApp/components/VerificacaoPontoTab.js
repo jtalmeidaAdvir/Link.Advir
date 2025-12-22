@@ -10,7 +10,9 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
     const [novaConfiguracao, setNovaConfiguracao] = useState({
         nome: "",
         lista_contactos_id: "",
-        horario_verificacao: "18:00",
+        horario_inicio: "06:00",
+        horario_fim: "12:00",
+        intervalo_minutos: 1,
         mensagem_template: "⚠️ Olá! Notamos que ainda não registou o seu ponto de hoje. Por favor, regularize a situação o mais breve possível.",
         dias_semana: [1, 2, 3, 4, 5], // Segunda a Sexta
         ativo: true
@@ -69,7 +71,9 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                 setNovaConfiguracao({
                     nome: "",
                     lista_contactos_id: "",
-                    horario_verificacao: "18:00",
+                    horario_inicio: "06:00",
+                    horario_fim: "12:00",
+                    intervalo_minutos: 1,
                     mensagem_template: "⚠️ Olá! Notamos que ainda não registou o seu ponto de hoje. Por favor, regularize a situação o mais breve possível.",
                     dias_semana: [1, 2, 3, 4, 5],
                     ativo: true
@@ -157,6 +161,7 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                     `⚠️ Sem registo de ponto: ${data.semRegisto}`,
                     `⏰ Sem horário associado: ${data.semHorario}`,
                     `📅 Fora do período: ${data.foraDoPeriodo}`,
+                    `🔔 Já notificado hoje: ${data.jaNotificado || 0}`,
                     `❌ Erros: ${data.erros}`,
                     ``,
                     `👥 Total de contactos: ${data.totalContactos}`
@@ -216,18 +221,56 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                     </div>
 
                     <div style={styles.formGroup}>
-                        <label style={styles.label}>Horário de Verificação</label>
-                        <input
-                            type="time"
-                            style={styles.input}
-                            value={novaConfiguracao.horario_verificacao}
-                            onChange={(e) => setNovaConfiguracao({
-                                ...novaConfiguracao,
-                                horario_verificacao: e.target.value
-                            })}
-                        />
-                        <small style={{ color: '#666', fontSize: '0.85rem' }}>
-                            Hora em que será verificado se os utilizadores registaram ponto
+                        <label style={styles.label}>Período de Verificação Contínua</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', color: '#666', marginBottom: '5px', display: 'block' }}>
+                                    Início
+                                </label>
+                                <input
+                                    type="time"
+                                    style={styles.input}
+                                    value={novaConfiguracao.horario_inicio}
+                                    onChange={(e) => setNovaConfiguracao({
+                                        ...novaConfiguracao,
+                                        horario_inicio: e.target.value
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', color: '#666', marginBottom: '5px', display: 'block' }}>
+                                    Fim
+                                </label>
+                                <input
+                                    type="time"
+                                    style={styles.input}
+                                    value={novaConfiguracao.horario_fim}
+                                    onChange={(e) => setNovaConfiguracao({
+                                        ...novaConfiguracao,
+                                        horario_fim: e.target.value
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', color: '#666', marginBottom: '5px', display: 'block' }}>
+                                    Intervalo (min)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="60"
+                                    style={styles.input}
+                                    value={novaConfiguracao.intervalo_minutos}
+                                    onChange={(e) => setNovaConfiguracao({
+                                        ...novaConfiguracao,
+                                        intervalo_minutos: parseInt(e.target.value) || 1
+                                    })}
+                                />
+                            </div>
+                        </div>
+                        <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '8px', display: 'block' }}>
+                            ⏰ O sistema verificará continuamente durante este período, executando a cada {novaConfiguracao.intervalo_minutos} minuto(s).
+                            Ideal para funcionários com diferentes horários de entrada.
                         </small>
                     </div>
 
@@ -321,7 +364,7 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                                         📋 Lista: {config.lista_nome}
                                     </div>
                                     <div style={styles.listMeta}>
-                                        ⏰ Horário: {config.horario_verificacao}
+                                        ⏰ Período: {config.horario_inicio || config.horario_verificacao} - {config.horario_fim || config.horario_verificacao} (a cada {config.intervalo_minutos || '60'} min)
                                     </div>
                                     <div style={styles.listMeta}>
                                         📅 Dias: {config.dias_semana_texto}

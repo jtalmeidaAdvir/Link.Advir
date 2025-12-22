@@ -12,15 +12,17 @@ router.post("/criar", async (req, res) => {
         const {
             nome,
             lista_contactos_id,
-            horario_verificacao,
+            horario_inicio,
+            horario_fim,
+            intervalo_minutos,
             mensagem_template,
             dias_semana,
             ativo,
         } = req.body;
 
-        if (!nome || !lista_contactos_id) {
+        if (!nome || !lista_contactos_id || !horario_inicio || !horario_fim) {
             return res.status(400).json({
-                error: "Nome e lista de contactos são obrigatórios",
+                error: "Nome, lista de contactos, horário de início e fim são obrigatórios",
             });
         }
 
@@ -41,7 +43,10 @@ router.post("/criar", async (req, res) => {
            contact_list: JSON.stringify(lista.contacts),
 
             frequency: "custom",
-            time: new Date(`1970-01-01T${horario_verificacao}:00Z`),
+            time: new Date(`1970-01-01T${horario_inicio}:00Z`),
+            horario_inicio: horario_inicio,
+            horario_fim: horario_fim,
+            intervalo_minutos: intervalo_minutos || 1,
             days: JSON.stringify(dias_semana || [1, 2, 3, 4, 5]),
             start_date: new Date(),
             enabled: ativo !== undefined ? ativo : true,
@@ -58,7 +63,9 @@ router.post("/criar", async (req, res) => {
                 id: novaVerificacao.id,
                 nome: nome,
                 lista_contactos_id: lista_contactos_id,
-                horario: horario_verificacao,
+                horario_inicio: horario_inicio,
+                horario_fim: horario_fim,
+                intervalo_minutos: intervalo_minutos || 1,
                 ativo: novaVerificacao.enabled,
             },
         });
@@ -121,6 +128,9 @@ router.get("/listar", async (req, res) => {
                         hour: "2-digit",
                         minute: "2-digit",
                     }),
+                    horario_inicio: verif.horario_inicio || verif.time,
+                    horario_fim: verif.horario_fim || verif.time,
+                    intervalo_minutos: verif.intervalo_minutos || 60,
                     mensagem_template: verif.message,
                     dias_semana: diasSemana,
                     dias_semana_texto: diasTexto,
@@ -259,12 +269,27 @@ router.post("/:id/executar", async (req, res) => {
         const agora = new Date();
         const horaAtual = `${agora.getHours().toString().padStart(2, '0')}:${agora.getMinutes().toString().padStart(2, '0')}`;
 
+        // Carregar lista de já notificados hoje
+        let notificadosHoje = [];
+        try {
+            if (verificacao.notificados_hoje) {
+                const dados = JSON.parse(verificacao.notificados_hoje);
+                // Verificar se é do mesmo dia
+                if (dados.data === hoje) {
+                    notificadosHoje = dados.user_ids || [];
+                }
+            }
+        } catch (e) {
+            console.log("⚠️ Erro ao carregar notificados_hoje, iniciando vazio");
+        }
+
         let mensagensEnviadas = 0;
         let semRegisto = 0;
         let erros = 0;
         let comRegisto = 0;
         let semHorario = 0;
         let foraDoPeriodo = 0;
+        let jaNotificado = 0;
 
         for (const contacto of contactos) {
             const phone = contacto.phone;
@@ -280,7 +305,14 @@ router.post("/:id/executar", async (req, res) => {
                     continue;
                 }
 
-                // 2. Verificar se tem horário associado e se está no período válido
+                // 2. Verificar se já foi notificado hoje
+                if (notificadosHoje.includes(user_id.toString())) {
+                    console.log(`✅ Utilizador ${user_id} já foi notificado hoje, pulando...`);
+                    jaNotificado++;
+                    continue;
+                }
+
+                // 3. Verificar se tem horário associado e se está no período válido
                 const horarioCheck = await axios.get(
                     `https://backend.advir.pt/api/registo-ponto-obra/verificar-horario?user_id=${user_id}&data=${hoje}`,
                     { headers: { Authorization: req.headers.authorization } }
@@ -295,7 +327,7 @@ router.post("/:id/executar", async (req, res) => {
                 const horarioInfo = horarioCheck.data.horario;
                 console.log(`✅ Horário encontrado:`, horarioInfo);
 
-                // 3. Verificar se a data atual está dentro do período do horário
+                // 4. Verificar se a data atual está dentro do período do horário
                 const dataInicio = new Date(horarioInfo.dataInicio);
                 const dataFim = horarioInfo.dataFim ? new Date(horarioInfo.dataFim) : null;
                 const dataHoje = new Date(hoje);
@@ -312,14 +344,14 @@ router.post("/:id/executar", async (req, res) => {
                     continue;
                 }
 
-                // 4. Verificar se hoje é um dia de trabalho segundo o horário
+                // 5. Verificar se hoje é um dia de trabalho segundo o horário
                 const diaSemana = agora.getDay(); // 0=Domingo, 1=Segunda, etc
                 if (horarioInfo.diasSemana && !horarioInfo.diasSemana.includes(diaSemana)) {
                     console.log(`📅 Hoje (${diaSemana}) não é dia de trabalho para este utilizador`);
                     continue;
                 }
 
-                // 5. Verificar se já passou tempo suficiente após a hora de entrada
+                // 6. Verificar se já passou tempo suficiente após a hora de entrada
                 // Para dar margem, só enviamos a mensagem depois de um certo tempo após a hora de entrada
                 if (horarioInfo.horaEntrada) {
                     const [horaEntradaH, horaEntradaM] = horarioInfo.horaEntrada.split(':').map(Number);
@@ -336,7 +368,7 @@ router.post("/:id/executar", async (req, res) => {
                     }
                 }
 
-                // 6. Verificar se já registou ponto hoje
+                // 7. Verificar se já registou ponto hoje
                 const pontoCheck = await axios.get(
                     `https://backend.advir.pt/api/registo-ponto-obra/verificar-registo?user_id=${user_id}&data=${hoje}`,
                     { headers: { Authorization: req.headers.authorization } }
@@ -351,7 +383,7 @@ router.post("/:id/executar", async (req, res) => {
                 console.log(`⚠️ Utilizador sem registo de ponto, enviando mensagem...`);
                 semRegisto++;
 
-                // 7. Enviar mensagem via WhatsApp
+                // 8. Enviar mensagem via WhatsApp
                 const whatsappService = req.app.get("whatsappService");
                 if (!whatsappService?.isClientReady) {
                     console.error("❌ WhatsApp não está pronto");
@@ -363,6 +395,9 @@ router.post("/:id/executar", async (req, res) => {
                 console.log(`✅ Mensagem enviada com sucesso para ${phone}`);
                 mensagensEnviadas++;
 
+                // Adicionar à lista de notificados hoje para evitar duplicados
+                notificadosHoje.push(user_id.toString());
+
                 // Delay entre mensagens para evitar bloqueio
                 await new Promise(r => setTimeout(r, 2000));
 
@@ -372,10 +407,14 @@ router.post("/:id/executar", async (req, res) => {
             }
         }
 
-        // Atualizar estatísticas da verificação
+        // Atualizar estatísticas da verificação e salvar lista de notificados
         await verificacao.update({
             last_sent: new Date(),
             total_sent: (verificacao.total_sent || 0) + 1,
+            notificados_hoje: JSON.stringify({
+                data: hoje,
+                user_ids: notificadosHoje
+            })
         });
 
         console.log(`\n📊 Resumo da execução:`);
@@ -385,6 +424,7 @@ router.post("/:id/executar", async (req, res) => {
         console.log(`   - Sem registo: ${semRegisto}`);
         console.log(`   - Sem horário: ${semHorario}`);
         console.log(`   - Fora do período: ${foraDoPeriodo}`);
+        console.log(`   - Já notificado: ${jaNotificado}`);
         console.log(`   - Erros: ${erros}`);
 
         return res.json({
@@ -394,6 +434,7 @@ router.post("/:id/executar", async (req, res) => {
             comRegisto,
             semHorario,
             foraDoPeriodo,
+            jaNotificado,
             erros,
             totalContactos: contactos.length,
         });
