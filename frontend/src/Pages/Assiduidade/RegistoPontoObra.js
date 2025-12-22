@@ -18,6 +18,8 @@ import { useAppStateRefresh } from "../Autenticacao/utils/useAppStateRefresh";
 import { useEnsureValidTokens } from "../../utils/useEnsureValidTokens";
 import backgroundImage from "../../../images/ImagemFundo.png";
 import { secureStorage } from "../../utils/secureStorage";
+import OfflineBanner from "../../components/OfflineBanner";
+import { tentarReconectar } from "../../utils/syncOfflineData";
 
 const RegistoPontoObra = (props) => {
         const collator = new Intl.Collator('pt-PT', { numeric: true, sensitivity: 'base' });
@@ -55,6 +57,7 @@ const RegistoPontoObra = (props) => {
 
     const [mostrarManual, setMostrarManual] = useState(false);
     const [mostrarEquipa, setMostrarEquipa] = useState(false);
+    const [modoOffline, setModoOffline] = useState(false);
 
     const [cameras, setCameras] = useState([]);
     const [currentCamIdx, setCurrentCamIdx] = useState(0);
@@ -282,26 +285,30 @@ const RegistoPontoObra = (props) => {
             try {
                 setLoading(true);
                 const token = secureStorage.getItem("loginToken");
+                const empresaId = secureStorage.getItem("empresa_id");
+
+                // SEMPRE tentar buscar do backend (funciona mesmo em modo offline)
                 const res = await fetch("https://backend.advir.pt/api/obra", {
                     headers: { Authorization: `Bearer ${token}` },
                 });
+
                 if (res.ok) {
-  const data = await res.json();
-  const empresaId = secureStorage.getItem("empresa_id");
-  const obrasDaEmpresa = data
-    .filter((o) => o.empresa_id == empresaId)
-    .sort((a, b) => collator.compare(a?.codigo ?? '', b?.codigo ?? '')); // <= aqui
+                    const data = await res.json();
+                    const obrasDaEmpresa = data
+                        .filter((o) => o.empresa_id == empresaId)
+                        .sort((a, b) => collator.compare(a?.codigo ?? '', b?.codigo ?? ''));
 
-  setObras(obrasDaEmpresa);
+                    setObras(obrasDaEmpresa);
 
-  if (obrasDaEmpresa.length === 1) {
-    setObraSelecionada(obrasDaEmpresa[0].id);
-  }
-}
+                    if (obrasDaEmpresa.length === 1) {
+                        setObraSelecionada(obrasDaEmpresa[0].id);
+                    }
+                } else {
+                    console.error("Erro ao carregar obras do backend - Status:", res.status);
+                }
 
             } catch (err) {
                 console.error("Erro ao carregar obras:", err);
-                alert("Erro ao carregar obras");
             } finally {
                 setLoading(false);
             }
@@ -355,6 +362,46 @@ const RegistoPontoObra = (props) => {
         };
 
         carregarRegistosHoje();
+    }, []);
+
+    // Verificar modo offline e tentar reconectar automaticamente
+    useEffect(() => {
+        const offlineMode = secureStorage.getItem("modoOffline") === "true";
+        setModoOffline(offlineMode);
+
+        if (offlineMode) {
+            // Tentar reconectar automaticamente a cada 30 segundos
+            const intervaloReconexao = setInterval(async () => {
+                console.log("⏰ Verificando conexão...");
+                const resultado = await tentarReconectar();
+
+                if (resultado.reconnected && resultado.synced) {
+                    alert("✓ Conexão restaurada! Seus dados foram sincronizados.");
+                    setModoOffline(false);
+
+                    // Recarregar registos após sincronização
+                    const token = secureStorage.getItem("loginToken");
+                    const hoje = new Date().toISOString().split("T")[0];
+                    const res = await fetch(
+                        `https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`,
+                        {
+                            headers: { Authorization: `Bearer ${token}` },
+                        },
+                    );
+                    if (res.ok) {
+                        const dados = await res.json();
+                        const registosIniciais = dados.map((r) => ({
+                            ...r,
+                            morada: "A carregar localização...",
+                        }));
+                        setRegistos(registosIniciais);
+                    }
+                    clearInterval(intervaloReconexao);
+                }
+            }, 30000); // 30 segundos
+
+            return () => clearInterval(intervaloReconexao);
+        }
     }, []);
 
     useEffect(() => {
@@ -431,6 +478,42 @@ const RegistoPontoObra = (props) => {
         const latitude = loc?.coords?.latitude ?? null;
         const longitude = loc?.coords?.longitude ?? null;
 
+        // MODO OFFLINE: Salvar localmente
+        if (modoOffline) {
+            const novoRegisto = {
+                id: `offline-${Date.now()}`,
+                tipo,
+                obra_id: obraId,
+                latitude,
+                longitude,
+                timestamp: new Date().toISOString(),
+                user_id: parseInt(secureStorage.getItem("user_id")),
+                Obra: { nome: nomeObra },
+                morada: "Offline - Será atualizado"
+            };
+
+            // Salvar no localStorage
+            let registosOffline = secureStorage.getItem("registosObraOffline");
+            let registos = registosOffline ? JSON.parse(registosOffline) : [];
+            registos.push(novoRegisto);
+            secureStorage.setItem("registosObraOffline", JSON.stringify(registos));
+
+            // Adicionar à fila de sincronização
+            let filaSincronizacao = secureStorage.getItem("filaSincronizacao");
+            let fila = filaSincronizacao ? JSON.parse(filaSincronizacao) : [];
+            fila.push({
+                ...novoRegisto,
+                sincronizado: false
+            });
+            secureStorage.setItem("filaSincronizacao", JSON.stringify(fila));
+
+            // Atualizar UI
+            setRegistos((prev) => [...prev, novoRegisto]);
+            alert(`✓ ${tipo.toUpperCase()} registada offline na obra "${nomeObra}"!\nSerá sincronizada quando houver conexão.`);
+            return;
+        }
+
+        // MODO ONLINE: Enviar para backend
         const res = await fetch(
             "https://backend.advir.pt/api/registo-ponto-obra",
             {
@@ -466,7 +549,15 @@ const RegistoPontoObra = (props) => {
         }
     } catch (err) {
         console.error(err);
-        alert("Erro ao registar ponto");
+
+        // Se falhar online, tentar salvar offline
+        if (!modoOffline) {
+            alert('Erro de comunicação. Salvando offline...');
+            setModoOffline(true);
+            secureStorage.setItem("modoOffline", "true");
+            // Tentar novamente em modo offline
+            await registarPonto(tipo, obraId, nomeObra);
+        }
     } finally {
         setLoading(false);
     }
@@ -920,6 +1011,8 @@ const longitude = loc?.coords?.longitude ?? null;
                 overflowX: "hidden",
             }}
         >
+            {/* Banner de Modo Offline */}
+            <OfflineBanner isOffline={modoOffline} />
             <div
                 style={{
                     position: "absolute",

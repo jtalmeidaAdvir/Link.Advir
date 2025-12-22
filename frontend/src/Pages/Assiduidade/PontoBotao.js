@@ -5,6 +5,9 @@ import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icon
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { secureStorage } from '../../utils/secureStorage';
+import OfflineBanner from '../../components/OfflineBanner';
+import { tentarReconectar } from '../../utils/syncOfflineData';
+
 const PontoBotao = () => {
     const [registosDiarios, setRegistosDiarios] = useState([]);
     const [filteredRegistos, setFilteredRegistos] = useState([]);
@@ -21,6 +24,7 @@ const PontoBotao = () => {
     const [endereco, setEndereco] = useState('');
     const [animatedValue] = useState(new Animated.Value(0));
     const [expandCard, setExpandCard] = useState(false);
+    const [modoOffline, setModoOffline] = useState(false);
 
     const navigation = useNavigation();
 
@@ -154,7 +158,31 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     }, [intervaloAberto, horaInicioIntervalo]);
     
     useEffect(() => {
-        fetchRegistosDiarios();
+        // Verificar se está em modo offline
+        const offlineMode = secureStorage.getItem("modoOffline") === "true";
+        setModoOffline(offlineMode);
+
+        if (!offlineMode) {
+            fetchRegistosDiarios();
+        } else {
+            // Carregar registos offline do localStorage
+            carregarRegistosOffline();
+
+            // Tentar reconectar automaticamente a cada 30 segundos
+            const intervaloReconexao = setInterval(async () => {
+                console.log("⏰ Verificando conexão...");
+                const resultado = await tentarReconectar();
+
+                if (resultado.reconnected && resultado.synced) {
+                    alert("✓ Conexão restaurada! Seus dados foram sincronizados.");
+                    setModoOffline(false);
+                    fetchRegistosDiarios();
+                    clearInterval(intervaloReconexao);
+                }
+            }, 30000); // 30 segundos
+
+            return () => clearInterval(intervaloReconexao);
+        }
     }, []);
 
     const filtrarRegistos = useCallback(() => {
@@ -178,12 +206,12 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
                     'Content-Type': 'application/json',
                 },
             });
-        
+
             if (response.ok) {
                 const data = await response.json();
                 const hoje = new Date().toISOString().split('T')[0];
                 const registoHoje = data.filter((registo) => registo.data === hoje);
-        
+
                 setRegistosDiarios(data || []);
                 setFilteredRegistos(registoHoje);
                 setErrorMessage('');
@@ -195,6 +223,71 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
         } catch (error) {
             console.error("Erro ao obter registos diários:", error);
             setErrorMessage('Erro de rede ao obter registos diários.');
+        }
+    };
+
+    // Função para carregar registos salvos localmente (modo offline)
+    const carregarRegistosOffline = () => {
+        try {
+            const registosOffline = secureStorage.getItem("registosOffline");
+            if (registosOffline) {
+                const registos = JSON.parse(registosOffline);
+                const hoje = new Date().toISOString().split('T')[0];
+                const registoHoje = registos.filter((registo) => registo.data === hoje);
+
+                setRegistosDiarios(registos);
+                setFilteredRegistos(registoHoje);
+            }
+        } catch (error) {
+            console.error("Erro ao carregar registos offline:", error);
+        }
+    };
+
+    // Função para salvar registo localmente (modo offline)
+    const salvarRegistoOffline = (novoRegisto) => {
+        try {
+            let registosOffline = secureStorage.getItem("registosOffline");
+            let registos = registosOffline ? JSON.parse(registosOffline) : [];
+
+            // Verificar se já existe registo para hoje
+            const hoje = new Date().toISOString().split('T')[0];
+            const indexHoje = registos.findIndex(r => r.data === hoje);
+
+            if (indexHoje >= 0) {
+                // Atualizar registo existente
+                registos[indexHoje] = { ...registos[indexHoje], ...novoRegisto };
+            } else {
+                // Adicionar novo registo
+                registos.push(novoRegisto);
+            }
+
+            secureStorage.setItem("registosOffline", JSON.stringify(registos));
+
+            // Adicionar à fila de sincronização
+            adicionarFilaSincronizacao(novoRegisto);
+
+            // Atualizar estado local
+            carregarRegistosOffline();
+        } catch (error) {
+            console.error("Erro ao salvar registo offline:", error);
+        }
+    };
+
+    // Função para adicionar à fila de sincronização
+    const adicionarFilaSincronizacao = (registo) => {
+        try {
+            let filaSincronizacao = secureStorage.getItem("filaSincronizacao");
+            let fila = filaSincronizacao ? JSON.parse(filaSincronizacao) : [];
+
+            fila.push({
+                ...registo,
+                timestamp: new Date().toISOString(),
+                sincronizado: false
+            });
+
+            secureStorage.setItem("filaSincronizacao", JSON.stringify(fila));
+        } catch (error) {
+            console.error("Erro ao adicionar à fila de sincronização:", error);
         }
     };
 
@@ -328,19 +421,47 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     const registarPonto = async () => {
         try {
             console.log("A carregar localização...");
-            
-            const localizacao = await obterLocalizacao(); 
+
+            const localizacao = await obterLocalizacao();
             const endereco = await getEnderecoPorCoordenadas(localizacao.latitude, localizacao.longitude);
-            setInicioTemporizador(new Date());
-            setTemporizadorAtivo(true);
-            setTempoPausado(0);
-            console.log("Endereço obtido:", endereco);
 
             const horaAtual = new Date().toISOString();
-            secureStorage.setItem('horaEntrada', horaAtual);
-            setInicioTemporizador(new Date(horaAtual));
-            setTemporizadorAtivo(true);
+            const hoje = new Date().toISOString().split('T')[0];
 
+            // Verificar se já existe entrada hoje
+            const horaEntradaSalva = secureStorage.getItem('horaEntrada');
+            const isEntrada = !horaEntradaSalva;
+
+            if (isEntrada) {
+                secureStorage.setItem('horaEntrada', horaAtual);
+                setInicioTemporizador(new Date(horaAtual));
+                setTemporizadorAtivo(true);
+                setTempoPausado(0);
+            }
+
+            // MODO OFFLINE: Salvar localmente
+            if (modoOffline) {
+                const novoRegisto = {
+                    id: `offline-${Date.now()}`,
+                    data: hoje,
+                    hora: horaAtual,
+                    latitude: localizacao.latitude,
+                    longitude: localizacao.longitude,
+                    endereco,
+                    totalHorasTrabalhadas: "8.00",
+                    totalTempoIntervalo: "1.00",
+                    empresa: secureStorage.getItem('empresaSelecionada'),
+                    userId: secureStorage.getItem('userId'),
+                    horaEntrada: isEntrada ? horaAtual : horaEntradaSalva,
+                    horaSaida: isEntrada ? null : horaAtual
+                };
+
+                salvarRegistoOffline(novoRegisto);
+                alert(`✓ Registo salvo offline! Será sincronizado quando houver conexão.`);
+                return;
+            }
+
+            // MODO ONLINE: Enviar para backend
             const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
                 method: 'POST',
                 headers: {
@@ -356,7 +477,6 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
                     totalTempoIntervalo: "1.00",
                     empresa: secureStorage.getItem('empresaSelecionada')
                 }),
-
             });
 
             if (response.ok) {
@@ -369,7 +489,15 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
             }
         } catch (error) {
             console.error("Erro ao registar ponto:", error);
-            alert('Erro de comunicação com o servidor.');
+
+            // Se falhar online, tentar salvar offline
+            if (!modoOffline) {
+                alert('Erro de comunicação. Salvando offline...');
+                setModoOffline(true);
+                secureStorage.setItem("modoOffline", "true");
+                // Tentar novamente em modo offline
+                await registarPonto();
+            }
         }
     };
 
@@ -570,6 +698,9 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     // Renderização principal
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+            {/* Banner de Modo Offline */}
+            <OfflineBanner isOffline={modoOffline} />
+
             {/* Cabeçalho */}
             <View style={styles.header}>
                 <LinearGradient
