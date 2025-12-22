@@ -25,7 +25,7 @@ const ADHome = () => {
         try {
             const response = await fetch('https://backend.advir.pt/api/empresas/listar');
             const data = await response.json();
-            setEmpresas(data);
+            setEmpresas(Array.isArray(data) ? data : (data.empresas || []));
         } catch (error) {
             console.error('Erro ao carregar empresas:', error);
             Alert.alert('Erro', 'Não foi possível carregar as empresas');
