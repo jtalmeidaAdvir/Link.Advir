@@ -237,14 +237,25 @@ class VerificacaoPontoScheduler {
 
                     // 6. Verificar se já passou 30 minutos da hora de entrada
                     if (horarioInfo.horaEntrada) {
-                        const [horaEntradaH, horaEntradaM] = horarioInfo.horaEntrada.split(':').map(Number);
+                        let horaEntrada = horarioInfo.horaEntrada;
+
+                        // Se vier como timestamp ISO, extrair apenas a hora
+                        if (horaEntrada.includes('T')) {
+                            const date = new Date(horaEntrada);
+                            horaEntrada = `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}`;
+                        }
+
+                        const [horaEntradaH, horaEntradaM] = horaEntrada.split(':').map(Number);
                         const [horaAtualH, horaAtualM] = horaAtual.split(':').map(Number);
 
                         const minutosEntrada = horaEntradaH * 60 + horaEntradaM;
                         const minutosAtual = horaAtualH * 60 + horaAtualM;
                         const diferencaMinutos = minutosAtual - minutosEntrada;
 
+                        console.log(`   ⏰ Verificação tempo: Entrada ${horaEntrada}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min`);
+
                         if (diferencaMinutos < 30) {
+                            console.log(`   ⏭️ Ainda não passaram 30min da entrada`);
                             continue;
                         }
                     }
