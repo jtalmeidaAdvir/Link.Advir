@@ -87,6 +87,13 @@ const RegistosPorUtilizador = () => {
         return makeUTCISO(y, m, d, hh, mm);
     };
 
+    // Converte horas decimais (ex: 8.94) para formato HH:MM (ex: 8:56)
+    const formatarHorasMinutos = (horasDecimais) => {
+        const horas = Math.floor(horasDecimais);
+        const minutos = Math.round((horasDecimais - horas) * 60);
+        return `${horas}:${pad(minutos)}`;
+    };
+
 
 
 
@@ -558,6 +565,7 @@ const RegistosPorUtilizador = () => {
                         horasPorDia,
                         totalHorasTrabalhadas: 0,
                         totalHorasEsperadas: 0,
+                        totalHorasDescontadasFBH: 0,
                         saldoBolsa: 0,
                         diasTrabalhados: 0,
                         dataInicio: dataInicioHorario,
@@ -618,26 +626,187 @@ const RegistosPorUtilizador = () => {
 
                     if (horasDia > 0) {
                         totalDiasTrabalhados++;
-                        totalHorasTrabalhadas += horasDia;
+
+                        // Aplicar lógica de arredondamento para bolsa de horas
+                        let horasParaBolsa = horasDia;
+
+                        // Log para debug - ver o que está vindo do horário
+                        if (Object.keys(registosPorData).indexOf(dataKey) === 0) {
+                            console.log(`🔍 [DEBUG] Horário do usuário ${user.nome}:`, horarioUser);
+                        }
+
+                        // Se o horário tem tempoArredondamento definido (ex: "08:45" ou 8.75)
+                        if (horarioUser && horarioUser.tempoArredondamento) {
+                            let tempoArredondamento = 0;
+
+                            // Converter tempoArredondamento para horas
+                            if (typeof horarioUser.tempoArredondamento === 'string') {
+                                // Se estiver no formato "HH:MM" (ex: "08:45")
+                                const partes = horarioUser.tempoArredondamento.split(':');
+                                if (partes.length === 2) {
+                                    tempoArredondamento = parseInt(partes[0]) + (parseInt(partes[1]) / 60);
+                                } else {
+                                    // Se for string numérica (ex: "8.75")
+                                    tempoArredondamento = parseFloat(horarioUser.tempoArredondamento);
+                                }
+                            } else {
+                                // Se já for número
+                                tempoArredondamento = parseFloat(horarioUser.tempoArredondamento);
+                            }
+
+                            // Lógica de arredondamento para bolsa de horas
+                            // tempoArredondamento define quando arredondar para o próximo bloco
+                            // Ex: horasPorDia = 8h, tempoArredondamento = 8:45 (8.75h)
+                            // - < 8:45h: 0h extra (ainda dentro das 8h esperadas)
+                            // - >= 8:45h e < 9:45h: 1h extra (arredonda para 1h)
+                            // - >= 9:45h e < 10:45h: 2h extra (arredonda para 2h)
+                            // - >= 10:45h e < 11:45h: 3h extra (arredonda para 3h)
+
+                            if (horasDia < tempoArredondamento) {
+                                // Trabalhou menos que o limite de arredondamento
+                                // Não conta hora extra
+                                horasParaBolsa = 0;
+                            } else {
+                                // Trabalhou mais que o limite de arredondamento
+                                // Calcular em qual "bloco" de hora extra está
+                                // Cada bloco tem 1h de intervalo após tempoArredondamento
+                                const horasAcima = horasDia - tempoArredondamento;
+                                horasParaBolsa = Math.floor(horasAcima) + 1; // +1 porque já passou do limite
+                            }
+
+                            console.log(`⏱️ [BOLSA] ${user.nome || user.username} ${dataKey}: ${horasDia.toFixed(2)}h trabalhadas - Limite arredondamento: ${tempoArredondamento.toFixed(2)}h - Bolsa: ${horasParaBolsa}h extra`);
+                        } else {
+                            console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - SEM tempoArredondamento definido! Usando horas reais.`);
+                        }
+
+                        // horasParaBolsa já contém apenas as horas extras (0, 1, 2, etc.)
+                        totalHorasTrabalhadas += horasParaBolsa;
                         totalHorasEsperadas += horasPorDia;
 
-                        const diferencaDia = horasDia - horasPorDia;
-
-                        // Guardar detalhes dos últimos 30 dias com diferença
-                        if (Math.abs(diferencaDia) > 0.1) {
+                        // Guardar detalhes apenas dos dias com horas extras
+                        if (horasParaBolsa > 0) {
                             diasTrabalhadosDetalhes.push({
                                 data: dataKey,
-                                horasTrabalhadas: horasDia,
+                                horasReaisTrabalhadas: horasDia, // Horas reais (para exibir)
+                                horasTrabalhadas: horasParaBolsa, // Horas extras (1h, 2h, etc.)
                                 horasEsperadas: horasPorDia,
-                                diferenca: diferencaDia
+                                diferenca: horasParaBolsa // Diferença = horas extras
                             });
                         }
                     }
                 });
 
-                const saldoBolsa = totalHorasTrabalhadas - totalHorasEsperadas;
+                // Buscar faltas do tipo FBH (Falta de Bolsa de Horas) para descontar do saldo
+                let totalHorasDescontadasFBH = 0;
+                const painelAdminToken = secureStorage.getItem('painelAdminToken');
+                const loginToken = secureStorage.getItem('loginToken');
+                const urlempresa = secureStorage.getItem('urlempresa');
 
-                console.log(`💰 [BOLSA] ${user.nome || user.username} - Saldo Final: ${saldoBolsa.toFixed(2)}h (${totalHorasTrabalhadas.toFixed(2)}h trabalhadas / ${totalHorasEsperadas.toFixed(2)}h esperadas em ${totalDiasTrabalhados} dias)`);
+                try {
+                    // Obter codFuncionario do utilizador
+                    const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${loginToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+
+                    if (resCodFuncionario.ok) {
+                        const dataCodFuncionario = await resCodFuncionario.json();
+                        const codFuncionario = dataCodFuncionario.codFuncionario;
+
+                        console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - codFuncionario: ${codFuncionario}`);
+
+                        if (codFuncionario && painelAdminToken && urlempresa) {
+                            // Buscar todas as faltas do funcionário desde o início do horário até hoje
+                            const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
+
+                            console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Buscando faltas em: ${urlFaltas}`);
+
+                            const resFaltas = await fetch(urlFaltas, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${painelAdminToken}`,
+                                    'urlempresa': urlempresa,
+                                }
+                            });
+
+                            console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Status da API: ${resFaltas.status}`);
+
+                            if (resFaltas.ok) {
+                                const dataFaltas = await resFaltas.json();
+
+                                console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Resposta da API:`, dataFaltas);
+
+                                // Verificar se é array direto ou se está dentro de DataSet.Table
+                                let todasFaltas = [];
+                                if (Array.isArray(dataFaltas)) {
+                                    todasFaltas = dataFaltas;
+                                } else if (dataFaltas && dataFaltas.DataSet && Array.isArray(dataFaltas.DataSet.Table)) {
+                                    todasFaltas = dataFaltas.DataSet.Table;
+                                }
+
+                                if (todasFaltas.length > 0) {
+                                    console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Total de faltas encontradas: ${todasFaltas.length}`);
+
+                                    // Log da primeira falta para ver a estrutura
+                                    console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Exemplo de falta:`, todasFaltas[0]);
+
+                                    const faltasFBH = todasFaltas.filter(falta => {
+                                        // Verificar se é falta do tipo FBH
+                                        const tipoFalta = falta.Falta || falta.Falta1;
+                                        const dataFalta = falta.Data || falta.Data1 || falta.Data2;
+
+                                        console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Falta tipo: "${tipoFalta}", Data: ${dataFalta}`);
+
+                                        if (tipoFalta === 'FBH' && dataFalta) {
+                                            const dataFaltaObj = new Date(dataFalta);
+                                            // Verificar se a falta está após o início do horário
+                                            // Não limitamos ao futuro porque faltas FBH podem ser agendadas
+                                            const apósInicioHorario = dataFaltaObj >= dataInicioHorario;
+                                            console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - FBH encontrada! Data: ${dataFalta}, Após início do horário: ${apósInicioHorario}`);
+                                            return apósInicioHorario;
+                                        }
+                                        return false;
+                                    });
+
+                                    console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Faltas FBH filtradas: ${faltasFBH.length}`);
+
+                                    // Somar as horas das faltas FBH
+                                    faltasFBH.forEach(falta => {
+                                        const tempo = parseFloat(falta.Tempo || 0);
+                                        console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Tempo da falta: ${tempo}h`);
+                                        totalHorasDescontadasFBH += tempo;
+                                    });
+
+                                    if (totalHorasDescontadasFBH > 0) {
+                                        console.log(`🔴 [BOLSA] ${user.nome || user.username} - Faltas FBH: -${totalHorasDescontadasFBH.toFixed(2)}h (${faltasFBH.length} falta(s))`);
+                                    } else {
+                                        console.log(`✅ [BOLSA-FBH] ${user.nome || user.username} - Nenhuma falta FBH encontrada`);
+                                    }
+                                } else {
+                                    console.warn(`⚠️ [BOLSA-FBH] ${user.nome || user.username} - Nenhuma falta encontrada na resposta da API`);
+                                }
+                            } else {
+                                console.warn(`⚠️ [BOLSA-FBH] ${user.nome || user.username} - Erro na API: ${resFaltas.status}`);
+                            }
+                        } else {
+                            console.warn(`⚠️ [BOLSA-FBH] ${user.nome || user.username} - Faltam credenciais (codFuncionario: ${codFuncionario}, painelAdminToken: ${!!painelAdminToken}, urlempresa: ${!!urlempresa})`);
+                        }
+                    } else {
+                        console.warn(`⚠️ [BOLSA-FBH] ${user.nome || user.username} - Erro ao obter codFuncionario: ${resCodFuncionario.status}`);
+                    }
+                } catch (errFaltas) {
+                    console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - Erro ao buscar faltas FBH:`, errFaltas);
+                }
+
+                // totalHorasTrabalhadas já contém APENAS as horas extras acumuladas
+                // Descontar as horas das faltas FBH
+                const saldoBolsa = totalHorasTrabalhadas - totalHorasDescontadasFBH;
+
+                console.log(`💰 [BOLSA] ${user.nome || user.username} - Saldo Final: ${saldoBolsa >= 0 ? '+' : ''}${saldoBolsa.toFixed(2)}h (Extras: +${totalHorasTrabalhadas.toFixed(2)}h, FBH: -${totalHorasDescontadasFBH.toFixed(2)}h) em ${totalDiasTrabalhados} dias trabalhados`);
 
                 // Adicionar todos os utilizadores, mesmo com saldo zero
                 bolsaCalculada.push({
@@ -646,6 +815,7 @@ const RegistosPorUtilizador = () => {
                     horasPorDia,
                     totalHorasTrabalhadas,
                     totalHorasEsperadas,
+                    totalHorasDescontadasFBH,
                     saldoBolsa,
                     diasTrabalhados: totalDiasTrabalhados,
                     dataInicio: dataInicioHorario,
@@ -2828,7 +2998,8 @@ const RegistosPorUtilizador = () => {
                         });
                     } catch (err) {
                         console.warn(`Erro ao eliminar registo ${registo.id}:`, err);
-                    }
+
+                          }
                 }
             }
 
@@ -6217,16 +6388,14 @@ const RegistosPorUtilizador = () => {
                                                 <p style={styles.bolsaHorario}>
                                                     Horário: {bolsa.horario.descricao} ({bolsa.horasPorDia}h/dia)
                                                 </p>
-                                                <p style={styles.bolsaHorario}>
-                                                    📅 Desde: {new Date(bolsa.dataInicio).toLocaleDateString('pt-PT')}
-                                                </p>
+                                               
                                             </div>
                                             <div style={styles.bolsaSaldo}>
                                                 <div style={{
                                                     ...styles.bolsaSaldoValor,
                                                     color: bolsa.saldoBolsa >= 0 ? '#4caf50' : '#f44336'
                                                 }}>
-                                                    {bolsa.saldoBolsa >= 0 ? '+' : ''}{bolsa.saldoBolsa.toFixed(2)}h
+                                                    {bolsa.saldoBolsa >= 0 ? '+' : ''}{formatarHorasMinutos(Math.abs(bolsa.saldoBolsa))}
                                                 </div>
                                                 <div style={styles.bolsaSaldoLabel}>Saldo</div>
                                             </div>
@@ -6235,13 +6404,17 @@ const RegistosPorUtilizador = () => {
                                         {/* Estatísticas */}
                                         <div style={styles.bolsaStats}>
                                             <div style={styles.bolsaStatItem}>
-                                                <span style={styles.bolsaStatLabel}>Horas Trabalhadas:</span>
-                                                <span style={styles.bolsaStatValue}>{bolsa.totalHorasTrabalhadas.toFixed(2)}h</span>
+                                                <span style={styles.bolsaStatLabel}>Horas Extras Acumuladas:</span>
+                                                <span style={{...styles.bolsaStatValue, color: '#4caf50'}}>+{formatarHorasMinutos(bolsa.totalHorasTrabalhadas)}</span>
                                             </div>
-                                            <div style={styles.bolsaStatItem}>
-                                                <span style={styles.bolsaStatLabel}>Horas Esperadas:</span>
-                                                <span style={styles.bolsaStatValue}>{bolsa.totalHorasEsperadas.toFixed(2)}h</span>
-                                            </div>
+
+                                            {bolsa.totalHorasDescontadasFBH > 0 && (
+                                                <div style={styles.bolsaStatItem}>
+                                                    <span style={styles.bolsaStatLabel}>Faltas FBH Descontadas:</span>
+                                                    <span style={{...styles.bolsaStatValue, color: '#f44336'}}>-{formatarHorasMinutos(bolsa.totalHorasDescontadasFBH)}</span>
+                                                </div>
+                                            )}
+
                                             <div style={styles.bolsaStatItem}>
                                                 <span style={styles.bolsaStatLabel}>Dias Trabalhados:</span>
                                                 <span style={styles.bolsaStatValue}>{bolsa.diasTrabalhados}</span>
@@ -6265,13 +6438,13 @@ const RegistosPorUtilizador = () => {
                                                                 })}
                                                             </span>
                                                             <span style={styles.bolsaDiaHoras}>
-                                                                {dia.horasTrabalhadas.toFixed(2)}h / {dia.horasEsperadas.toFixed(2)}h
+                                                                {dia.horasReaisTrabalhadas ? `${formatarHorasMinutos(dia.horasReaisTrabalhadas)} → ${formatarHorasMinutos(dia.horasTrabalhadas)}` : `${formatarHorasMinutos(dia.horasTrabalhadas)}`}
                                                             </span>
                                                             <span style={{
                                                                 ...styles.bolsaDiaDiff,
                                                                 color: dia.diferenca >= 0 ? '#4caf50' : '#f44336'
                                                             }}>
-                                                                {dia.diferenca >= 0 ? '+' : ''}{dia.diferenca.toFixed(2)}h
+                                                                {dia.diferenca >= 0 ? '+' : ''}{formatarHorasMinutos(Math.abs(dia.diferenca))}
                                                             </span>
                                                         </div>
                                                     ))}
