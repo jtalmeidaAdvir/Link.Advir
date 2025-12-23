@@ -149,7 +149,7 @@ router.get('/verificar-falta', async (req, res) => {
         const User = require('../models/user');
         const { Op } = require('sequelize');
 
-        // Buscar o utilizador para obter o funcionario (nome)
+        // Buscar o utilizador para obter o codFuncionario
         const user = await User.findByPk(user_id);
         if (!user) {
             return res.json({
@@ -158,13 +158,20 @@ router.get('/verificar-falta', async (req, res) => {
             });
         }
 
-        const nomeFuncionario = user.name;
+        const codFuncionario = user.codFuncionario;
+        if (!codFuncionario) {
+            return res.json({
+                temFalta: false,
+                motivo: 'Utilizador sem código de funcionário'
+            });
+        }
+
         const dataFormatada = data; // Formato: YYYY-MM-DD
 
         // Verificar faltas aprovadas (data única via dataPedido)
         const faltaUnica = await AprovacaoFaltaFerias.findOne({
             where: {
-                funcionario: nomeFuncionario,
+                funcionario: codFuncionario,
                 tipoPedido: 'FALTA',
                 estadoAprovacao: 'Aprovado',
                 dataPedido: {
@@ -188,7 +195,7 @@ router.get('/verificar-falta', async (req, res) => {
         // Verificar férias aprovadas (intervalo de datas)
         const ferias = await AprovacaoFaltaFerias.findOne({
             where: {
-                funcionario: nomeFuncionario,
+                funcionario: codFuncionario,
                 tipoPedido: 'FERIAS',
                 estadoAprovacao: 'Aprovado',
                 dataInicio: { [Op.lte]: dataFormatada },
@@ -208,7 +215,7 @@ router.get('/verificar-falta', async (req, res) => {
         // Verificar faltas com intervalo (caso existam faltas com dataInicio/dataFim)
         const faltaIntervalo = await AprovacaoFaltaFerias.findOne({
             where: {
-                funcionario: nomeFuncionario,
+                funcionario: codFuncionario,
                 tipoPedido: 'FALTA',
                 estadoAprovacao: 'Aprovado',
                 dataInicio: {
