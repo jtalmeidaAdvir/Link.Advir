@@ -253,11 +253,14 @@ class VerificacaoSaidaScheduler {
                         const minutosAtual = horaAtualH * 60 + horaAtualM;
                         const diferencaMinutos = minutosAtual - minutosSaida;
 
-                        console.log(`   ⏰ Verificação tempo: Saída ${horaSaida}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min`);
+                        // Obter minutos de tolerância da configuração
+                        const minutosTolerancia = verificacao.minutos_tolerancia || 10;
 
-                        // Só notificar se já passou 30 minutos da hora de saída
-                        if (diferencaMinutos < 30) {
-                            console.log(`   ⏭️ Ainda não passaram 30min da saída esperada`);
+                        console.log(`   ⏰ Verificação tempo: Saída ${horaSaida}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min (Tolerância: ${minutosTolerancia}min)`);
+
+                        // Só notificar se já passou o tempo de tolerância configurado
+                        if (diferencaMinutos < minutosTolerancia) {
+                            console.log(`   ⏭️ Ainda não passaram ${minutosTolerancia}min da saída esperada`);
                             continue;
                         }
                     } else {

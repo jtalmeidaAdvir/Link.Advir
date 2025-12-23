@@ -235,7 +235,8 @@ class VerificacaoPontoScheduler {
                         continue;
                     }
 
-                    // 6. Verificar se já passou 30 minutos da hora de entrada
+                    // 6. Verificar se já passou o tempo de tolerância configurado
+                    const minutosTolerancia = verificacao.minutos_tolerancia || 10;
                     if (horarioInfo.horaEntrada) {
                         let horaEntrada = horarioInfo.horaEntrada;
 
@@ -252,10 +253,10 @@ class VerificacaoPontoScheduler {
                         const minutosAtual = horaAtualH * 60 + horaAtualM;
                         const diferencaMinutos = minutosAtual - minutosEntrada;
 
-                        console.log(`   ⏰ Verificação tempo: Entrada ${horaEntrada}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min`);
+                        console.log(`   ⏰ Verificação tempo: Entrada ${horaEntrada}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min (Tolerância: ${minutosTolerancia}min)`);
 
-                        if (diferencaMinutos < 10) {
-                            console.log(`   ⏭️ Ainda não passaram 10min da entrada`);
+                        if (diferencaMinutos < minutosTolerancia) {
+                            console.log(`   ⏭️ Ainda não passaram ${minutosTolerancia}min da entrada`);
                             continue;
                         }
                     }

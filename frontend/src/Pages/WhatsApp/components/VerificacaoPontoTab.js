@@ -10,9 +10,11 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
     const [novaConfiguracao, setNovaConfiguracao] = useState({
         nome: "",
         lista_contactos_id: "",
+        tipo_verificacao: "entrada", // 'entrada' ou 'saida'
         horario_inicio: "06:00",
         horario_fim: "12:00",
         intervalo_minutos: 1,
+        minutos_tolerancia: 10, // Minutos de tolerância após hora de entrada/saída
         mensagem_template: "⚠️ Olá! Notamos que ainda não registou o seu ponto de hoje. Por favor, regularize a situação o mais breve possível.",
         dias_semana: [1, 2, 3, 4, 5], // Segunda a Sexta
         ativo: true
@@ -25,11 +27,36 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
 
     const carregarConfiguracoes = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/verificacao-ponto/listar`);
-            if (response.ok) {
-                const data = await response.json();
-                setConfiguracoes(data.configuracoes || []);
+            // Carregar ambos os tipos de verificação
+            const [entradaResponse, saidaResponse] = await Promise.all([
+                fetch(`${API_BASE_URL}/verificacao-ponto/listar`),
+                fetch(`${API_BASE_URL}/verificacao-saida/listar`)
+            ]);
+
+            let todasConfiguracoes = [];
+
+            if (entradaResponse.ok) {
+                const dataEntrada = await entradaResponse.json();
+                const configsEntrada = (dataEntrada.configuracoes || []).map(c => ({
+                    ...c,
+                    tipo_verificacao: 'entrada'
+                }));
+                todasConfiguracoes = [...todasConfiguracoes, ...configsEntrada];
             }
+
+            if (saidaResponse.ok) {
+                const dataSaida = await saidaResponse.json();
+                const configsSaida = (dataSaida.configuracoes || []).map(c => ({
+                    ...c,
+                    tipo_verificacao: 'saida'
+                }));
+                todasConfiguracoes = [...todasConfiguracoes, ...configsSaida];
+            }
+
+            // Ordenar por ID decrescente
+            todasConfiguracoes.sort((a, b) => b.id - a.id);
+            setConfiguracoes(todasConfiguracoes);
+
         } catch (error) {
             console.error("Erro ao carregar configurações:", error);
         }
@@ -57,7 +84,12 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
 
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/verificacao-ponto/criar`, {
+            // Escolher o endpoint baseado no tipo de verificação
+            const endpoint = novaConfiguracao.tipo_verificacao === 'saida'
+                ? `${API_BASE_URL}/verificacao-saida/criar`
+                : `${API_BASE_URL}/verificacao-ponto/criar`;
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -71,9 +103,11 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                 setNovaConfiguracao({
                     nome: "",
                     lista_contactos_id: "",
+                    tipo_verificacao: "entrada",
                     horario_inicio: "06:00",
                     horario_fim: "12:00",
                     intervalo_minutos: 1,
+                    minutos_tolerancia: 10,
                     mensagem_template: "⚠️ Olá! Notamos que ainda não registou o seu ponto de hoje. Por favor, regularize a situação o mais breve possível.",
                     dias_semana: [1, 2, 3, 4, 5],
                     ativo: true
@@ -91,9 +125,10 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
         }
     };
 
-    const toggleConfiguracao = async (id, ativo) => {
+    const toggleConfiguracao = async (id, ativo, tipoVerificacao) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/verificacao-ponto/${id}/toggle`, {
+            const baseUrl = tipoVerificacao === 'saida' ? 'verificacao-saida' : 'verificacao-ponto';
+            const response = await fetch(`${API_BASE_URL}/${baseUrl}/${id}/toggle`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -109,13 +144,14 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
         }
     };
 
-    const eliminarConfiguracao = async (id) => {
+    const eliminarConfiguracao = async (id, tipoVerificacao) => {
         if (!confirm("Tem certeza que deseja eliminar esta configuração?")) {
             return;
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/verificacao-ponto/${id}`, {
+            const baseUrl = tipoVerificacao === 'saida' ? 'verificacao-saida' : 'verificacao-ponto';
+            const response = await fetch(`${API_BASE_URL}/${baseUrl}/${id}`, {
                 method: 'DELETE'
             });
 
@@ -129,15 +165,17 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
         }
     };
 
-    const executarVerificacao = async (id) => {
-        if (!confirm("Deseja executar a verificação agora e enviar mensagens para quem não registou ponto?")) {
+    const executarVerificacao = async (id, tipoVerificacao) => {
+        const tipoTexto = tipoVerificacao === 'saida' ? 'saída' : 'entrada';
+        if (!confirm(`Deseja executar a verificação de ${tipoTexto} agora e enviar mensagens?`)) {
             return;
         }
 
         setLoading(true);
-        const url = `${API_BASE_URL}/verificacao-ponto/${id}/executar`;
+        const baseUrl = tipoVerificacao === 'saida' ? 'verificacao-saida' : 'verificacao-ponto';
+        const url = `${API_BASE_URL}/${baseUrl}/${id}/executar`;
         console.log(`🔄 Executando verificação - URL: ${url}`);
-        
+
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -148,24 +186,42 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
             });
 
             console.log(`📡 Response status: ${response.status}`);
-            
+
             const data = await response.json();
             console.log('📦 Response data:', data);
 
             if (response.ok) {
-                const resultadoMsg = [
-                    `📊 Verificação executada com sucesso!`,
-                    ``,
-                    `📤 Mensagens enviadas: ${data.mensagensEnviadas}`,
-                    `✅ Com registo de ponto: ${data.comRegisto}`,
-                    `⚠️ Sem registo de ponto: ${data.semRegisto}`,
-                    `⏰ Sem horário associado: ${data.semHorario}`,
-                    `📅 Fora do período: ${data.foraDoPeriodo}`,
-                    `🔔 Já notificado hoje: ${data.jaNotificado || 0}`,
-                    `❌ Erros: ${data.erros}`,
-                    ``,
-                    `👥 Total de contactos: ${data.totalContactos}`
-                ].join('\n');
+                let resultadoMsg;
+                if (tipoVerificacao === 'saida') {
+                    resultadoMsg = [
+                        `📊 Verificação de saída executada com sucesso!`,
+                        ``,
+                        `📤 Mensagens enviadas: ${data.mensagensEnviadas}`,
+                        `✅ Com registo de saída: ${data.comSaida || 0}`,
+                        `⚠️ Sem registo de saída: ${data.semSaida || 0}`,
+                        `🚪 Sem entrada registada: ${data.semEntrada || 0}`,
+                        `⏰ Sem horário associado: ${data.semHorario}`,
+                        `📅 Fora do período: ${data.foraDoPeriodo}`,
+                        `🔔 Já notificado hoje: ${data.jaNotificado || 0}`,
+                        `❌ Erros: ${data.erros}`,
+                        ``,
+                        `👥 Total de contactos: ${data.totalContactos}`
+                    ].join('\n');
+                } else {
+                    resultadoMsg = [
+                        `📊 Verificação de entrada executada com sucesso!`,
+                        ``,
+                        `📤 Mensagens enviadas: ${data.mensagensEnviadas}`,
+                        `✅ Com registo de ponto: ${data.comRegisto}`,
+                        `⚠️ Sem registo de ponto: ${data.semRegisto}`,
+                        `⏰ Sem horário associado: ${data.semHorario}`,
+                        `📅 Fora do período: ${data.foraDoPeriodo}`,
+                        `🔔 Já notificado hoje: ${data.jaNotificado || 0}`,
+                        `❌ Erros: ${data.erros}`,
+                        ``,
+                        `👥 Total de contactos: ${data.totalContactos}`
+                    ].join('\n');
+                }
 
                 alert(resultadoMsg);
             } else {
@@ -201,6 +257,40 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                     </div>
 
                     <div style={styles.formGroup}>
+                        <label style={styles.label}>Tipo de Verificação *</label>
+                        <select
+                            style={styles.select}
+                            value={novaConfiguracao.tipo_verificacao}
+                            onChange={(e) => {
+                                const tipo = e.target.value;
+                                const mensagemPadrao = tipo === 'saida'
+                                    ? "🚪 Olá! Notamos que ainda não registou a sua saída de hoje. Por favor, regularize a situação o mais breve possível."
+                                    : "⚠️ Olá! Notamos que ainda não registou o seu ponto de hoje. Por favor, regularize a situação o mais breve possível.";
+                                const horarioInicio = tipo === 'saida' ? "18:00" : "06:00";
+                                const horarioFim = tipo === 'saida' ? "23:00" : "12:00";
+
+                                setNovaConfiguracao({
+                                    ...novaConfiguracao,
+                                    tipo_verificacao: tipo,
+                                    mensagem_template: mensagemPadrao,
+                                    horario_inicio: horarioInicio,
+                                    horario_fim: horarioFim
+                                });
+                            }}
+                            required
+                        >
+                            <option value="entrada">📥 Verificação de Entrada</option>
+                            <option value="saida">🚪 Verificação de Saída</option>
+                        </select>
+                        <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '5px', display: 'block' }}>
+                            {novaConfiguracao.tipo_verificacao === 'entrada'
+                                ? "Verifica se os colaboradores registaram a entrada (ponto de início)"
+                                : "Verifica se os colaboradores registaram a saída (ponto de fim)"
+                            }
+                        </small>
+                    </div>
+
+                    <div style={styles.formGroup}>
                         <label style={styles.label}>Lista de Contactos *</label>
                         <select
                             style={styles.select}
@@ -222,7 +312,7 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
 
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Período de Verificação Contínua</label>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px' }}>
                             <div>
                                 <label style={{ fontSize: '0.85rem', color: '#666', marginBottom: '5px', display: 'block' }}>
                                     Início
@@ -267,10 +357,26 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                                     })}
                                 />
                             </div>
+                            <div>
+                                <label style={{ fontSize: '0.85rem', color: '#666', marginBottom: '5px', display: 'block' }}>
+                                    Tolerância (min)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="120"
+                                    style={styles.input}
+                                    value={novaConfiguracao.minutos_tolerancia}
+                                    onChange={(e) => setNovaConfiguracao({
+                                        ...novaConfiguracao,
+                                        minutos_tolerancia: parseInt(e.target.value) || 10
+                                    })}
+                                />
+                            </div>
                         </div>
                         <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '8px', display: 'block' }}>
                             ⏰ O sistema verificará continuamente durante este período, executando a cada {novaConfiguracao.intervalo_minutos} minuto(s).
-                            Ideal para funcionários com diferentes horários de entrada.
+                            Aguarda {novaConfiguracao.minutos_tolerancia} min após a hora de {novaConfiguracao.tipo_verificacao === 'saida' ? 'saída' : 'entrada'} antes de notificar.
                         </small>
                     </div>
 
@@ -355,16 +461,22 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                 ) : (
                     <div style={{ maxHeight: "500px", overflowY: "auto" }}>
                         {configuracoes.map((config) => (
-                            <div key={config.id} style={styles.listItem}>
+                            <div key={`${config.tipo_verificacao}-${config.id}`} style={styles.listItem}>
                                 <div style={styles.listContent}>
                                     <div style={styles.listTitle}>
-                                        {config.nome}
+                                        {config.tipo_verificacao === 'saida' ? '🚪' : '📥'} {config.nome}
+                                    </div>
+                                    <div style={styles.listMeta}>
+                                        <strong>{config.tipo_verificacao === 'saida' ? 'Verificação de Saída' : 'Verificação de Entrada'}</strong>
                                     </div>
                                     <div style={styles.listMeta}>
                                         📋 Lista: {config.lista_nome}
                                     </div>
                                     <div style={styles.listMeta}>
                                         ⏰ Período: {config.horario_inicio || config.horario_verificacao} - {config.horario_fim || config.horario_verificacao} (a cada {config.intervalo_minutos || '60'} min)
+                                    </div>
+                                    <div style={styles.listMeta}>
+                                        ⏱️ Tolerância: {config.minutos_tolerancia || 10} minutos após {config.tipo_verificacao === 'saida' ? 'saída' : 'entrada'}
                                     </div>
                                     <div style={styles.listMeta}>
                                         📅 Dias: {config.dias_semana_texto}
@@ -380,7 +492,7 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                                 </div>
                                 <div style={styles.buttonGroup}>
                                     <button
-                                        onClick={() => executarVerificacao(config.id)}
+                                        onClick={() => executarVerificacao(config.id, config.tipo_verificacao)}
                                         disabled={loading}
                                         style={{
                                             ...styles.button,
@@ -391,7 +503,7 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                                         ▶️ Executar
                                     </button>
                                     <button
-                                        onClick={() => toggleConfiguracao(config.id, config.ativo)}
+                                        onClick={() => toggleConfiguracao(config.id, config.ativo, config.tipo_verificacao)}
                                         style={{
                                             ...styles.button,
                                             ...(config.ativo ? styles.buttonWarning : styles.buttonSuccess),
@@ -402,7 +514,7 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                                         {config.ativo ? "⏸️ Pausar" : "▶️ Ativar"}
                                     </button>
                                     <button
-                                        onClick={() => eliminarConfiguracao(config.id)}
+                                        onClick={() => eliminarConfiguracao(config.id, config.tipo_verificacao)}
                                         style={{
                                             ...styles.button,
                                             ...styles.buttonDanger,

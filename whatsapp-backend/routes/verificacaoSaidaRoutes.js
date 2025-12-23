@@ -15,6 +15,7 @@ router.post("/criar", async (req, res) => {
             horario_inicio,
             horario_fim,
             intervalo_minutos,
+            minutos_tolerancia,
             mensagem_template,
             dias_semana,
             ativo,
@@ -47,6 +48,7 @@ router.post("/criar", async (req, res) => {
             horario_inicio: horario_inicio,
             horario_fim: horario_fim,
             intervalo_minutos: intervalo_minutos || 1,
+            minutos_tolerancia: minutos_tolerancia || 10,
             days: JSON.stringify(dias_semana || [1, 2, 3, 4, 5]),
             start_date: new Date(),
             enabled: ativo !== undefined ? ativo : true,
@@ -369,9 +371,9 @@ router.post("/:id/executar", async (req, res) => {
                     const minutosAtual = horaAtualH * 60 + horaAtualM;
                     const diferencaMinutos = minutosAtual - minutosSaida;
 
-                    // Só enviar se já passou pelo menos 30 minutos da hora de saída
-                    if (diferencaMinutos < 30) {
-                        console.log(`⏰ Ainda não passaram 30min da saída esperada (${horaSaida}). Diferença: ${diferencaMinutos} min`);
+                    // Só enviar se já passou pelo menos 10 minutos da hora de saída
+                    if (diferencaMinutos < 10) {
+                        console.log(`⏰ Ainda não passaram 10min da saída esperada (${horaSaida}). Diferença: ${diferencaMinutos} min`);
                         continue;
                     }
                 } else {
