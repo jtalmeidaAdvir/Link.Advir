@@ -292,6 +292,7 @@ router.post("/:id/executar", async (req, res) => {
         let semHorario = 0;
         let foraDoPeriodo = 0;
         let jaNotificado = 0;
+        let comFalta = 0;
 
         for (const contacto of contactos) {
             const phone = contacto.phone;
@@ -314,7 +315,19 @@ router.post("/:id/executar", async (req, res) => {
                     continue;
                 }
 
-                // 3. Verificar se tem horário associado e se está no período válido
+                // 3. Verificar se o utilizador tem falta aprovada hoje
+                const faltaCheck = await axios.get(
+                    `https://backend.advir.pt/api/registo-ponto-obra/verificar-falta?user_id=${user_id}&data=${hoje}`,
+                    { headers: { Authorization: req.headers.authorization } }
+                );
+
+                if (faltaCheck.data.temFalta) {
+                    console.log(`📅 Utilizador tem falta/férias aprovada hoje (${faltaCheck.data.tipoFalta}), não enviando notificação`);
+                    comFalta++;
+                    continue;
+                }
+
+                // 4. Verificar se tem horário associado e se está no período válido
                 const horarioCheck = await axios.get(
                     `https://backend.advir.pt/api/registo-ponto-obra/verificar-horario?user_id=${user_id}&data=${hoje}`,
                     { headers: { Authorization: req.headers.authorization } }
@@ -432,6 +445,7 @@ router.post("/:id/executar", async (req, res) => {
         console.log(`   - Mensagens enviadas: ${mensagensEnviadas}`);
         console.log(`   - Com registo: ${comRegisto}`);
         console.log(`   - Sem registo: ${semRegisto}`);
+        console.log(`   - Com falta/férias: ${comFalta}`);
         console.log(`   - Sem horário: ${semHorario}`);
         console.log(`   - Fora do período: ${foraDoPeriodo}`);
         console.log(`   - Já notificado: ${jaNotificado}`);
@@ -442,6 +456,7 @@ router.post("/:id/executar", async (req, res) => {
             mensagensEnviadas,
             semRegisto,
             comRegisto,
+            comFalta,
             semHorario,
             foraDoPeriodo,
             jaNotificado,

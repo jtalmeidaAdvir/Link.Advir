@@ -183,6 +183,7 @@ class VerificacaoPontoScheduler {
             let semHorario = 0;
             let foraDoPeriodo = 0;
             let jaNotificado = 0;
+            let comFalta = 0;
 
             for (const contacto of contactos) {
                 const phone = contacto.phone;
@@ -201,7 +202,18 @@ class VerificacaoPontoScheduler {
                         continue;
                     }
 
-                    // 3. Verificar se tem horário associado
+                    // 3. Verificar se o utilizador tem falta aprovada hoje
+                    const faltaCheck = await axios.get(
+                        `${BACKEND_URL}/api/registo-ponto-obra/verificar-falta?user_id=${user_id}&data=${hoje}`,
+                        { timeout: 5000 }
+                    );
+
+                    if (faltaCheck.data.temFalta) {
+                        comFalta++;
+                        continue;
+                    }
+
+                    // 4. Verificar se tem horário associado
                     const horarioCheck = await axios.get(
                         `${BACKEND_URL}/api/registo-ponto-obra/verificar-horario?user_id=${user_id}&data=${hoje}`,
                         { timeout: 5000 }
@@ -307,7 +319,7 @@ class VerificacaoPontoScheduler {
                 })
             });
 
-            console.log(`   📊 Resultado: ${mensagensEnviadas} enviadas | ${comRegisto} com registo | ${semRegisto} sem registo | ${jaNotificado} já notificados | ${semHorario} sem horário | ${erros} erros`);
+            console.log(`   📊 Resultado: ${mensagensEnviadas} enviadas | ${comRegisto} com registo | ${semRegisto} sem registo | ${comFalta} com falta/férias | ${jaNotificado} já notificados | ${semHorario} sem horário | ${erros} erros`);
 
         } catch (error) {
             console.error(`❌ [VERIFICAÇÃO PONTO] Erro ao executar verificação ${verificacao.id}:`, error.message);

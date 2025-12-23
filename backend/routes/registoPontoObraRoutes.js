@@ -134,4 +134,93 @@ router.get('/verificar-horario', async (req, res) => {
     }
 });
 
+// Endpoint para verificar se o utilizador tem falta aprovada no dia
+router.get('/verificar-falta', async (req, res) => {
+    try {
+        const { user_id, data } = req.query;
+
+        if (!user_id || !data) {
+            return res.status(400).json({
+                error: "user_id e data são obrigatórios"
+            });
+        }
+
+        const AprovacaoFaltaFerias = require('../models/faltas_ferias');
+        const User = require('../models/user');
+        const { Op } = require('sequelize');
+
+        // Buscar o utilizador para obter o funcionario (nome)
+        const user = await User.findByPk(user_id);
+        if (!user) {
+            return res.json({
+                temFalta: false,
+                motivo: 'Utilizador não encontrado'
+            });
+        }
+
+        // Verificar se existe falta aprovada para este utilizador neste dia
+        const falta = await AprovacaoFaltaFerias.findOne({
+            where: {
+                funcionario: user.name,
+                tipoPedido: 'FALTA',
+                estadoAprovacao: 'Aprovado',
+                [Op.or]: [
+                    {
+                        // Para faltas de 1 dia
+                        dataPedido: {
+                            [Op.gte]: data + ' 00:00:00',
+                            [Op.lte]: data + ' 23:59:59'
+                        }
+                    },
+                    {
+                        // Para intervalos (férias marcadas como falta)
+                        dataInicio: { [Op.lte]: data },
+                        dataFim: { [Op.gte]: data }
+                    }
+                ]
+            }
+        });
+
+        if (falta) {
+            return res.json({
+                temFalta: true,
+                tipoFalta: falta.falta,
+                justificacao: falta.justificacao,
+                observacoes: falta.observacoes
+            });
+        }
+
+        // Verificar também se tem férias aprovadas no dia
+        const ferias = await AprovacaoFaltaFerias.findOne({
+            where: {
+                funcionario: user.name,
+                tipoPedido: 'FERIAS',
+                estadoAprovacao: 'Aprovado',
+                dataInicio: { [Op.lte]: data },
+                dataFim: { [Op.gte]: data }
+            }
+        });
+
+        if (ferias) {
+            return res.json({
+                temFalta: true,
+                tipoFalta: 'FERIAS',
+                dataInicio: ferias.dataInicio,
+                dataFim: ferias.dataFim
+            });
+        }
+
+        res.json({
+            temFalta: false
+        });
+
+    } catch (error) {
+        console.error("Erro ao verificar falta:", error);
+        res.status(500).json({
+            error: "Erro ao verificar falta do utilizador",
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;

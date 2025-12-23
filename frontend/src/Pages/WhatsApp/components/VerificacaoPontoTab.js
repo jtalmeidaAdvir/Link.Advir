@@ -214,6 +214,7 @@ const VerificacaoPontoTab = ({ styles, API_BASE_URL }) => {
                         `📤 Mensagens enviadas: ${data.mensagensEnviadas}`,
                         `✅ Com registo de ponto: ${data.comRegisto}`,
                         `⚠️ Sem registo de ponto: ${data.semRegisto}`,
+                        `🏖️ Com falta/férias aprovada: ${data.comFalta || 0}`,
                         `⏰ Sem horário associado: ${data.semHorario}`,
                         `📅 Fora do período: ${data.foraDoPeriodo}`,
                         `🔔 Já notificado hoje: ${data.jaNotificado || 0}`,
