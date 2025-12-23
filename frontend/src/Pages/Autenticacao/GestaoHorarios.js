@@ -59,6 +59,14 @@ const GestaoHorarios = () => {
         fetchPlanosAtivos();
     }, []);
 
+    // Carregar planos do calendário quando o utilizador ou mês/ano mudar
+    useEffect(() => {
+        if (calendarioUser && calendarioUser.userId) {
+            console.log(`[CALENDARIO] useEffect - Carregando planos para userId=${calendarioUser.userId}`);
+            carregarPlanosCalendario(calendarioUser.userId, calendarioMes, calendarioAno);
+        }
+    }, [calendarioUser, calendarioMes, calendarioAno]);
+
     const fetchHorarios = async () => {
         setLoading(true);
         try {
@@ -412,6 +420,8 @@ const GestaoHorarios = () => {
     const carregarPlanosCalendario = async (userId, mes, ano) => {
         try {
             const token = secureStorage.getItem('loginToken');
+            console.log(`[CALENDARIO] Carregando planos para userId=${userId}, mes=${mes}, ano=${ano}`);
+
             const response = await fetch(`https://backend.advir.pt/api/horarios/user/${userId}/historico`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -420,10 +430,22 @@ const GestaoHorarios = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                setPlanosCalendario(data);
+                console.log(`[CALENDARIO] Planos carregados:`, data);
+                setPlanosCalendario(Array.isArray(data) ? data : []);
+            } else {
+                const errorText = await response.text();
+                console.error(`[CALENDARIO] Erro na resposta: ${response.status}`, errorText);
+                setPlanosCalendario([]);
+                if (response.status === 404) {
+                    console.log(`[CALENDARIO] Utilizador ${userId} não tem histórico de horários`);
+                } else if (response.status === 500) {
+                    console.error(`[CALENDARIO] Erro no servidor ao buscar histórico do utilizador ${userId}`);
+                    setErrorMessage('Erro ao carregar histórico de horários. Por favor, contacte o suporte.');
+                }
             }
         } catch (error) {
-            console.error('Erro ao carregar planos do calendário:', error);
+            console.error('[CALENDARIO] Erro ao carregar planos do calendário:', error);
+            setPlanosCalendario([]);
         }
     };
 
@@ -433,30 +455,58 @@ const GestaoHorarios = () => {
         const dataAtual = new Date(calendarioAno, calendarioMes, dia);
         const dataAtualStr = dataAtual.toISOString().split('T')[0];
 
+        console.log(`[CALENDARIO] Verificando plano para dia ${dia}: dataAtualStr=${dataAtualStr}, total planos=${planosCalendario.length}`);
+
         // Buscar planos que se aplicam a este dia, ordenados por prioridade
         const planosAplicaveis = planosCalendario.filter(plano => {
-            if (!plano.ativo) return false;
+            console.log(`[CALENDARIO] Verificando plano ID ${plano.id}: ativo=${plano.ativo}, tipoPeriodo=${plano.tipoPeriodo}`);
+
+            if (!plano.ativo) {
+                console.log(`[CALENDARIO] Plano ${plano.id} não está ativo`);
+                return false;
+            }
 
             // Verificar se está dentro do período de vigência
             const dataInicio = new Date(plano.dataInicio);
             const dataFim = plano.dataFim ? new Date(plano.dataFim) : null;
 
-            if (dataAtual < dataInicio) return false;
-            if (dataFim && dataAtual > dataFim) return false;
+            console.log(`[CALENDARIO] Plano ${plano.id}: dataInicio=${plano.dataInicio}, dataFim=${plano.dataFim}`);
+
+            if (dataAtual < dataInicio) {
+                console.log(`[CALENDARIO] Data ${dataAtualStr} antes do início ${plano.dataInicio}`);
+                return false;
+            }
+            if (dataFim && dataAtual > dataFim) {
+                console.log(`[CALENDARIO] Data ${dataAtualStr} depois do fim ${plano.dataFim}`);
+                return false;
+            }
 
             // Verificar tipo de período
             if (plano.tipoPeriodo === 'dia' && plano.diaEspecifico) {
-                return plano.diaEspecifico === dataAtualStr;
+                const match = plano.diaEspecifico === dataAtualStr;
+                console.log(`[CALENDARIO] Tipo DIA: diaEspecifico=${plano.diaEspecifico}, match=${match}`);
+                return match;
             } else if (plano.tipoPeriodo === 'mes' && plano.mesEspecifico) {
-                return (dataAtual.getMonth() + 1) === plano.mesEspecifico;
+                const match = (dataAtual.getMonth() + 1) === plano.mesEspecifico;
+                console.log(`[CALENDARIO] Tipo MES: mesEspecifico=${plano.mesEspecifico}, mesAtual=${dataAtual.getMonth() + 1}, match=${match}`);
+                return match;
             } else if (plano.tipoPeriodo === 'ano' && plano.anoEspecifico) {
-                return dataAtual.getFullYear() === plano.anoEspecifico;
+                const match = dataAtual.getFullYear() === plano.anoEspecifico;
+                console.log(`[CALENDARIO] Tipo ANO: anoEspecifico=${plano.anoEspecifico}, anoAtual=${dataAtual.getFullYear()}, match=${match}`);
+                return match;
             } else if (plano.tipoPeriodo === 'permanente') {
+                console.log(`[CALENDARIO] Tipo PERMANENTE: match=true`);
                 return true;
             }
 
+            console.log(`[CALENDARIO] Plano ${plano.id} não se aplica a este dia`);
             return false;
         }).sort((a, b) => (b.prioridade || 0) - (a.prioridade || 0));
+
+        console.log(`[CALENDARIO] Planos aplicáveis ao dia ${dia}: ${planosAplicaveis.length}`);
+        if (planosAplicaveis.length > 0) {
+            console.log(`[CALENDARIO] Plano selecionado:`, planosAplicaveis[0]);
+        }
 
         return planosAplicaveis.length > 0 ? planosAplicaveis[0] : null;
     };
@@ -886,9 +936,7 @@ const GestaoHorarios = () => {
                                     const userId = parseInt(e.target.value);
                                     const user = planosAtivos.find(p => p.userId === userId);
                                     setCalendarioUser(user);
-                                    if (user) {
-                                        carregarPlanosCalendario(userId, calendarioMes, calendarioAno);
-                                    }
+                                    // O useEffect vai carregar os planos automaticamente
                                 }}
                             >
                                 <option value="">Selecione um utilizador</option>
@@ -911,9 +959,7 @@ const GestaoHorarios = () => {
                                     } else {
                                         setCalendarioMes(calendarioMes - 1);
                                     }
-                                    if (calendarioUser) {
-                                        carregarPlanosCalendario(calendarioUser.userId, calendarioMes - 1, calendarioAno);
-                                    }
+                                    // O useEffect vai carregar os planos automaticamente
                                 }}
                             >
                                 ← Anterior
@@ -930,9 +976,7 @@ const GestaoHorarios = () => {
                                     } else {
                                         setCalendarioMes(calendarioMes + 1);
                                     }
-                                    if (calendarioUser) {
-                                        carregarPlanosCalendario(calendarioUser.userId, calendarioMes + 1, calendarioAno);
-                                    }
+                                    // O useEffect vai carregar os planos automaticamente
                                 }}
                             >
                                 Próximo →
