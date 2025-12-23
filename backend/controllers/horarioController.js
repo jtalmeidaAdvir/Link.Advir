@@ -414,7 +414,15 @@ const obterHorarioUser = async (req, res) => {
                 horaSaida: horario.horaSaida,
                 intervaloAlmoco: parseFloat(horario.intervaloAlmoco),
                 ativo: horario.ativo,
-                observacoes: horario.observacoes
+                observacoes: horario.observacoes,
+                tempoArredondamento: horario.tempoArredondamento,
+                horaInicioAlmoco: horario.horaInicioAlmoco,
+                horaFimAlmoco: horario.horaFimAlmoco,
+                tipoPeriodo: horario.tipoPeriodo,
+                diaEspecifico: horario.diaEspecifico,
+                mesEspecifico: horario.mesEspecifico,
+                anoEspecifico: horario.anoEspecifico,
+                prioridade: horario.prioridade
             }
         };
 
