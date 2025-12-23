@@ -169,11 +169,15 @@ router.get('/verificar-falta', async (req, res) => {
         const dataFormatada = data; // Formato: YYYY-MM-DD
 
         // Verificar faltas aprovadas (data única via dataPedido)
+        // Excluir faltas canceladas (operacao = 'CANCELAR')
         const faltaUnica = await AprovacaoFaltaFerias.findOne({
             where: {
                 funcionario: codFuncionario,
                 tipoPedido: 'FALTA',
                 estadoAprovacao: 'Aprovado',
+                operacao: {
+                    [Op.ne]: 'CANCELAR'
+                },
                 dataPedido: {
                     [Op.between]: [
                         new Date(dataFormatada + ' 00:00:00'),
@@ -193,11 +197,15 @@ router.get('/verificar-falta', async (req, res) => {
         }
 
         // Verificar férias aprovadas (intervalo de datas)
+        // Excluir férias canceladas (operacao = 'CANCELAR')
         const ferias = await AprovacaoFaltaFerias.findOne({
             where: {
                 funcionario: codFuncionario,
                 tipoPedido: 'FERIAS',
                 estadoAprovacao: 'Aprovado',
+                operacao: {
+                    [Op.ne]: 'CANCELAR'
+                },
                 dataInicio: { [Op.lte]: dataFormatada },
                 dataFim: { [Op.gte]: dataFormatada }
             }
@@ -213,11 +221,15 @@ router.get('/verificar-falta', async (req, res) => {
         }
 
         // Verificar faltas com intervalo (caso existam faltas com dataInicio/dataFim)
+        // Excluir faltas canceladas (operacao = 'CANCELAR')
         const faltaIntervalo = await AprovacaoFaltaFerias.findOne({
             where: {
                 funcionario: codFuncionario,
                 tipoPedido: 'FALTA',
                 estadoAprovacao: 'Aprovado',
+                operacao: {
+                    [Op.ne]: 'CANCELAR'
+                },
                 dataInicio: {
                     [Op.not]: null,
                     [Op.lte]: dataFormatada
