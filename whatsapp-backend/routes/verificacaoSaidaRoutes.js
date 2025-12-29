@@ -4,9 +4,9 @@ const Schedule = require("../models/Schedule");
 const { Op } = require("sequelize");
 const axios = require("axios");
 
-console.log("✅ [VERIFICAÇÃO PONTO] Router carregado");
+console.log("✅ [VERIFICAÇÃO SAÍDA] Router carregado");
 
-// Endpoint para criar verificação de ponto
+// Endpoint para criar verificação de saída
 router.post("/criar", async (req, res) => {
     try {
         const {
@@ -33,14 +33,14 @@ router.post("/criar", async (req, res) => {
 
         if (!lista) {
             return res.status(404).json({
-                error: "Lista de contactos não encontrada2",
+                error: "Lista de contactos não encontrada",
             });
         }
 
         const novaVerificacao = await Schedule.create({
             message:
                 mensagem_template ||
-                "⚠️ Olá! Notamos que ainda não registou o seu ponto de hoje. Por favor, regularize a situação o mais breve possível.",
+                "🚪 Olá! Notamos que ainda não registou a sua saída de hoje. Por favor, regularize a situação o mais breve possível.",
            contact_list: JSON.stringify(lista.contacts),
 
             frequency: "custom",
@@ -53,14 +53,14 @@ router.post("/criar", async (req, res) => {
             start_date: new Date(),
             enabled: ativo !== undefined ? ativo : true,
             priority: "warning",
-            tipo: "verificacao_ponto",
+            tipo: "verificacao_saida",
             lista_contactos_id: lista_contactos_id,
             nome_configuracao: nome,
         });
 
         res.json({
             success: true,
-            message: "Verificação de ponto criada com sucesso",
+            message: "Verificação de saída criada com sucesso",
             configuracao: {
                 id: novaVerificacao.id,
                 nome: nome,
@@ -72,21 +72,21 @@ router.post("/criar", async (req, res) => {
             },
         });
     } catch (error) {
-        console.error("Erro ao criar verificação de ponto:", error);
+        console.error("Erro ao criar verificação de saída:", error);
         res.status(500).json({
-            error: "Erro interno ao criar verificação de ponto",
+            error: "Erro interno ao criar verificação de saída",
         });
     }
 });
 
-// Endpoint para listar verificações
+// Endpoint para listar verificações de saída
 router.get("/listar", async (req, res) => {
     try {
         const Contact = require("../models/Contact");
 
         const verificacoes = await Schedule.findAll({
             where: {
-                tipo: "verificacao_ponto",
+                tipo: "verificacao_saida",
             },
             order: [["id", "DESC"]],
         });
@@ -148,9 +148,9 @@ router.get("/listar", async (req, res) => {
             configuracoes: configuracoes,
         });
     } catch (error) {
-        console.error("Erro ao listar verificações:", error);
+        console.error("Erro ao listar verificações de saída:", error);
         res.status(500).json({
-            error: "Erro ao listar verificações",
+            error: "Erro ao listar verificações de saída",
         });
     }
 });
@@ -161,21 +161,21 @@ router.put("/:id/toggle", async (req, res) => {
         const { id } = req.params;
         const { ativo } = req.body;
 
-const verificacao = await Schedule.findOne({
-    where: {
-        id: id,
-        tipo: "verificacao_ponto",
-    },
-});
+        const verificacao = await Schedule.findOne({
+            where: {
+                id: id,
+                tipo: "verificacao_saida",
+            },
+        });
 
-if (!verificacao) {
-    console.log(`❌ [VERIFICAÇÃO PONTO] Verificação ${id} não encontrada`);
-    return res.status(404).json({
-        error: "Verificação não encontrada",
-    });
-} else {
-    console.log(`✅ [VERIFICAÇÃO PONTO] Verificação encontrada: ${verificacao.nome_configuracao}`);
-}
+        if (!verificacao) {
+            console.log(`❌ [VERIFICAÇÃO SAÍDA] Verificação ${id} não encontrada`);
+            return res.status(404).json({
+                error: "Verificação não encontrada",
+            });
+        } else {
+            console.log(`✅ [VERIFICAÇÃO SAÍDA] Verificação encontrada: ${verificacao.nome_configuracao}`);
+        }
 
         await verificacao.update({ enabled: ativo });
 
@@ -199,7 +199,7 @@ router.delete("/:id", async (req, res) => {
         const verificacao = await Schedule.findOne({
             where: {
                 id: id,
-                tipo: "verificacao_ponto",
+                tipo: "verificacao_saida",
             },
         });
 
@@ -223,15 +223,15 @@ router.delete("/:id", async (req, res) => {
     }
 });
 
-// Endpoint para executar verificação manualmente com lógica melhorada
+// Endpoint para executar verificação manualmente
 router.post("/:id/executar", async (req, res) => {
-    console.log(`🎯 [VERIFICAÇÃO PONTO] Executar verificação ID: ${req.params.id}`);
+    console.log(`🎯 [VERIFICAÇÃO SAÍDA] Executar verificação ID: ${req.params.id}`);
 
     try {
         const { id } = req.params;
 
         const verificacao = await Schedule.findOne({
-            where: { id, tipo: "verificacao_ponto" },
+            where: { id, tipo: "verificacao_saida" },
         });
 
         if (!verificacao) {
@@ -286,13 +286,13 @@ router.post("/:id/executar", async (req, res) => {
         }
 
         let mensagensEnviadas = 0;
-        let semRegisto = 0;
+        let semSaida = 0;
         let erros = 0;
-        let comRegisto = 0;
+        let comSaida = 0;
         let semHorario = 0;
         let foraDoPeriodo = 0;
         let jaNotificado = 0;
-        let comFalta = 0;
+        let semEntrada = 0;
 
         for (const contacto of contactos) {
             const phone = contacto.phone;
@@ -301,7 +301,7 @@ router.post("/:id/executar", async (req, res) => {
             console.log(`\n🔍 Processando ${phone} (user_id: ${user_id ?? "N/A"})`);
 
             try {
-                // 1. Verificar se tem user_id (obrigatório para verificação de horário e ponto)
+                // 1. Verificar se tem user_id
                 if (!user_id) {
                     console.log(`⚠️ Contacto sem user_id, pulando verificação`);
                     semHorario++;
@@ -315,19 +315,7 @@ router.post("/:id/executar", async (req, res) => {
                     continue;
                 }
 
-                // 3. Verificar se o utilizador tem falta aprovada hoje
-                const faltaCheck = await axios.get(
-                    `https://backend.advir.pt/api/registo-ponto-obra/verificar-falta?user_id=${user_id}&data=${hoje}`,
-                    { headers: { Authorization: req.headers.authorization } }
-                );
-
-                if (faltaCheck.data.temFalta) {
-                    console.log(`📅 Utilizador tem falta/férias aprovada hoje (${faltaCheck.data.tipoFalta}), não enviando notificação`);
-                    comFalta++;
-                    continue;
-                }
-
-                // 4. Verificar se tem horário associado e se está no período válido
+                // 3. Verificar se tem horário associado
                 const horarioCheck = await axios.get(
                     `https://backend.advir.pt/api/registo-ponto-obra/verificar-horario?user_id=${user_id}&data=${hoje}`,
                     { headers: { Authorization: req.headers.authorization } }
@@ -359,52 +347,62 @@ router.post("/:id/executar", async (req, res) => {
                     continue;
                 }
 
-                // 5. Verificar se hoje é um dia de trabalho segundo o horário
-                const diaSemana = agora.getDay(); // 0=Domingo, 1=Segunda, etc
+                // 5. Verificar se hoje é um dia de trabalho
+                const diaSemana = agora.getDay();
                 if (horarioInfo.diasSemana && !horarioInfo.diasSemana.includes(diaSemana)) {
                     console.log(`📅 Hoje (${diaSemana}) não é dia de trabalho para este utilizador`);
                     continue;
                 }
 
-                // 6. Verificar se já passou tempo suficiente após a hora de entrada
-                // Para dar margem, só enviamos a mensagem depois de um certo tempo após a hora de entrada
-                if (horarioInfo.horaEntrada) {
-                    let horaEntrada = horarioInfo.horaEntrada;
+                // 6. Verificar se já passou a hora de saída + margem
+                if (horarioInfo.horaSaida) {
+                    let horaSaida = horarioInfo.horaSaida;
 
                     // Se vier como timestamp ISO, extrair apenas a hora
-                    if (horaEntrada.includes('T')) {
-                        const date = new Date(horaEntrada);
-                        horaEntrada = `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}`;
+                    if (horaSaida.includes('T')) {
+                        const date = new Date(horaSaida);
+                        horaSaida = `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}`;
                     }
 
-                    const [horaEntradaH, horaEntradaM] = horaEntrada.split(':').map(Number);
+                    const [horaSaidaH, horaSaidaM] = horaSaida.split(':').map(Number);
                     const [horaAtualH, horaAtualM] = horaAtual.split(':').map(Number);
 
-                    const minutosEntrada = horaEntradaH * 60 + horaEntradaM;
+                    const minutosSaida = horaSaidaH * 60 + horaSaidaM;
                     const minutosAtual = horaAtualH * 60 + horaAtualM;
-                    const diferencaMinutos = minutosAtual - minutosEntrada;
+                    const diferencaMinutos = minutosAtual - minutosSaida;
 
-                    // Só enviar se já passou pelo menos 10 minutos da hora de entrada
+                    // Só enviar se já passou pelo menos 10 minutos da hora de saída
                     if (diferencaMinutos < 10) {
-                        console.log(`⏰ Ainda não passou tempo suficiente desde a hora de entrada (${horaEntrada}). Diferença: ${diferencaMinutos} min`);
+                        console.log(`⏰ Ainda não passaram 10min da saída esperada (${horaSaida}). Diferença: ${diferencaMinutos} min`);
                         continue;
                     }
-                }
-
-                // 7. Verificar se já registou ponto hoje
-                const pontoCheck = await axios.get(
-                    `https://backend.advir.pt/api/registo-ponto-obra/verificar-registo?user_id=${user_id}&data=${hoje}`,
-                    { headers: { Authorization: req.headers.authorization } }
-                );
-
-                if (pontoCheck.data.temRegisto) {
-                    console.log(`✅ Utilizador já registou ponto hoje`);
-                    comRegisto++;
+                } else {
+                    console.log(`⏰ Utilizador sem hora de saída definida no horário`);
+                    semHorario++;
                     continue;
                 }
 
-                console.log(`⚠️ Utilizador sem registo de ponto, enviando mensagem...`);
-                semRegisto++;
+                // 7. Verificar se já registou saída hoje
+                const saidaCheck = await axios.get(
+                    `https://backend.advir.pt/api/registo-ponto-obra/verificar-saida?user_id=${user_id}&data=${hoje}`,
+                    { headers: { Authorization: req.headers.authorization } }
+                );
+
+                // Se não tem entrada, não faz sentido cobrar saída
+                if (!saidaCheck.data.temEntrada) {
+                    console.log(`⚠️ Utilizador não tem entrada registada hoje`);
+                    semEntrada++;
+                    continue;
+                }
+
+                if (saidaCheck.data.temSaida) {
+                    console.log(`✅ Utilizador já registou saída hoje`);
+                    comSaida++;
+                    continue;
+                }
+
+                console.log(`⚠️ Utilizador sem registo de saída, enviando mensagem...`);
+                semSaida++;
 
                 // 8. Enviar mensagem via WhatsApp
                 const whatsappService = req.app.get("whatsappService");
@@ -418,10 +416,10 @@ router.post("/:id/executar", async (req, res) => {
                 console.log(`✅ Mensagem enviada com sucesso para ${phone}`);
                 mensagensEnviadas++;
 
-                // Adicionar à lista de notificados hoje para evitar duplicados
+                // Adicionar à lista de notificados hoje
                 notificadosHoje.push(user_id.toString());
 
-                // Delay entre mensagens para evitar bloqueio
+                // Delay entre mensagens
                 await new Promise(r => setTimeout(r, 2000));
 
             } catch (e) {
@@ -430,7 +428,7 @@ router.post("/:id/executar", async (req, res) => {
             }
         }
 
-        // Atualizar estatísticas da verificação e salvar lista de notificados
+        // Atualizar estatísticas
         await verificacao.update({
             last_sent: new Date(),
             total_sent: (verificacao.total_sent || 0) + 1,
@@ -443,9 +441,9 @@ router.post("/:id/executar", async (req, res) => {
         console.log(`\n📊 Resumo da execução:`);
         console.log(`   - Total contactos: ${contactos.length}`);
         console.log(`   - Mensagens enviadas: ${mensagensEnviadas}`);
-        console.log(`   - Com registo: ${comRegisto}`);
-        console.log(`   - Sem registo: ${semRegisto}`);
-        console.log(`   - Com falta/férias: ${comFalta}`);
+        console.log(`   - Com saída: ${comSaida}`);
+        console.log(`   - Sem saída: ${semSaida}`);
+        console.log(`   - Sem entrada: ${semEntrada}`);
         console.log(`   - Sem horário: ${semHorario}`);
         console.log(`   - Fora do período: ${foraDoPeriodo}`);
         console.log(`   - Já notificado: ${jaNotificado}`);
@@ -454,9 +452,9 @@ router.post("/:id/executar", async (req, res) => {
         return res.json({
             success: true,
             mensagensEnviadas,
-            semRegisto,
-            comRegisto,
-            comFalta,
+            semSaida,
+            comSaida,
+            semEntrada,
             semHorario,
             foraDoPeriodo,
             jaNotificado,
@@ -469,23 +467,5 @@ router.post("/:id/executar", async (req, res) => {
         return res.status(500).json({ error: "Erro interno: " + error.message });
     }
 });
-
-// Rota de teste WhatsApp dentro do router
-router.get('/teste-whatsapp', async (req, res) => {
-    const whatsappService = req.app.get('whatsappService');
-
-    if (!whatsappService?.isReady && !whatsappService?.isClientReady) {
-        return res.status(500).send("WhatsApp não está pronto!");
-    }
-
-    try {
-        await whatsappService.sendMessage("351912345678@c.us", "Teste de mensagem");
-        res.send("Mensagem enviada com sucesso!");
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Erro ao enviar mensagem: " + err.message);
-    }
-});
-
 
 module.exports = router;

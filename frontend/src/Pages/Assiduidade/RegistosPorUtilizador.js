@@ -755,23 +755,28 @@ const RegistosPorUtilizador = () => {
                                     console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Exemplo de falta:`, todasFaltas[0]);
 
                                     const faltasFBH = todasFaltas.filter(falta => {
-                                        // Verificar se é falta do tipo FBH, FBHD ou FBHH
+                               // Verificar se é falta do tipo FBH, FBHD ou FBHH
                                         const tipoFalta = falta.Falta || falta.Falta1;
                                         const dataFalta = falta.Data || falta.Data1 || falta.Data2;
 
                                         console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Falta tipo: "${tipoFalta}", Data: ${dataFalta}`);
 
+
                                         // Aceitar FBH, FBHD e FBHH
                                         if ((tipoFalta === 'FBH' || tipoFalta === 'FBHD' || tipoFalta === 'FBHH') && dataFalta) {
+
                                             const dataFaltaObj = new Date(dataFalta);
                                             // Verificar se a falta está após o início do horário
                                             // Não limitamos ao futuro porque faltas FBH podem ser agendadas
                                             const apósInicioHorario = dataFaltaObj >= dataInicioHorario;
-                                            console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - ${tipoFalta} encontrada! Data: ${dataFalta}, Após início do horário: ${apósInicioHorario}`);
+
+                                            console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - FBH encontrada! Data: ${dataFalta}, Após início do horário: ${apósInicioHorario}`);
+
                                             return apósInicioHorario;
                                         }
                                         return false;
                                     });
+
 
                                     console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Faltas FBH/FBHD/FBHH filtradas: ${faltasFBH.length}`);
 
@@ -780,6 +785,7 @@ const RegistosPorUtilizador = () => {
                                         const tempo = parseFloat(falta.Tempo || 0);
                                         const tipoFalta = falta.Falta || falta.Falta1;
                                         console.log(`🔍 [BOLSA-FBH] ${user.nome || user.username} - Tempo da falta ${tipoFalta}: ${tempo}h`);
+
                                         totalHorasDescontadasFBH += tempo;
                                     });
 
@@ -3000,7 +3006,8 @@ const RegistosPorUtilizador = () => {
                         });
                     } catch (err) {
                         console.warn(`Erro ao eliminar registo ${registo.id}:`, err);
-                    }
+
+                          }
                 }
             }
 

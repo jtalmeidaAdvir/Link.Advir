@@ -16,6 +16,7 @@ const whatsappRoutes = require("./routes/whatsappRoutes");
 const { router: intervencaoRoutes } = require("./routes/whatsappIntervencoes");
 const { router: relatoriosRoutes } = require("./routes/relatoriosRoutes");
 const verificacaoPontoRoutes = require('./routes/verificacaoPontoRoutes');
+const verificacaoSaidaRoutes = require('./routes/verificacaoSaidaRoutes');
 
 // Configurar o WhatsApp service no app para acesso em outras rotas
 const { whatsappService } = require("./routes/whatsappRoutes");
@@ -25,6 +26,7 @@ app.set("whatsappService", whatsappService);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/whatsapp", relatoriosRoutes);
 app.use("/api/whatsapp/verificacao-ponto", verificacaoPontoRoutes);
+app.use("/api/whatsapp/verificacao-saida", verificacaoSaidaRoutes);
 app.use("/api/intervencoes", intervencaoRoutes);
 app.use("/api/configuracao-automatica", require("./routes/configuracaoAutomaticaRoutes"));
 app.use("/api/relatorio-pontos", require("./routes/relatorioPontosRoutes"));
@@ -100,6 +102,13 @@ const server = app.listen(PORT, "0.0.0.0", () => {
     const verificacaoPontoScheduler = require('./services/verificacaoPontoScheduler');
     verificacaoPontoScheduler.start(whatsappService);
     console.log('✅ Scheduler de verificação de ponto iniciado - executa continuamente durante períodos configurados');
+
+    // Iniciar scheduler de verificação de saída
+    console.log('');
+    console.log('🚪 Iniciando scheduler de verificação de saída...');
+    const verificacaoSaidaScheduler = require('./services/verificacaoSaidaScheduler');
+    verificacaoSaidaScheduler.start(whatsappService);
+    console.log('✅ Scheduler de verificação de saída iniciado - executa continuamente durante períodos configurados');
 });
 
 // Tratamento de erros de porta ocupada

@@ -134,4 +134,135 @@ router.get('/verificar-horario', async (req, res) => {
     }
 });
 
+// Endpoint para verificar se o utilizador tem falta aprovada no dia
+router.get('/verificar-falta', async (req, res) => {
+    try {
+        const { user_id, data } = req.query;
+
+        if (!user_id || !data) {
+            return res.status(400).json({
+                error: "user_id e data são obrigatórios"
+            });
+        }
+
+        const AprovacaoFaltaFerias = require('../models/faltas_ferias');
+        const User = require('../models/user');
+        const { Op } = require('sequelize');
+
+        // Buscar o utilizador para obter o codFuncionario
+        const user = await User.findByPk(user_id);
+        if (!user) {
+            return res.json({
+                temFalta: false,
+                motivo: 'Utilizador não encontrado'
+            });
+        }
+
+        const codFuncionario = user.codFuncionario;
+        if (!codFuncionario) {
+            return res.json({
+                temFalta: false,
+                motivo: 'Utilizador sem código de funcionário'
+            });
+        }
+
+        const dataFormatada = data; // Formato: YYYY-MM-DD
+
+        // Verificar faltas aprovadas (data única via dataPedido)
+        // Excluir faltas canceladas (operacao = 'CANCELAR')
+        const faltaUnica = await AprovacaoFaltaFerias.findOne({
+            where: {
+                funcionario: codFuncionario,
+                tipoPedido: 'FALTA',
+                estadoAprovacao: 'Aprovado',
+                operacao: {
+                    [Op.ne]: 'CANCELAR'
+                },
+                dataPedido: {
+                    [Op.between]: [
+                        new Date(dataFormatada + ' 00:00:00'),
+                        new Date(dataFormatada + ' 23:59:59')
+                    ]
+                }
+            }
+        });
+
+        if (faltaUnica) {
+            return res.json({
+                temFalta: true,
+                tipoFalta: faltaUnica.falta || 'FALTA',
+                justificacao: faltaUnica.justificacao,
+                observacoes: faltaUnica.observacoes
+            });
+        }
+
+        // Verificar férias aprovadas (intervalo de datas)
+        // Excluir férias canceladas (operacao = 'CANCELAR')
+        const ferias = await AprovacaoFaltaFerias.findOne({
+            where: {
+                funcionario: codFuncionario,
+                tipoPedido: 'FERIAS',
+                estadoAprovacao: 'Aprovado',
+                operacao: {
+                    [Op.ne]: 'CANCELAR'
+                },
+                dataInicio: { [Op.lte]: dataFormatada },
+                dataFim: { [Op.gte]: dataFormatada }
+            }
+        });
+
+        if (ferias) {
+            return res.json({
+                temFalta: true,
+                tipoFalta: 'FERIAS',
+                dataInicio: ferias.dataInicio,
+                dataFim: ferias.dataFim
+            });
+        }
+
+        // Verificar faltas com intervalo (caso existam faltas com dataInicio/dataFim)
+        // Excluir faltas canceladas (operacao = 'CANCELAR')
+        const faltaIntervalo = await AprovacaoFaltaFerias.findOne({
+            where: {
+                funcionario: codFuncionario,
+                tipoPedido: 'FALTA',
+                estadoAprovacao: 'Aprovado',
+                operacao: {
+                    [Op.ne]: 'CANCELAR'
+                },
+                dataInicio: {
+                    [Op.not]: null,
+                    [Op.lte]: dataFormatada
+                },
+                dataFim: {
+                    [Op.not]: null,
+                    [Op.gte]: dataFormatada
+                }
+            }
+        });
+
+        if (faltaIntervalo) {
+            return res.json({
+                temFalta: true,
+                tipoFalta: faltaIntervalo.falta || 'FALTA',
+                justificacao: faltaIntervalo.justificacao,
+                observacoes: faltaIntervalo.observacoes
+            });
+        }
+
+        res.json({
+            temFalta: false
+        });
+
+    } catch (error) {
+        console.error("❌ [VERIFICAR-FALTA] Erro:", error.message);
+        console.error("   user_id:", req.query.user_id);
+        console.error("   data:", req.query.data);
+        res.status(500).json({
+            error: "Erro ao verificar falta do utilizador",
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;

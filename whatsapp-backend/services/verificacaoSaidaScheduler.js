@@ -4,7 +4,7 @@ const Schedule = require('../models/Schedule');
 const BACKEND_URL = process.env.BACKEND_URL || 'https://backend.advir.pt';
 const WHATSAPP_BACKEND_URL = process.env.WHATSAPP_BACKEND_URL || 'http://localhost:7001';
 
-class VerificacaoPontoScheduler {
+class VerificacaoSaidaScheduler {
     constructor() {
         this.checkInterval = null;
         this.isRunning = false;
@@ -16,11 +16,11 @@ class VerificacaoPontoScheduler {
      */
     start(whatsappService) {
         if (this.isRunning) {
-            console.log('⚠️ [VERIFICAÇÃO PONTO] Scheduler já está em execução');
+            console.log('⚠️ [VERIFICAÇÃO SAÍDA] Scheduler já está em execução');
             return;
         }
 
-        console.log('🚀 [VERIFICAÇÃO PONTO] Iniciando scheduler...');
+        console.log('🚀 [VERIFICAÇÃO SAÍDA] Iniciando scheduler...');
         this.isRunning = true;
         this.whatsappService = whatsappService;
 
@@ -32,7 +32,7 @@ class VerificacaoPontoScheduler {
         // Executar imediatamente ao iniciar
         setTimeout(() => this.checkAndExecute(), 5000); // Aguardar 5 segundos para WhatsApp conectar
 
-        console.log('✅ [VERIFICAÇÃO PONTO] Scheduler iniciado - verificando a cada 1 minuto');
+        console.log('✅ [VERIFICAÇÃO SAÍDA] Scheduler iniciado - verificando a cada 1 minuto');
     }
 
     /**
@@ -44,7 +44,7 @@ class VerificacaoPontoScheduler {
             this.checkInterval = null;
         }
         this.isRunning = false;
-        console.log('⏹️ [VERIFICAÇÃO PONTO] Scheduler parado');
+        console.log('⏹️ [VERIFICAÇÃO SAÍDA] Scheduler parado');
     }
 
     /**
@@ -67,10 +67,10 @@ class VerificacaoPontoScheduler {
             }
             this.lastExecutionMinute = currentMinuteKey;
 
-            // Buscar todas as verificações ativas do tipo verificacao_ponto
+            // Buscar todas as verificações ativas do tipo verificacao_saida
             const verificacoes = await Schedule.findAll({
                 where: {
-                    tipo: 'verificacao_ponto',
+                    tipo: 'verificacao_saida',
                     enabled: true
                 }
             });
@@ -79,7 +79,7 @@ class VerificacaoPontoScheduler {
                 return;
             }
 
-            console.log(`🔍 [VERIFICAÇÃO PONTO] ${horarioAtual} - Verificando ${verificacoes.length} configuração(ões)`);
+            console.log(`🔍 [VERIFICAÇÃO SAÍDA] ${horarioAtual} - Verificando ${verificacoes.length} configuração(ões)`);
 
             for (const verificacao of verificacoes) {
                 try {
@@ -96,7 +96,7 @@ class VerificacaoPontoScheduler {
                     const horarioFim = verificacao.horario_fim;
 
                     if (!horarioInicio || !horarioFim) {
-                        console.log(`⚠️ [VERIFICAÇÃO PONTO] Verificação ${verificacao.id} sem período configurado, pulando...`);
+                        console.log(`⚠️ [VERIFICAÇÃO SAÍDA] Verificação ${verificacao.id} sem período configurado, pulando...`);
                         continue;
                     }
 
@@ -113,24 +113,24 @@ class VerificacaoPontoScheduler {
                         continue;
                     }
 
-                    console.log(`✅ [VERIFICAÇÃO PONTO] Executando verificação: ${verificacao.nome_configuracao || verificacao.id}`);
+                    console.log(`✅ [VERIFICAÇÃO SAÍDA] Executando verificação: ${verificacao.nome_configuracao || verificacao.id}`);
                     console.log(`   ⏰ Horário: ${horarioAtual} (Período: ${horarioInicio}-${horarioFim}, Intervalo: ${intervaloMinutos}min)`);
 
                     // Executar a verificação
                     await this.executarVerificacao(verificacao);
 
                 } catch (error) {
-                    console.error(`❌ [VERIFICAÇÃO PONTO] Erro ao processar verificação ${verificacao.id}:`, error.message);
+                    console.error(`❌ [VERIFICAÇÃO SAÍDA] Erro ao processar verificação ${verificacao.id}:`, error.message);
                 }
             }
 
         } catch (error) {
-            console.error('❌ [VERIFICAÇÃO PONTO] Erro ao verificar agendamentos:', error.message);
+            console.error('❌ [VERIFICAÇÃO SAÍDA] Erro ao verificar agendamentos:', error.message);
         }
     }
 
     /**
-     * Executa uma verificação de ponto
+     * Executa uma verificação de saída
      */
     async executarVerificacao(verificacao) {
         try {
@@ -154,7 +154,7 @@ class VerificacaoPontoScheduler {
                 }));
 
             } catch (e) {
-                console.error(`❌ [VERIFICAÇÃO PONTO] Erro ao processar contactos da verificação ${verificacao.id}:`, e.message);
+                console.error(`❌ [VERIFICAÇÃO SAÍDA] Erro ao processar contactos da verificação ${verificacao.id}:`, e.message);
                 return;
             }
 
@@ -177,13 +177,13 @@ class VerificacaoPontoScheduler {
             }
 
             let mensagensEnviadas = 0;
-            let semRegisto = 0;
+            let semSaida = 0;
             let erros = 0;
-            let comRegisto = 0;
+            let comSaida = 0;
             let semHorario = 0;
             let foraDoPeriodo = 0;
             let jaNotificado = 0;
-            let comFalta = 0;
+            let semEntrada = 0;
 
             for (const contacto of contactos) {
                 const phone = contacto.phone;
@@ -202,18 +202,7 @@ class VerificacaoPontoScheduler {
                         continue;
                     }
 
-                    // 3. Verificar se o utilizador tem falta aprovada hoje
-                    const faltaCheck = await axios.get(
-                        `${BACKEND_URL}/api/registo-ponto-obra/verificar-falta?user_id=${user_id}&data=${hoje}`,
-                        { timeout: 5000 }
-                    );
-
-                    if (faltaCheck.data.temFalta) {
-                        comFalta++;
-                        continue;
-                    }
-
-                    // 4. Verificar se tem horário associado
+                    // 3. Verificar se tem horário associado
                     const horarioCheck = await axios.get(
                         `${BACKEND_URL}/api/registo-ponto-obra/verificar-horario?user_id=${user_id}&data=${hoje}`,
                         { timeout: 5000 }
@@ -247,48 +236,62 @@ class VerificacaoPontoScheduler {
                         continue;
                     }
 
-                    // 6. Verificar se já passou o tempo de tolerância configurado
-                    const minutosTolerancia = verificacao.minutos_tolerancia || 10;
-                    if (horarioInfo.horaEntrada) {
-                        let horaEntrada = horarioInfo.horaEntrada;
+                    // 6. Verificar se já passou a hora de saída + margem de tolerância
+                    if (horarioInfo.horaSaida) {
+                        let horaSaida = horarioInfo.horaSaida;
 
                         // Se vier como timestamp ISO, extrair apenas a hora
-                        if (horaEntrada.includes('T')) {
-                            const date = new Date(horaEntrada);
-                            horaEntrada = `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}`;
+                        if (horaSaida.includes('T')) {
+                            const date = new Date(horaSaida);
+                            horaSaida = `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}`;
                         }
 
-                        const [horaEntradaH, horaEntradaM] = horaEntrada.split(':').map(Number);
+                        const [horaSaidaH, horaSaidaM] = horaSaida.split(':').map(Number);
                         const [horaAtualH, horaAtualM] = horaAtual.split(':').map(Number);
 
-                        const minutosEntrada = horaEntradaH * 60 + horaEntradaM;
+                        const minutosSaida = horaSaidaH * 60 + horaSaidaM;
                         const minutosAtual = horaAtualH * 60 + horaAtualM;
-                        const diferencaMinutos = minutosAtual - minutosEntrada;
+                        const diferencaMinutos = minutosAtual - minutosSaida;
 
-                        console.log(`   ⏰ Verificação tempo: Entrada ${horaEntrada}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min (Tolerância: ${minutosTolerancia}min)`);
+                        // Obter minutos de tolerância da configuração
+                        const minutosTolerancia = verificacao.minutos_tolerancia || 10;
 
+                        console.log(`   ⏰ Verificação tempo: Saída ${horaSaida}, Atual ${horaAtual}, Diferença ${diferencaMinutos}min (Tolerância: ${minutosTolerancia}min)`);
+
+                        // Só notificar se já passou o tempo de tolerância configurado
                         if (diferencaMinutos < minutosTolerancia) {
-                            console.log(`   ⏭️ Ainda não passaram ${minutosTolerancia}min da entrada`);
+                            console.log(`   ⏭️ Ainda não passaram ${minutosTolerancia}min da saída esperada`);
                             continue;
                         }
-                    }
-
-                    // 7. Verificar se já registou ponto hoje
-                    const pontoCheck = await axios.get(
-                        `${BACKEND_URL}/api/registo-ponto-obra/verificar-registo?user_id=${user_id}&data=${hoje}`,
-                        { timeout: 5000 }
-                    );
-
-                    if (pontoCheck.data.temRegisto) {
-                        comRegisto++;
+                    } else {
+                        // Se não tem hora de saída definida, pular
+                        semHorario++;
                         continue;
                     }
 
-                    semRegisto++;
+                    // 7. Verificar se já registou saída hoje
+                    const saidaCheck = await axios.get(
+                        `${BACKEND_URL}/api/registo-ponto-obra/verificar-saida?user_id=${user_id}&data=${hoje}`,
+                        { timeout: 5000 }
+                    );
+
+                    // Se não tem entrada, não faz sentido cobrar saída
+                    if (!saidaCheck.data.temEntrada) {
+                        semEntrada++;
+                        continue;
+                    }
+
+                    // Se já tem saída, pular
+                    if (saidaCheck.data.temSaida) {
+                        comSaida++;
+                        continue;
+                    }
+
+                    semSaida++;
 
                     // 8. Enviar mensagem via WhatsApp
                     if (!this.whatsappService?.isClientReady) {
-                        console.error("❌ [VERIFICAÇÃO PONTO] WhatsApp não está pronto");
+                        console.error("❌ [VERIFICAÇÃO SAÍDA] WhatsApp não está pronto");
                         erros++;
                         continue;
                     }
@@ -319,10 +322,10 @@ class VerificacaoPontoScheduler {
                 })
             });
 
-            console.log(`   📊 Resultado: ${mensagensEnviadas} enviadas | ${comRegisto} com registo | ${semRegisto} sem registo | ${comFalta} com falta/férias | ${jaNotificado} já notificados | ${semHorario} sem horário | ${erros} erros`);
+            console.log(`   📊 Resultado: ${mensagensEnviadas} enviadas | ${comSaida} com saída | ${semSaida} sem saída | ${semEntrada} sem entrada | ${jaNotificado} já notificados | ${semHorario} sem horário | ${erros} erros`);
 
         } catch (error) {
-            console.error(`❌ [VERIFICAÇÃO PONTO] Erro ao executar verificação ${verificacao.id}:`, error.message);
+            console.error(`❌ [VERIFICAÇÃO SAÍDA] Erro ao executar verificação ${verificacao.id}:`, error.message);
         }
     }
 
@@ -339,6 +342,6 @@ class VerificacaoPontoScheduler {
 }
 
 // Singleton
-const verificacaoPontoScheduler = new VerificacaoPontoScheduler();
+const verificacaoSaidaScheduler = new VerificacaoSaidaScheduler();
 
-module.exports = verificacaoPontoScheduler;
+module.exports = verificacaoSaidaScheduler;

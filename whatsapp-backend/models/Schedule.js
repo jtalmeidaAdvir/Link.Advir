@@ -81,6 +81,12 @@ const Schedule = sequelize.define('Schedule', {
         defaultValue: 1,
         comment: 'Intervalo em minutos entre cada verificação durante o período'
     },
+    minutos_tolerancia: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 10,
+        comment: 'Minutos de tolerância após hora de entrada/saída antes de notificar'
+    },
     lista_contactos_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
