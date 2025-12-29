@@ -414,7 +414,15 @@ const obterHorarioUser = async (req, res) => {
                 horaSaida: horario.horaSaida,
                 intervaloAlmoco: parseFloat(horario.intervaloAlmoco),
                 ativo: horario.ativo,
-                observacoes: horario.observacoes
+                observacoes: horario.observacoes,
+                tempoArredondamento: horario.tempoArredondamento,
+                horaInicioAlmoco: horario.horaInicioAlmoco,
+                horaFimAlmoco: horario.horaFimAlmoco,
+                tipoPeriodo: horario.tipoPeriodo,
+                diaEspecifico: horario.diaEspecifico,
+                mesEspecifico: horario.mesEspecifico,
+                anoEspecifico: horario.anoEspecifico,
+                prioridade: horario.prioridade
             }
         };
 
@@ -443,17 +451,63 @@ const obterHorarioUser = async (req, res) => {
 const historicoHorariosUser = async (req, res) => {
     const { userId } = req.params;
 
+    console.log(`[HISTORICO] ========================================`);
+    console.log(`[HISTORICO] Buscando histórico para userId: ${userId}`);
+
     try {
-        const historico = await PlanoHorario.findAll({
+        // Buscar planos do utilizador
+        const planos = await PlanoHorario.findAll({
             where: { user_id: userId },
-            include: [{ model: Horario }],
             order: [['dataInicio', 'DESC']]
         });
 
+        console.log(`[HISTORICO] ✅ Encontrados ${planos.length} planos`);
+
+        // Para cada plano, buscar o horário correspondente
+        const historico = await Promise.all(planos.map(async (plano) => {
+            const horario = await Horario.findByPk(plano.horario_id);
+
+            return {
+                id: plano.id,
+                user_id: plano.user_id,
+                horario_id: plano.horario_id,
+                dataInicio: plano.dataInicio,
+                dataFim: plano.dataFim,
+                tipoPeriodo: plano.tipoPeriodo,
+                diaEspecifico: plano.diaEspecifico,
+                mesEspecifico: plano.mesEspecifico,
+                anoEspecifico: plano.anoEspecifico,
+                prioridade: plano.prioridade,
+                ativo: plano.ativo,
+                observacoes: plano.observacoes,
+                Horario: horario ? {
+                    id: horario.id,
+                    descricao: horario.descricao,
+                    horasPorDia: horario.horasPorDia,
+                    horasSemanais: horario.horasSemanais,
+                    horaEntrada: formatarHora(horario.horaEntrada),
+                    horaSaida: formatarHora(horario.horaSaida),
+                    intervaloAlmoco: horario.intervaloAlmoco,
+                    horaInicioAlmoco: formatarHora(horario.horaInicioAlmoco),
+                    horaFimAlmoco: formatarHora(horario.horaFimAlmoco),
+                    tempoArredondamento: formatarHora(horario.tempoArredondamento),
+                    diasSemana: horario.diasSemana,
+                    observacoes: horario.observacoes
+                } : null
+            };
+        }));
+
+        if (historico.length > 0) {
+            console.log(`[HISTORICO] Primeiro plano completo:`, JSON.stringify(historico[0], null, 2));
+        }
+        console.log(`[HISTORICO] ========================================`);
+
         res.status(200).json(historico);
     } catch (error) {
-        console.error('Erro ao obter histórico de horários:', error);
-        res.status(500).json({ message: 'Erro ao obter histórico de horários.' });
+        console.error('[HISTORICO] ❌ ERRO:', error);
+        console.error('[HISTORICO] Stack:', error.stack);
+        console.log(`[HISTORICO] ========================================`);
+        res.status(500).json({ message: 'Erro ao obter histórico de horários.', error: error.message });
     }
 };
 

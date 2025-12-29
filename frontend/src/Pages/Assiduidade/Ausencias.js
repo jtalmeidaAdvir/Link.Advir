@@ -9,18 +9,48 @@ const Ausencias = () => {
     const [loading, setLoading] = useState(true);
     const [filtroTipo, setFiltroTipo] = useState('TODAS');
     const [filtroEstado, setFiltroEstado] = useState('TODOS');
+    const [filtroFuncionario, setFiltroFuncionario] = useState('TODOS');
     const [uploadingAnexo, setUploadingAnexo] = useState(false);
     const [anexosPorFalta, setAnexosPorFalta] = useState({});
     const [mostrarModalAnexo, setMostrarModalAnexo] = useState(false);
     const [faltaSelecionada, setFaltaSelecionada] = useState(null);
+    const [utilizadores, setUtilizadores] = useState([]);
 
     const token = secureStorage.getItem('loginToken');
     const empresaId = secureStorage.getItem('empresa_id');
     const codFuncionario = secureStorage.getItem('codFuncionario');
+    const tipoUser = secureStorage.getItem('tipoUser');
+    const isAdmin = tipoUser === 'Administrador';
+
+    console.log('[AUSENCIAS] tipoUser:', tipoUser, 'isAdmin:', isAdmin);
 
     useEffect(() => {
         carregarAusencias();
+        if (isAdmin) {
+            carregarUtilizadores();
+        }
     }, []);
+
+    const carregarUtilizadores = async () => {
+        try {
+            const response = await fetch(
+                `https://backend.advir.pt/api/users/empresa/${empresaId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                setUtilizadores(data);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar utilizadores:', error);
+        }
+    };
 
     const carregarAusencias = async () => {
         setLoading(true);
@@ -38,14 +68,16 @@ const Ausencias = () => {
 
             if (response.ok) {
                 const data = await response.json();
-                // Filtrar apenas os pedidos do funcionário logado
-                const minhasAusencias = data.filter(
-                    (pedido) => pedido.funcionario === codFuncionario
-                );
-                setAusencias(minhasAusencias);
-                
+
+                // Se for admin, mostrar todas as ausências, senão filtrar apenas as do utilizador
+                const ausenciasFiltradas = isAdmin
+                    ? data
+                    : data.filter((pedido) => pedido.funcionario === codFuncionario);
+
+                setAusencias(ausenciasFiltradas);
+
                 // Carregar anexos para cada ausência
-                minhasAusencias.forEach(ausencia => {
+                ausenciasFiltradas.forEach(ausencia => {
                     carregarAnexosDaFalta(ausencia.id);
                 });
             }
@@ -227,8 +259,16 @@ const Ausencias = () => {
     const ausenciasFiltradas = ausencias.filter((ausencia) => {
         const filtroTipoOk = filtroTipo === 'TODAS' || ausencia.tipoPedido === filtroTipo;
         const filtroEstadoOk = filtroEstado === 'TODOS' || ausencia.estadoAprovacao === filtroEstado;
-        return filtroTipoOk && filtroEstadoOk;
+        const filtroFuncionarioOk = filtroFuncionario === 'TODOS' || ausencia.funcionario === filtroFuncionario;
+        return filtroTipoOk && filtroEstadoOk && filtroFuncionarioOk;
     });
+
+    // Função para obter o nome do funcionário (apenas para admins)
+    const getNomeFuncionario = (codFuncionario) => {
+        if (!isAdmin || utilizadores.length === 0) return codFuncionario;
+        const user = utilizadores.find(u => u.codFuncionario === codFuncionario);
+        return user ? (user.nome || user.username) : codFuncionario;
+    };
 
     return (
         <div className="container-fluid bg-light py-4" style={{
@@ -286,10 +326,10 @@ const Ausencias = () => {
                         <div className="card-body text-center py-4">
                             <h1 className="h3 mb-2 text-primary">
                                 <FaCalendarAlt className="me-3" />
-                                Minhas Ausências
+                                {isAdmin ? 'Gestão de Ausências' : 'Minhas Ausências'}
                             </h1>
                             <p className="text-muted mb-0">
-                                Acompanhe suas faltas e férias
+                                {isAdmin ? 'Visualize e gerencie as ausências de todos os colaboradores' : 'Acompanhe suas faltas e férias'}
                             </p>
                         </div>
                     </div>
@@ -298,7 +338,7 @@ const Ausencias = () => {
                     <div className="card card-moderno mb-4">
                         <div className="card-body">
                             <div className="row g-3">
-                                <div className="col-md-6">
+                                <div className={isAdmin ? "col-md-4" : "col-md-6"}>
                                     <label className="form-label fw-semibold">Tipo de Ausência</label>
                                     <select
                                         className="form-select"
@@ -310,7 +350,7 @@ const Ausencias = () => {
                                         <option value="FERIAS">Férias</option>
                                     </select>
                                 </div>
-                                <div className="col-md-6">
+                                <div className={isAdmin ? "col-md-4" : "col-md-6"}>
                                     <label className="form-label fw-semibold">Estado</label>
                                     <select
                                         className="form-select"
@@ -323,6 +363,23 @@ const Ausencias = () => {
                                         <option value="Rejeitado">Rejeitados</option>
                                     </select>
                                 </div>
+                                {isAdmin && (
+                                    <div className="col-md-4">
+                                        <label className="form-label fw-semibold">Funcionário</label>
+                                        <select
+                                            className="form-select"
+                                            value={filtroFuncionario}
+                                            onChange={(e) => setFiltroFuncionario(e.target.value)}
+                                        >
+                                            <option value="TODOS">Todos</option>
+                                            {utilizadores.map((user) => (
+                                                <option key={user.id} value={user.codFuncionario}>
+                                                    {user.nome || user.username}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                             <div className="text-end mt-3">
                                 <button
@@ -374,6 +431,15 @@ const Ausencias = () => {
                                                         <span className="ms-1">{ausencia.estadoAprovacao}</span>
                                                     </span>
                                                 </div>
+
+                                                {isAdmin && (
+                                                    <div className="mb-3 pb-2 border-bottom">
+                                                        <small className="text-muted">Funcionário:</small>
+                                                        <div className="fw-bold text-primary">
+                                                            {getNomeFuncionario(ausencia.funcionario)}
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 <div className="border-start border-primary border-3 ps-3">
                                                     {ausencia.tipoPedido === 'FALTA' ? (

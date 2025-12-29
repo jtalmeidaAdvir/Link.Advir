@@ -9,6 +9,7 @@ import {
     SafeAreaView,
     RefreshControl,
     TextInput,
+    Modal,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,6 +20,7 @@ import { StyleSheet } from "react-native";
 const PartesDiariasJPA = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [processandoDados, setProcessandoDados] = useState(false);
     const [registosPonto, setRegistosPonto] = useState([]);
     const [obras, setObras] = useState([]);
     const [estatisticas, setEstatisticas] = useState(null);
@@ -30,12 +32,69 @@ const PartesDiariasJPA = ({ navigation }) => {
     const [tipoVisualizacao, setTipoVisualizacao] = useState("utilizador"); // 'utilizador' ou 'obra'
     const [editingCell, setEditingCell] = useState(null); // { userId, obraId, dia }
     const [editValue, setEditValue] = useState("");
+    const [modalERPAberto, setModalERPAberto] = useState(false);
+    const [modalResultado, setModalResultado] = useState({ visible: false, sucessos: 0, erros: 0, detalhes: [] });
+    const [modalConfirmacao, setModalConfirmacao] = useState({ visible: false, envios: [], callback: null, periodo: "" });
+    const [utilizadorSelecionado, setUtilizadorSelecionado] = useState(null);
+    const [tipoIntegracao, setTipoIntegracao] = useState("mensal"); // 'mensal' ou 'semanal'
+    const [semanaSelecionada, setSemanaSelecionada] = useState(1); // 1, 2, 3, 4, 5
 
     // Dias do mês
     const diasDoMes = useMemo(() => {
         const diasNoMes = new Date(mesAno.ano, mesAno.mes, 0).getDate();
         return Array.from({ length: diasNoMes }, (_, i) => i + 1);
     }, [mesAno.mes, mesAno.ano]);
+
+    // Calcular semanas do mês
+    const semanasDoMes = useMemo(() => {
+        const primeiroDia = new Date(mesAno.ano, mesAno.mes - 1, 1);
+        const ultimoDia = new Date(mesAno.ano, mesAno.mes, 0);
+        const diasNoMes = ultimoDia.getDate();
+
+        const semanas = [];
+        let diaAtual = 1;
+        let numeroSemana = 1;
+
+        while (diaAtual <= diasNoMes) {
+            const dataInicio = new Date(mesAno.ano, mesAno.mes - 1, diaAtual);
+            const diaDaSemana = dataInicio.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+
+            // Calcular o fim da semana (domingo)
+            const diasAteDomin = diaDaSemana === 0 ? 0 : 7 - diaDaSemana;
+            const diaFim = Math.min(diaAtual + diasAteDomin, diasNoMes);
+
+            semanas.push({
+                numero: numeroSemana,
+                inicio: diaAtual,
+                fim: diaFim,
+                label: `Semana ${numeroSemana} (${diaAtual}-${diaFim})`
+            });
+
+            diaAtual = diaFim + 1;
+            numeroSemana++;
+        }
+
+        return semanas;
+    }, [mesAno.mes, mesAno.ano]);
+
+    // Dias filtrados para visualização (baseado no tipo de integração)
+    const diasFiltrados = useMemo(() => {
+        if (tipoIntegracao === "mensal") {
+            return diasDoMes;
+        } else {
+            // Semanal - retornar apenas os dias da semana selecionada
+            const semana = semanasDoMes.find(s => s.numero === semanaSelecionada);
+
+            if (!semana) {
+                return diasDoMes;
+            }
+
+            return Array.from(
+                { length: semana.fim - semana.inicio + 1 },
+                (_, i) => semana.inicio + i
+            );
+        }
+    }, [tipoIntegracao, semanaSelecionada, diasDoMes, semanasDoMes]);
 
     // Carregar dados
     const carregarDados = useCallback(async () => {
@@ -92,6 +151,38 @@ const PartesDiariasJPA = ({ navigation }) => {
     useEffect(() => {
         carregarDados();
     }, [carregarDados]);
+
+    // Resetar semana quando o mês mudar
+    useEffect(() => {
+        setSemanaSelecionada(1);
+    }, [mesAno]);
+
+    // Mostrar loading quando os dados estiverem sendo processados
+    useEffect(() => {
+        // Quando mudar o mês ou os dados carregarem
+        if (loading) {
+            // Já está carregando da API, não fazer nada
+            return;
+        }
+
+        setProcessandoDados(true);
+        const timer = setTimeout(() => {
+            setProcessandoDados(false);
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [registosPonto, loading]);
+
+    // Mostrar loading quando mudar de semana (apenas se não estiver carregando da API)
+    useEffect(() => {
+        if (tipoIntegracao === "semanal" && !loading && registosPonto.length > 0) {
+            setProcessandoDados(true);
+            const timer = setTimeout(() => {
+                setProcessandoDados(false);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+    }, [semanaSelecionada, tipoIntegracao, loading, registosPonto.length]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -299,43 +390,103 @@ const PartesDiariasJPA = ({ navigation }) => {
     // Filtrar dados
     const dadosFiltrados = useMemo(() => {
         if (tipoVisualizacao === "utilizador") {
-            if (obraSelecionada === null || obraSelecionada === undefined) {
-                return dadosPorUtilizador;
-            }
+            let dadosBase = dadosPorUtilizador;
 
-            const obraIdNumber = Number(obraSelecionada);
-            const filtrado = new Map();
-
-            dadosPorUtilizador.forEach((userGroup, userId) => {
-                const obrasDoUtilizador = userGroup.obras.filter(
-                    (obra) => Number(obra.obraId) === obraIdNumber,
-                );
-
-                if (obrasDoUtilizador.length > 0) {
-                    filtrado.set(userId, {
-                        userId: userGroup.userId,
-                        userName: userGroup.userName,
-                        obras: obrasDoUtilizador,
-                    });
+            // Filtrar por utilizador específico
+            if (utilizadorSelecionado !== null && utilizadorSelecionado !== undefined) {
+                const userIdNumber = Number(utilizadorSelecionado);
+                const userData = dadosBase.get(userIdNumber);
+                dadosBase = new Map();
+                if (userData) {
+                    dadosBase.set(userIdNumber, userData);
                 }
-            });
-
-            return filtrado;
-        } else {
-            if (obraSelecionada === null || obraSelecionada === undefined) {
-                return dadosPorObra;
             }
 
-            const obraIdNumber = Number(obraSelecionada);
-            const obraData = dadosPorObra.get(obraIdNumber);
+            // Filtrar por obra
+            if (obraSelecionada !== null && obraSelecionada !== undefined) {
+                const obraIdNumber = Number(obraSelecionada);
+                const filtrado = new Map();
 
-            if (!obraData) return new Map();
+                dadosBase.forEach((userGroup, userId) => {
+                    const obrasDoUtilizador = userGroup.obras.filter(
+                        (obra) => Number(obra.obraId) === obraIdNumber,
+                    );
 
-            const filtrado = new Map();
-            filtrado.set(obraIdNumber, obraData);
-            return filtrado;
+                    if (obrasDoUtilizador.length > 0) {
+                        filtrado.set(userId, {
+                            userId: userGroup.userId,
+                            userName: userGroup.userName,
+                            obras: obrasDoUtilizador,
+                        });
+                    }
+                });
+
+                return filtrado;
+            }
+
+            return dadosBase;
+        } else {
+            // Visualização por obra
+            let dadosBase = dadosPorObra;
+            console.log("=== Visualização por Obra ===");
+            console.log("dadosBase (dadosPorObra):", Array.from(dadosBase.entries()));
+
+            // Filtrar por obra específica
+            if (obraSelecionada !== null && obraSelecionada !== undefined) {
+                const obraIdNumber = Number(obraSelecionada);
+                console.log("Filtrando por obra:", obraIdNumber);
+                const obraData = dadosBase.get(obraIdNumber);
+                console.log("obraData encontrada:", obraData);
+
+                if (!obraData || !obraData.utilizadores) {
+                    console.log("obraData inválida ou sem utilizadores");
+                    return new Map();
+                }
+
+                // Aplicar filtro de utilizador
+                if (utilizadorSelecionado !== null && utilizadorSelecionado !== undefined) {
+                    const usuariosFiltrados = obraData.utilizadores.filter((usuario) => {
+                        return Number(usuario.userId) === Number(utilizadorSelecionado);
+                    });
+
+                    const filtrado = new Map();
+                    filtrado.set(obraIdNumber, {
+                        ...obraData,
+                        utilizadores: usuariosFiltrados,
+                    });
+                    return filtrado;
+                }
+
+                const filtrado = new Map();
+                filtrado.set(obraIdNumber, obraData);
+                return filtrado;
+            }
+
+            // Se não há filtro de obra, aplicar filtro de utilizador a todas as obras
+            if (utilizadorSelecionado !== null && utilizadorSelecionado !== undefined) {
+                const filtrado = new Map();
+                dadosBase.forEach((obraGroup, obraId) => {
+                    if (!obraGroup.utilizadores || !Array.isArray(obraGroup.utilizadores)) {
+                        return;
+                    }
+
+                    const usuariosFiltrados = obraGroup.utilizadores.filter((usuario) => {
+                        return Number(usuario.userId) === Number(utilizadorSelecionado);
+                    });
+
+                    if (usuariosFiltrados.length > 0) {
+                        filtrado.set(obraId, {
+                            ...obraGroup,
+                            utilizadores: usuariosFiltrados,
+                        });
+                    }
+                });
+                return filtrado;
+            }
+
+            return dadosBase;
         }
-    }, [dadosPorUtilizador, dadosPorObra, obraSelecionada, tipoVisualizacao]);
+    }, [dadosPorUtilizador, dadosPorObra, obraSelecionada, tipoVisualizacao, utilizadorSelecionado]);
 
     // Formatar horas
     const formatarHorasMinutos = (minutos) => {
@@ -487,40 +638,43 @@ const PartesDiariasJPA = ({ navigation }) => {
         setLoading(true);
 
         try {
-            // Filtrar registos pela obra selecionada ANTES de processar
-            let registosParaEnviar = [];
+            // Filtrar registos pelos filtros ativos (obra, utilizador, período)
+            let registosParaEnviar = registosPonto.filter((r) => {
+                if (!r.Obra || !r.User) return false;
 
-            if (obraSelecionada !== null && obraSelecionada !== undefined) {
-                // Se há obra selecionada, filtrar apenas os registos dessa obra
-                const obraIdNumber = Number(obraSelecionada);
-                registosParaEnviar = registosPonto.filter(
-                    (r) => r.Obra && Number(r.Obra.id) === obraIdNumber,
-                );
-
-                console.log(`📌 Filtro aplicado: Obra ID ${obraIdNumber}`);
-                console.log(
-                    `📊 Registos da obra selecionada: ${registosParaEnviar.length} de ${registosPonto.length} total`,
-                );
-            } else {
-                // Se não há filtro, usar todos os registos visíveis
-                if (tipoVisualizacao === "utilizador") {
-                    dadosFiltrados.forEach((userGroup) => {
-                        userGroup.obras.forEach((obra) => {
-                            obra.registos.forEach((registo) => {
-                                registosParaEnviar.push(registo);
-                            });
-                        });
-                    });
-                } else {
-                    dadosFiltrados.forEach((obraGroup) => {
-                        obraGroup.utilizadores.forEach((utilizador) => {
-                            utilizador.registos.forEach((registo) => {
-                                registosParaEnviar.push(registo);
-                            });
-                        });
-                    });
+                // Filtro de obra
+                if (obraSelecionada !== null && obraSelecionada !== undefined) {
+                    if (Number(r.Obra.id) !== Number(obraSelecionada)) {
+                        return false;
+                    }
                 }
+
+                // Filtro de utilizador
+                if (utilizadorSelecionado !== null && utilizadorSelecionado !== undefined) {
+                    if (Number(r.User.id) !== Number(utilizadorSelecionado)) {
+                        return false;
+                    }
+                }
+
+                // Filtro de período (dias filtrados - mensal ou semanal)
+                const dataRegisto = new Date(r.timestamp);
+                const diaRegisto = dataRegisto.getDate();
+                if (!diasFiltrados.includes(diaRegisto)) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            console.log(`📌 Filtros aplicados:`);
+            if (obraSelecionada) console.log(`  - Obra ID: ${obraSelecionada}`);
+            if (utilizadorSelecionado) console.log(`  - Utilizador ID: ${utilizadorSelecionado}`);
+            console.log(`  - Tipo: ${tipoIntegracao}`);
+            if (tipoIntegracao === "semanal") {
+                const semana = semanasDoMes.find(s => s.numero === semanaSelecionada);
+                console.log(`  - Semana ${semanaSelecionada}: dias ${semana?.inicio}-${semana?.fim}`);
             }
+            console.log(`📊 Registos filtrados: ${registosParaEnviar.length} de ${registosPonto.length} total`);
 
             // Verificar se há dados para enviar
             if (registosParaEnviar.length === 0) {
@@ -698,10 +852,45 @@ const PartesDiariasJPA = ({ navigation }) => {
                     // Data final do mês
                     const dataFinal = new Date(mesAno.ano, mesAno.mes, 0).toISOString().split("T")[0];
 
+                    // Construir nota dinâmica baseada nos filtros
+                    let notaTexto = "";
+
+                    // Se houver utilizador específico selecionado
+                    if (utilizadorSelecionado) {
+                        const nomeUtilizador = Array.from(
+                            new Map(
+                                registosPonto
+                                    .filter(r => r.User && Number(r.User.id) === Number(utilizadorSelecionado))
+                                    .map((r) => [r.User.id, r.User.nome])
+                            ).entries()
+                        )[0]?.[1];
+
+                        console.log("🔍 Buscando nome do utilizador:", utilizadorSelecionado);
+                        console.log("🔍 Nome encontrado:", nomeUtilizador);
+
+                        // Formato: "Parte diária [mensal/semanal] de [período] - [Nome Utilizador] - [Obra]"
+                        const nomeParaNota = nomeUtilizador || `Utilizador ${utilizadorSelecionado}`;
+
+                        if (tipoIntegracao === "mensal") {
+                            notaTexto = `Parte diária mensal de ${mesAno.mes}/${mesAno.ano} - ${nomeParaNota} - ${obra.obraNome}`;
+                        } else {
+                            const semana = semanasDoMes.find(s => s.numero === semanaSelecionada);
+                            notaTexto = `Parte diária semanal - Semana ${semanaSelecionada} (${semana?.inicio}-${semana?.fim}) de ${mesAno.mes}/${mesAno.ano} - ${nomeParaNota} - ${obra.obraNome}`;
+                        }
+                    } else {
+                        // Formato sem utilizador específico: apenas período e obra
+                        if (tipoIntegracao === "mensal") {
+                            notaTexto = `Parte diária mensal de ${mesAno.mes}/${mesAno.ano} - ${obra.obraNome}`;
+                        } else {
+                            const semana = semanasDoMes.find(s => s.numero === semanaSelecionada);
+                            notaTexto = `Parte diária semanal - Semana ${semanaSelecionada} (${semana?.inicio}-${semana?.fim}) de ${mesAno.mes}/${mesAno.ano} - ${obra.obraNome}`;
+                        }
+                    }
+
                     const payload = {
                         Cabecalho: {
                             ObraID: obra.obraCodigo,
-                            Notas: `Parte diária mensal de ${mesAno.mes}/${mesAno.ano} - ${obra.obraNome}`,
+                            Notas: notaTexto,
                         },
                         Itens: itensParaEnviar,
                     };
@@ -756,8 +945,32 @@ const PartesDiariasJPA = ({ navigation }) => {
                   `Obra ${obraSelecionada}`
                 : "todas as obras visíveis";
 
+            // Construir texto do período
+            let periodoTexto = "";
+            if (tipoIntegracao === "semanal") {
+                const semana = semanasDoMes.find(s => s.numero === semanaSelecionada);
+                periodoTexto = semana
+                    ? `Semana ${semanaSelecionada} (dias ${semana.inicio}-${semana.fim})`
+                    : `Semana ${semanaSelecionada}`;
+            } else {
+                periodoTexto = `Mês completo`;
+            }
+
+            // Construir texto do utilizador
+            const utilizadorTexto = utilizadorSelecionado
+                ? Array.from(
+                    new Map(
+                        registosPonto
+                            .filter(r => r.User && r.User.id === utilizadorSelecionado)
+                            .map((r) => [r.User.id, r.User.nome])
+                    ).entries()
+                )[0]?.[1] || `Utilizador ${utilizadorSelecionado}`
+                : "todos os utilizadores";
+
             console.log(`✅ Preparado para mostrar Alert de confirmação`);
             console.log(`   Obra: ${obraTexto}`);
+            console.log(`   Utilizador: ${utilizadorTexto}`);
+            console.log(`   Período: ${periodoTexto}`);
             console.log(`   Número de partes mensais: ${envios.length}`);
 
             // Função de envio para reutilizar
@@ -794,6 +1007,14 @@ const PartesDiariasJPA = ({ navigation }) => {
                             sucessos++;
                         } else {
                             erros++;
+
+                            // Verificar se é o erro específico do ERP em uso
+                            if (responseText.includes("ERP Engine in use")) {
+                                setLoading(false);
+                                setModalERPAberto(true);
+                                return; // Parar execução e mostrar modal específico
+                            }
+
                             errosDetalhes.push(
                                 `${envio.data} - ${envio.obraNome}: ${responseText}`,
                             );
@@ -814,61 +1035,24 @@ const PartesDiariasJPA = ({ navigation }) => {
                     }
                 }
 
-                let mensagem = `Enviadas com sucesso: ${sucessos}\nErros: ${erros}`;
-                if (erros > 0 && errosDetalhes.length > 0) {
-                    mensagem += `\n\nDetalhes dos erros:\n${errosDetalhes.slice(0, 3).join("\n")}`;
-                    if (errosDetalhes.length > 3) {
-                        mensagem += `\n... e mais ${errosDetalhes.length - 3} erro(s)`;
-                    }
-                }
-
-                // Mostrar resultado
+                // Mostrar resultado em modal
                 setLoading(false);
-                if (typeof window !== "undefined" && window.alert) {
-                    window.alert(`Resultado da Integração\n\n${mensagem}`);
-                    carregarDados();
-                } else {
-                    Alert.alert("Resultado da Integração", mensagem, [
-                        { text: "OK", onPress: () => carregarDados() },
-                    ]);
-                }
+                setModalResultado({
+                    visible: true,
+                    sucessos,
+                    erros,
+                    detalhes: errosDetalhes
+                });
             };
 
-            // Usar window.confirm para web ou Alert para mobile
-            if (typeof window !== "undefined" && window.confirm) {
-                console.log(
-                    "🌐 Ambiente WEB detectado - usando window.confirm",
-                );
-                const confirmado = window.confirm(
-                    `Confirmar Integração Mensal\n\nSerá enviada ${envios.length} parte(s) mensal(is) de ${obraTexto} referente a ${mesAno.mes}/${mesAno.ano}. Deseja continuar?`,
-                );
-
-                if (confirmado) {
-                    await executarEnvio();
-                } else {
-                    console.log("❌ Utilizador cancelou o envio");
-                    setLoading(false);
-                }
-            } else {
-                console.log(
-                    "📱 Ambiente MOBILE detectado - usando Alert.alert",
-                );
-                Alert.alert(
-                    "Confirmar Integração Mensal",
-                    `Será enviada ${envios.length} parte(s) mensal(is) de ${obraTexto} referente a ${mesAno.mes}/${mesAno.ano}. Deseja continuar?`,
-                    [
-                        { 
-                            text: "Cancelar", 
-                            style: "cancel",
-                            onPress: () => setLoading(false)
-                        },
-                        {
-                            text: "Enviar",
-                            onPress: executarEnvio,
-                        },
-                    ],
-                );
-            }
+            // Abrir modal de confirmação
+            setLoading(false);
+            setModalConfirmacao({
+                visible: true,
+                envios: envios.length,
+                callback: executarEnvio,
+                periodo: `${periodoTexto} - ${mesAno.mes}/${mesAno.ano}`
+            });
         } catch (error) {
             console.error("Erro ao integrar dados:", error);
             setLoading(false);
@@ -895,12 +1079,6 @@ const PartesDiariasJPA = ({ navigation }) => {
         <LinearGradient colors={["#2196F3", "#1976D2"]} style={styles.header}>
             <SafeAreaView>
                 <View style={styles.headerContent}>
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Ionicons name="arrow-back" size={24} color="#fff" />
-                    </TouchableOpacity>
                     <View style={styles.headerTextContainer}>
                         <Text style={styles.headerTitle}>
                             JPA Partes Diárias
@@ -947,6 +1125,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                     <TouchableOpacity
                         style={styles.monthButton}
                         onPress={() => {
+                            setProcessandoDados(true);
                             const novoMes =
                                 mesAno.mes === 1 ? 12 : mesAno.mes - 1;
                             const novoAno =
@@ -975,6 +1154,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                     <TouchableOpacity
                         style={styles.monthButton}
                         onPress={() => {
+                            setProcessandoDados(true);
                             const novoMes =
                                 mesAno.mes === 12 ? 1 : mesAno.mes + 1;
                             const novoAno =
@@ -1079,6 +1259,125 @@ const PartesDiariasJPA = ({ navigation }) => {
                     </View>
                 </View>
             )}
+
+            {/* Filtro de Utilizador */}
+            <View style={styles.filtersRow}>
+                <View style={styles.filterItem}>
+                    <Text style={styles.filterLabel}>Utilizador</Text>
+                    <View style={styles.pickerWrapper}>
+                        <Picker
+                            selectedValue={utilizadorSelecionado}
+                            onValueChange={(value) =>
+                                setUtilizadorSelecionado(value)
+                            }
+                            style={styles.picker}
+                        >
+                            <Picker.Item
+                                label="Todos os utilizadores"
+                                value={null}
+                            />
+                            {Array.from(
+                                new Map(
+                                    registosPonto
+                                        .filter(r => r.User)
+                                        .map((r) => [r.User.id, r.User.nome])
+                                ).entries()
+                            ).map(([userId, userName]) => (
+                                <Picker.Item
+                                    key={userId}
+                                    label={userName || `User ${userId}`}
+                                    value={userId}
+                                />
+                            ))}
+                        </Picker>
+                    </View>
+                </View>
+            </View>
+
+            {/* Filtro de Tipo de Integração */}
+            <View style={styles.filterItem}>
+                <Text style={styles.filterLabel}>Tipo de Integração</Text>
+                <View style={styles.filterButtonsGroup}>
+                    <TouchableOpacity
+                        style={[
+                            styles.filterButton,
+                            tipoIntegracao === "mensal" &&
+                                styles.filterButtonActive,
+                        ]}
+                        onPress={() => setTipoIntegracao("mensal")}
+                    >
+                        <Ionicons
+                            name="calendar"
+                            size={16}
+                            color={
+                                tipoIntegracao === "mensal"
+                                    ? "#fff"
+                                    : "#2196F3"
+                            }
+                        />
+                        <Text
+                            style={[
+                                styles.filterButtonText,
+                                tipoIntegracao === "mensal" &&
+                                    styles.filterButtonTextActive,
+                            ]}
+                        >
+                            Mensal
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.filterButton,
+                            tipoIntegracao === "semanal" &&
+                                styles.filterButtonActive,
+                        ]}
+                        onPress={() => setTipoIntegracao("semanal")}
+                    >
+                        <Ionicons
+                            name="calendar-outline"
+                            size={16}
+                            color={
+                                tipoIntegracao === "semanal"
+                                    ? "#fff"
+                                    : "#2196F3"
+                            }
+                        />
+                        <Text
+                            style={[
+                                styles.filterButtonText,
+                                tipoIntegracao === "semanal" &&
+                                    styles.filterButtonTextActive,
+                            ]}
+                        >
+                            Semanal
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Seleção de Semana (apenas quando tipo = semanal) */}
+            {tipoIntegracao === "semanal" && (
+                <View style={styles.filtersRow}>
+                    <View style={styles.filterItem}>
+                        <Text style={styles.filterLabel}>Semana</Text>
+                        <View style={styles.pickerWrapper}>
+                            <Picker
+                                selectedValue={semanaSelecionada}
+                                onValueChange={(value) => setSemanaSelecionada(Number(value))}
+                                style={styles.picker}
+                            >
+                                {semanasDoMes.map((semana) => (
+                                    <Picker.Item
+                                        key={semana.numero}
+                                        label={semana.label}
+                                        value={semana.numero}
+                                    />
+                                ))}
+                            </Picker>
+                        </View>
+                    </View>
+                </View>
+            )}
         </View>
     );
 
@@ -1150,7 +1449,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                                             Obra
                                         </Text>
                                     </View>
-                                    {diasDoMes.map((dia) => (
+                                    {diasFiltrados.map((dia) => (
                                         <View
                                             key={dia}
                                             style={[
@@ -1178,7 +1477,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                                 </View>
 
                                 {userGroup.obras.map((obra, obraIndex) => {
-                                    const totalHoras = diasDoMes.reduce(
+                                    const totalHoras = diasFiltrados.reduce(
                                         (total, dia) =>
                                             total +
                                             (obra.horasPorDia[dia] || 0), // Ensure obra.horasPorDia[dia] is not undefined
@@ -1208,7 +1507,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                                                 </Text>
                                             </View>
 
-                                            {diasDoMes.map((dia) => {
+                                            {diasFiltrados.map((dia) => {
                                                 const horas =
                                                     obra.horasPorDia[dia] || 0; // Ensure horas is not undefined
                                                 const isEditing =
@@ -1375,7 +1674,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                                             Utilizador
                                         </Text>
                                     </View>
-                                    {diasDoMes.map((dia) => (
+                                    {diasFiltrados.map((dia) => (
                                         <View
                                             key={dia}
                                             style={[
@@ -1404,7 +1703,7 @@ const PartesDiariasJPA = ({ navigation }) => {
 
                                 {obraGroup.utilizadores.map(
                                     (utilizador, userIndex) => {
-                                        const totalHoras = diasDoMes.reduce(
+                                        const totalHoras = diasFiltrados.reduce(
                                             (total, dia) =>
                                                 total +
                                                 (utilizador.horasPorDia[dia] ||
@@ -1437,7 +1736,7 @@ const PartesDiariasJPA = ({ navigation }) => {
                                                     </Text>
                                                 </View>
 
-                                                {diasDoMes.map((dia) => {
+                                                {diasFiltrados.map((dia) => {
                                                     const horas =
                                                         utilizador.horasPorDia[
                                                             dia
@@ -1583,11 +1882,182 @@ const PartesDiariasJPA = ({ navigation }) => {
                 >
                     {renderControls()}
                     {renderEstatisticas()}
-                    {tipoVisualizacao === "utilizador"
-                        ? renderVisualizacaoPorUtilizador()
-                        : renderVisualizacaoPorObra()}
+                    {processandoDados ? (
+                        <View style={styles.loadingOverlay}>
+                            <ActivityIndicator size="large" color="#2196F3" />
+                            <Text style={styles.loadingText}>
+                                A processar dados...
+                            </Text>
+                        </View>
+                    ) : (
+                        <>
+                            {tipoVisualizacao === "utilizador"
+                                ? renderVisualizacaoPorUtilizador()
+                                : renderVisualizacaoPorObra()}
+                        </>
+                    )}
                     <View style={{ height: 30 }} />
                 </ScrollView>
+
+                {/* Modal de Confirmação de Integração */}
+                <Modal
+                    visible={modalConfirmacao.visible}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setModalConfirmacao({ ...modalConfirmacao, visible: false })}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <MaterialCommunityIcons
+                                    name="file-send"
+                                    size={50}
+                                    color="#2196F3"
+                                />
+                                <Text style={styles.modalTitle}>Confirmar Integração</Text>
+                            </View>
+
+                            <View style={styles.modalBody}>
+                                <Text style={styles.modalInfo}>
+                                    <Text style={styles.modalInfoLabel}>Partes a enviar: </Text>
+                                    <Text style={styles.modalInfoValue}>{modalConfirmacao.envios}</Text>
+                                </Text>
+                                <Text style={styles.modalInfo}>
+                                    <Text style={styles.modalInfoLabel}>Período: </Text>
+                                    <Text style={styles.modalInfoValue}>{modalConfirmacao.periodo}</Text>
+                                </Text>
+                                <Text style={styles.modalQuestion}>
+                                    Deseja continuar?
+                                </Text>
+                            </View>
+
+                            <View style={styles.modalFooter}>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, styles.modalButtonCancel]}
+                                    onPress={() => {
+                                        setModalConfirmacao({ ...modalConfirmacao, visible: false });
+                                        setLoading(false);
+                                    }}
+                                >
+                                    <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, styles.modalButtonConfirm]}
+                                    onPress={async () => {
+                                        setModalConfirmacao({ ...modalConfirmacao, visible: false });
+                                        setLoading(true);
+                                        await modalConfirmacao.callback();
+                                    }}
+                                >
+                                    <Text style={styles.modalButtonText}>OK</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Modal de Resultado da Integração */}
+                <Modal
+                    visible={modalResultado.visible}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => {
+                        setModalResultado({ visible: false, sucessos: 0, erros: 0, detalhes: [] });
+                        carregarDados();
+                    }}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <MaterialCommunityIcons
+                                    name={modalResultado.erros > 0 ? "alert-circle" : "check-circle"}
+                                    size={50}
+                                    color={modalResultado.erros > 0 ? "#FF9800" : "#4CAF50"}
+                                />
+                                <Text style={styles.modalTitle}>Resultado da Integração</Text>
+                            </View>
+
+                            <View style={styles.modalBody}>
+                                <Text style={styles.modalInfo}>
+                                    <Text style={styles.modalInfoLabel}>Enviadas com sucesso: </Text>
+                                    <Text style={[styles.modalInfoValue, { color: "#4CAF50" }]}>
+                                        {modalResultado.sucessos}
+                                    </Text>
+                                </Text>
+                                <Text style={styles.modalInfo}>
+                                    <Text style={styles.modalInfoLabel}>Erros: </Text>
+                                    <Text style={[styles.modalInfoValue, { color: modalResultado.erros > 0 ? "#F44336" : "#757575" }]}>
+                                        {modalResultado.erros}
+                                    </Text>
+                                </Text>
+                                {modalResultado.erros > 0 && modalResultado.detalhes.length > 0 && (
+                                    <View style={styles.errorDetailsContainer}>
+                                        <Text style={styles.errorDetailsTitle}>Detalhes dos erros:</Text>
+                                        {modalResultado.detalhes.slice(0, 2).map((erro, index) => (
+                                            <Text key={index} style={styles.errorDetailText}>• {erro}</Text>
+                                        ))}
+                                        {modalResultado.detalhes.length > 2 && (
+                                            <Text style={styles.errorDetailText}>
+                                                ... e mais {modalResultado.detalhes.length - 2} erro(s)
+                                            </Text>
+                                        )}
+                                    </View>
+                                )}
+                            </View>
+
+                            <View style={styles.modalFooter}>
+                                <TouchableOpacity
+                                    style={styles.modalButton}
+                                    onPress={() => {
+                                        setModalResultado({ visible: false, sucessos: 0, erros: 0, detalhes: [] });
+                                        carregarDados();
+                                    }}
+                                >
+                                    <Text style={styles.modalButtonText}>OK</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Modal de Erro ERP em Uso */}
+                <Modal
+                    visible={modalERPAberto}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setModalERPAberto(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <MaterialCommunityIcons
+                                    name="alert-circle"
+                                    size={50}
+                                    color="#FF9800"
+                                />
+                                <Text style={styles.modalTitle}>Obra Aberta no ERP</Text>
+                            </View>
+
+                            <View style={styles.modalBody}>
+                                <Text style={styles.modalMessage}>
+                                    Encontra-se a Obra aberta no ERP. Deve efetuar o fecho da mesma para prosseguir.
+                                </Text>
+                            </View>
+
+                            <View style={styles.modalFooter}>
+                                <TouchableOpacity
+                                    style={styles.modalButton}
+                                    onPress={() => {
+                                        setModalERPAberto(false);
+                                        carregarDados();
+                                    }}
+                                >
+                                    <Text style={styles.modalButtonText}>Entendido</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </SafeAreaView>
         </LinearGradient>
     );
@@ -1901,6 +2371,21 @@ const styles = StyleSheet.create({
         marginTop: 16,
         fontWeight: "500",
     },
+    loadingOverlay: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 100,
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        marginHorizontal: 15,
+        marginVertical: 20,
+        borderRadius: 12,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    },
     tableCellEditing: {
         backgroundColor: "#FFF9C4",
         borderWidth: 2,
@@ -1916,6 +2401,117 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
         borderRadius: 4,
         paddingHorizontal: 4,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        width: "100%",
+        maxWidth: 400,
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    modalHeader: {
+        alignItems: "center",
+        paddingTop: 30,
+        paddingBottom: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: "#E0E0E0",
+    },
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: "bold",
+        color: "#212121",
+        marginTop: 15,
+    },
+    modalBody: {
+        padding: 25,
+    },
+    modalMessage: {
+        fontSize: 16,
+        color: "#424242",
+        textAlign: "center",
+        lineHeight: 24,
+    },
+    modalFooter: {
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: "#E0E0E0",
+        flexDirection: "row",
+    },
+    modalButton: {
+        backgroundColor: "#2196F3",
+        paddingVertical: 14,
+        paddingHorizontal: 30,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    modalButtonText: {
+        color: "#fff",
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    modalInfo: {
+        fontSize: 16,
+        marginBottom: 12,
+    },
+    modalInfoLabel: {
+        color: "#757575",
+        fontWeight: "500",
+    },
+    modalInfoValue: {
+        color: "#212121",
+        fontWeight: "700",
+    },
+    modalQuestion: {
+        fontSize: 16,
+        color: "#424242",
+        marginTop: 20,
+        textAlign: "center",
+        fontWeight: "500",
+    },
+    modalButtonCancel: {
+        backgroundColor: "#F5F5F5",
+        marginRight: 10,
+        flex: 1,
+    },
+    modalButtonConfirm: {
+        backgroundColor: "#2196F3",
+        flex: 1,
+    },
+    modalButtonCancelText: {
+        color: "#424242",
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    errorDetailsContainer: {
+        marginTop: 20,
+        padding: 15,
+        backgroundColor: "#FFEBEE",
+        borderRadius: 8,
+        borderLeftWidth: 4,
+        borderLeftColor: "#F44336",
+    },
+    errorDetailsTitle: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#D32F2F",
+        marginBottom: 8,
+    },
+    errorDetailText: {
+        fontSize: 13,
+        color: "#C62828",
+        marginBottom: 4,
+        lineHeight: 18,
     },
 });
 
