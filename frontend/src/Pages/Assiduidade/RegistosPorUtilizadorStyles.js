@@ -53,7 +53,7 @@ const styles = {
     navTabActive: {
         background: '#3182ce',
         color: 'white',
-        borderColor: '#3182ce'
+        border: '2px solid #3182ce'
     },
     filtersCard: {
         background: '#ffffff',

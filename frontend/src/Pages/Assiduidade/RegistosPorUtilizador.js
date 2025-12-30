@@ -11,6 +11,9 @@ import ModalBase from './components/ModalBase';
 import RegistoGradeRow from './components/RegistoGradeRow';
 import UserSelectionList from './components/UserSelectionList';
 import DaySelectionList from './components/DaySelectionList';
+import HorariosInput from './components/HorariosInput';
+import ObraSelector from './components/ObraSelector';
+import ActionBar from './components/ActionBar';
 
 // ✨ Hooks customizados
 import { useRegistosOptimized } from './hooks/useRegistosOptimized';
@@ -26,6 +29,13 @@ import {
     isWeekend,
     getDayName
 } from './utils/dateUtils';
+import { exportToExcel } from './utils/excelExporter';
+import { groupCellsByUser } from './utils/cellUtils';
+import { normalizarFalta, normalizarHoraExtra } from './utils/dataNormalizers';
+
+// ✨ Serviços de API
+import * as API from './services/apiService';
+import { criarF40SeNecessario, inserirFaltaComTratamentoErros } from './services/faltasService';
 
 // ✨ Estilos separados
 import styles from './RegistosPorUtilizadorStyles';
@@ -66,9 +76,6 @@ const RegistosPorUtilizador = () => {
     const [cacheCodFuncionario, setCacheCodFuncionario] = useState({});
 
     const token = secureStorage.getItem('loginToken');
-
-    // State for loading status in grid view
-    const [carregando, setCarregando] = useState(false);
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [userToRegistar, setUserToRegistar] = useState(null);
@@ -117,6 +124,7 @@ const RegistosPorUtilizador = () => {
     const [duracaoFalta, setDuracaoFalta] = useState(''); // 'd' for day, 'h' for hour
     const [faltaIntervalo, setFaltaIntervalo] = useState(false);
     const [dataFimFalta, setDataFimFalta] = useState('');
+    const [loadingFalta, setLoadingFalta] = useState(false);
 
     // State for bulk falta modal
     const [bulkFaltaDialogOpen, setBulkFaltaDialogOpen] = useState(false);
@@ -150,6 +158,7 @@ const RegistosPorUtilizador = () => {
     const [tipoHoraExtraSelecionado, setTipoHoraExtraSelecionado] = useState('');
     const [tempoHoraExtra, setTempoHoraExtra] = useState('');
     const [observacoesHoraExtra, setObservacoesHoraExtra] = useState('');
+    const [loadingHoraExtra, setLoadingHoraExtra] = useState(false);
 
     // State for bulk hora extra modal
     const [bulkHoraExtraDialogOpen, setBulkHoraExtraDialogOpen] = useState(false);
@@ -190,23 +199,13 @@ const RegistosPorUtilizador = () => {
                     const [hh, mm] = horas[i].split(':').map(Number);
                     const timestamp = makeUTCISO(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10), parseInt(diaNumber, 10), hh, mm);
 
-                    const res = await fetch(
-                        `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`
-                            },
-                            body: JSON.stringify({ tipo: tipos[i], obra_id: Number(obraNoDialog), user_id: userIdNumber, timestamp: timestamp })
-                        }
-                    );
-                    if (!res.ok) throw new Error('Falha ao criar ponto');
-                    const json = await res.json();
-                    await fetch(
-                        `https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`,
-                        { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }
-                    );
+                    const ponto = await API.registarPontoEsquecido(token, {
+                        tipo: tipos[i],
+                        obra_id: Number(obraNoDialog),
+                        user_id: userIdNumber,
+                        timestamp: timestamp
+                    });
+                    await API.confirmarPonto(token, ponto.id);
                 }
             }
             alert(`Registados e confirmados em bloco ${selectedCells.length} pontos!`);
@@ -358,33 +357,19 @@ const RegistosPorUtilizador = () => {
 
         while (tentativas < maxTentativas) {
             try {
-                const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${painelAdminToken}`,
-                        urlempresa: urlempresa,
-                    },
-                });
+                const data = await API.buscarTiposFaltas(painelAdminToken, urlempresa);
+                const tipos = data?.DataSet?.Table ?? [];
 
-                if (res.ok) {
-                    const data = await res.json();
-                    const tipos = data?.DataSet?.Table ?? [];
-
-                    if (!Array.isArray(tipos) || tipos.length === 0) {
-                        throw new Error('Nenhum tipo de falta retornado do servidor');
-                    }
-
-                    const mapaFaltas = {};
-                    tipos.forEach(t => {
-                        mapaFaltas[t.Falta] = t.Descricao;
-                    });
-                    setTiposFaltas(mapaFaltas);
-                    return true;
-                } else {
-                    const errorText = await res.text();
-                    throw new Error(`Erro HTTP ${res.status}: ${errorText}`);
+                if (!Array.isArray(tipos) || tipos.length === 0) {
+                    throw new Error('Nenhum tipo de falta retornado do servidor');
                 }
+
+                const mapaFaltas = {};
+                tipos.forEach(t => {
+                    mapaFaltas[t.Falta] = t.Descricao;
+                });
+                setTiposFaltas(mapaFaltas);
+                return true;
             } catch (err) {
                 tentativas++;
                 console.error(`❌ Tentativa ${tentativas}/${maxTentativas} falhou ao carregar tipos de faltas:`, err.message);
@@ -412,34 +397,20 @@ const RegistosPorUtilizador = () => {
 
         while (tentativas < maxTentativas) {
             try {
-                const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoHorasExtras', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${painelAdminToken}`,
-                        urlempresa: urlempresa,
-                    },
-                });
+                const data = await API.buscarTiposHorasExtras(painelAdminToken, urlempresa);
+                const tipos = data?.DataSet?.Table ?? [];
 
-                if (res.ok) {
-                    const data = await res.json();
-                    const tipos = data?.DataSet?.Table ?? [];
-
-                    if (!Array.isArray(tipos) || tipos.length === 0) {
-                        throw new Error('Nenhum tipo de hora extra retornado do servidor');
-                    }
-
-                    const mapaHorasExtras = {};
-                    tipos.forEach(t => {
-                        // Use "HorasExtra" como chave e "Descricao" como valor a exibir
-                        mapaHorasExtras[t.HorasExtra] = t.Descricao;
-                    });
-                    setTiposHorasExtras(mapaHorasExtras);
-                    return true;
-                } else {
-                    const errorText = await res.text();
-                    throw new Error(`Erro HTTP ${res.status}: ${errorText}`);
+                if (!Array.isArray(tipos) || tipos.length === 0) {
+                    throw new Error('Nenhum tipo de hora extra retornado do servidor');
                 }
+
+                const mapaHorasExtras = {};
+                tipos.forEach(t => {
+                    // Use "HorasExtra" como chave e "Descricao" como valor a exibir
+                    mapaHorasExtras[t.HorasExtra] = t.Descricao;
+                });
+                setTiposHorasExtras(mapaHorasExtras);
+                return true;
             } catch (err) {
                 tentativas++;
                 console.error(`❌ Tentativa ${tentativas}/${maxTentativas} falhou ao carregar tipos de horas extras:`, err.message);
@@ -463,34 +434,20 @@ const RegistosPorUtilizador = () => {
         }
 
         try {
-            const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaHorasExtrasTodosFuncionarios', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${painelAdminToken}`,
-                    urlempresa: urlempresa,
-                },
+            const data = await API.buscarHorasExtrasTodosFuncionarios(painelAdminToken, urlempresa);
+            const horasExtras = data?.DataSet?.Table ?? [];
+
+            // Organizar horas extras por funcionário e data
+            const horasExtrasPorFuncionario = {};
+            horasExtras.forEach(he => {
+                const funcionario = he.Funcionario;
+                if (!horasExtrasPorFuncionario[funcionario]) {
+                    horasExtrasPorFuncionario[funcionario] = [];
+                }
+                horasExtrasPorFuncionario[funcionario].push(he);
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                const horasExtras = data?.DataSet?.Table ?? [];
-
-                // Organizar horas extras por funcionário e data
-                const horasExtrasPorFuncionario = {};
-                horasExtras.forEach(he => {
-                    const funcionario = he.Funcionario;
-                    if (!horasExtrasPorFuncionario[funcionario]) {
-                        horasExtrasPorFuncionario[funcionario] = [];
-                    }
-                    horasExtrasPorFuncionario[funcionario].push(he);
-                });
-
-                return horasExtrasPorFuncionario;
-            } else {
-                console.warn('⚠️ Erro HTTP ao carregar horas extras:', res.status);
-                return {};
-            }
+            return horasExtrasPorFuncionario;
         } catch (err) {
             console.error('❌ Erro ao carregar horas extras:', err);
             return {};
@@ -509,36 +466,15 @@ const RegistosPorUtilizador = () => {
             }
 
             // Buscar todos os utilizadores da empresa
-            const usersResponse = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!usersResponse.ok) {
-                console.error('Erro ao buscar utilizadores:', usersResponse.status);
-                return {};
-            }
-
-            const usersData = await usersResponse.json();
+            const usersData = await API.buscarUtilizadoresPorEmpresa(token, empresaId);
             const horariosMap = {};
 
             // Para cada utilizador, buscar o horário ativo
             for (const user of usersData) {
                 try {
-                    const horarioResponse = await fetch(`https://backend.advir.pt/api/horarios/user/${user.id}`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    if (horarioResponse.ok) {
-                        const horarioData = await horarioResponse.json();
-                        if (horarioData && horarioData.Horario) {
-                            horariosMap[user.id] = horarioData.Horario;
-                        }
+                    const horarioData = await API.buscarHorarioUtilizador(token, user.id);
+                    if (horarioData && horarioData.Horario) {
+                        horariosMap[user.id] = horarioData.Horario;
                     }
                 } catch (err) {
                     console.error(`Erro ao buscar horário do user ${user.id}:`, err);
@@ -563,18 +499,7 @@ const RegistosPorUtilizador = () => {
             setHorariosUtilizadores(horarios);
 
             // Buscar todos os utilizadores
-            const usersResponse = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!usersResponse.ok) {
-                throw new Error('Erro ao carregar utilizadores');
-            }
-
-            const users = await usersResponse.json();
+            const users = await API.buscarUtilizadoresPorEmpresa(token, empresaId);
             const bolsaCalculada = [];
 
             // Para cada utilizador, calcular bolsa global
@@ -610,20 +535,11 @@ const RegistosPorUtilizador = () => {
                     for (let mes = primMes; mes <= ultMes; mes++) {
                         const mesStr = String(mes).padStart(2, '0');
 
-                        const registosResponse = await fetch(
-                            `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?user_id=${user.id}&ano=${ano}&mes=${mesStr}`,
-                            {
-                                headers: { Authorization: `Bearer ${token}` }
-                            }
-                        );
-
-                        if (registosResponse.ok) {
-                            const registosMes = await registosResponse.json();
+                        try {
+                            const registosMes = await API.buscarRegistosPonto(token, user.id, ano, mes);
                             todosRegistos.push(...registosMes);
-                            if (registosMes.length > 0) {
-                            }
-                        } else {
-                            console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - ${ano}/${mesStr}: Status ${registosResponse.status}`);
+                        } catch (error) {
+                            console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - ${ano}/${mesStr}: ${error.message}`);
                         }
                     }
                 }
@@ -772,20 +688,9 @@ const RegistosPorUtilizador = () => {
 
                 try {
                     // Obter codFuncionario do utilizador
-                    const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${loginToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                    });
+                    const codFuncionario = await API.buscarCodFuncionario(loginToken, user.id);
 
-                    if (resCodFuncionario.ok) {
-                        const dataCodFuncionario = await resCodFuncionario.json();
-                        const codFuncionario = dataCodFuncionario.codFuncionario;
-
-
-                        if (codFuncionario && painelAdminToken && urlempresa) {
+                    if (codFuncionario && painelAdminToken && urlempresa) {
                             // Buscar todas as faltas do funcionário desde o início do horário até hoje
                             const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
 
@@ -859,9 +764,6 @@ const RegistosPorUtilizador = () => {
                         } else {
                             console.warn(`⚠️ [BOLSA-FBH] ${user.nome || user.username} - Faltam credenciais (codFuncionario: ${codFuncionario}, painelAdminToken: ${!!painelAdminToken}, urlempresa: ${!!urlempresa})`);
                         }
-                    } else {
-                        console.warn(`⚠️ [BOLSA-FBH] ${user.nome || user.username} - Erro ao obter codFuncionario: ${resCodFuncionario.status}`);
-                    }
                 } catch (errFaltas) {
                     console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - Erro ao buscar faltas FBH:`, errFaltas);
                 }
@@ -913,15 +815,7 @@ const RegistosPorUtilizador = () => {
         }
 
         try {
-            const res = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!res.ok) {
-                throw new Error(`Erro ao carregar utilizadores: HTTP ${res.status}`);
-            }
-
-            const data = await res.json();
+            const data = await API.buscarUtilizadoresPorEmpresa(token, empresaId);
 
             if (!Array.isArray(data)) {
                 throw new Error('Formato de resposta inválido ao carregar utilizadores');
@@ -970,15 +864,7 @@ const RegistosPorUtilizador = () => {
         }
 
         try {
-            const res = await fetch(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!res.ok) {
-                throw new Error(`Erro ao carregar obras: HTTP ${res.status}`);
-            }
-
-            const data = await res.json();
+            const data = await API.buscarObrasPorEmpresa(token, empresaId);
 
             if (!Array.isArray(data)) {
                 throw new Error('Formato de resposta inválido ao carregar obras');
@@ -1037,19 +923,9 @@ const RegistosPorUtilizador = () => {
                 try {
                     const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
 
-                    const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${loginToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                    });
+                    const codFuncionario = await API.buscarCodFuncionario(loginToken, user.id);
 
-                    if (resCodFuncionario.ok) {
-                        const dataCodFuncionario = await resCodFuncionario.json();
-                        const codFuncionario = dataCodFuncionario.codFuncionario;
-
-                        if (codFuncionario) {
+                    if (codFuncionario) {
                             const resFaltas = await fetch(urlFaltasMensal, {
                                 method: 'GET',
                                 headers: {
@@ -1114,7 +990,6 @@ const RegistosPorUtilizador = () => {
                                 }
                             }
                         }
-                    }
                 } catch (faltaErr) {
                     console.error(`Erro ao carregar dados para ${user.nome}:`, faltaErr);
                 }
@@ -1146,14 +1021,7 @@ const RegistosPorUtilizador = () => {
                         if (mes === parseInt(mesSelecionado) && ano === parseInt(anoSelecionado)) {
                             if (!faltasPorDia[dia]) faltasPorDia[dia] = [];
                             
-                            const faltaNormalizada = {
-                                ...falta,
-                                Data: dataFalta,
-                                Falta: codigoFalta,
-                                Funcionario: falta.Funcionario2 || falta.Funcionario1 || falta.Funcionario,
-                                Tempo: falta.Tempo1 || falta.TempoFalta || falta.Tempo,
-                                Horas: falta.Horas || falta.HorasFalta
-                            };
+                            const faltaNormalizada = normalizarFalta(falta, dataFalta, codigoFalta);
                             
                             faltasPorDia[dia].push(faltaNormalizada);
                         }
@@ -1325,15 +1193,9 @@ const RegistosPorUtilizador = () => {
                 try {
                     // OTIMIZAÇÃO: Fazer apenas 1 request para o mês inteiro
                     const query = `obra_id=${obraSelecionada}&ano=${anoSelecionado}&mes=${String(mesSelecionado).padStart(2, '0')}`;
-                    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-periodo?${query}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-
-                    if (res.ok) {
-                        const registos = await res.json();
-                        const userIdsObra = [...new Set(registos.map(reg => reg.user_id).filter(Boolean))];
-                        utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
-                    }
+                    const registos = await API.listarRegistosPorObraPeriodo(token, query);
+                    const userIdsObra = [...new Set(registos.map(reg => reg.user_id).filter(Boolean))];
+                    utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
                 } catch (error) {
                     console.error('Erro ao filtrar utilizadores por obra:', error);
                 }
@@ -1385,22 +1247,11 @@ const RegistosPorUtilizador = () => {
 
                                 if (!codFuncionario) {
                                     // Só faz requisição se não estiver em cache
-                                    const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
-                                        method: 'GET',
-                                        headers: {
-                                            'Authorization': `Bearer ${loginToken}`,
-                                            'Content-Type': 'application/json',
-                                        },
-                                    });
+                                    codFuncionario = await API.buscarCodFuncionario(loginToken, user.id);
 
-                                    if (resCodFuncionario.ok) {
-                                        const dataCodFuncionario = await resCodFuncionario.json();
-                                        codFuncionario = dataCodFuncionario.codFuncionario;
-
-                                        // Armazenar em cache
-                                        if (codFuncionario) {
-                                            setCacheCodFuncionario(prev => ({...prev, [user.id]: codFuncionario}));
-                                        }
+                                    // Armazenar em cache
+                                    if (codFuncionario) {
+                                        setCacheCodFuncionario(prev => ({...prev, [user.id]: codFuncionario}));
                                     } else {
                                         console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
                                     }
@@ -1521,14 +1372,7 @@ const RegistosPorUtilizador = () => {
                                         if (!faltasPorDia[dia]) faltasPorDia[dia] = [];
                                         
                                         // Normalizar estrutura da falta para compatibilidade
-                                        const faltaNormalizada = {
-                                            ...falta,
-                                            Data: dataFalta,
-                                            Falta: codigoFalta,
-                                            Funcionario: falta.Funcionario2 || falta.Funcionario1 || falta.Funcionario,
-                                            Tempo: falta.Tempo1 || falta.TempoFalta || falta.Tempo,
-                                            Horas: falta.Horas || falta.HorasFalta
-                                        };
+                                        const faltaNormalizada = normalizarFalta(falta, dataFalta, codigoFalta);
                                         
                                         faltasPorDia[dia].push(faltaNormalizada);
                                     }
@@ -1723,10 +1567,7 @@ const RegistosPorUtilizador = () => {
             }
             // Se tiver obra selecionada, buscar apenas utilizadores dessa obra
             else if (obraSelecionada && dataSelecionada) {
-                const resObraUsers = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?obra_id=${obraSelecionada}&data=${dataSelecionada}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                const dataObraUsers = await resObraUsers.json();
+                const dataObraUsers = await API.listarRegistosPorObraEDia(token, obraSelecionada, dataSelecionada);
 
                 // Extrair utilizadores únicos desta obra
                 const userIdsObra = [...new Set(dataObraUsers.map(reg => reg.User?.id).filter(Boolean))];
@@ -1747,69 +1588,63 @@ const RegistosPorUtilizador = () => {
                     }
                     if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
-                    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
+                    const registos = await API.listarRegistosPorUserPeriodo(token, query);
 
-                    if (res.ok) {
-                        const registos = await res.json();
+                    if (registos.length > 0) {
+                        // Calcular estatísticas do utilizador
+                        const diasUnicos = [...new Set(registos.map(r => new Date(r.timestamp).toISOString().split('T')[0]))];
+                        const totalRegistos = registos.length;
+                        const registosConfirmados = registos.filter(r => r.is_confirmed).length;
 
-                        if (registos.length > 0) {
-                            // Calcular estatísticas do utilizador
-                            const diasUnicos = [...new Set(registos.map(r => new Date(r.timestamp).toISOString().split('T')[0]))];
-                            const totalRegistos = registos.length;
-                            const registosConfirmados = registos.filter(r => r.is_confirmed).length;
+                        // Calcular horas trabalhadas (estimativa baseada em entradas/saídas)
+                        const horasPorDia = {};
+                        registos.forEach(reg => {
+                            const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+                            if (!horasPorDia[dia]) horasPorDia[dia] = [];
+                            horasPorDia[dia].push(reg);
+                        });
 
-                            // Calcular horas trabalhadas (estimativa baseada em entradas/saídas)
-                            const horasPorDia = {};
-                            registos.forEach(reg => {
-                                const dia = new Date(reg.timestamp).toISOString().split('T')[0];
-                                if (!horasPorDia[dia]) horasPorDia[dia] = [];
-                                horasPorDia[dia].push(reg);
-                            });
+                        let totalHorasEstimadas = 0;
 
-                            let totalHorasEstimadas = 0;
+                        Object.values(horasPorDia).forEach(registosDia => {
+                            // Ordenar os registos por timestamp
+                            const eventosOrdenados = registosDia
+                                .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
+                                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-                            Object.values(horasPorDia).forEach(registosDia => {
-                                // Ordenar os registos por timestamp
-                                const eventosOrdenados = registosDia
-                                    .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
-                                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                            let ultimaEntrada = null;
+                            let horasDia = 0;
 
-                                let ultimaEntrada = null;
-                                let horasDia = 0;
-
-                                eventosOrdenados.forEach(reg => {
-                                    if (reg.tipo === 'entrada') {
-                                        ultimaEntrada = new Date(reg.timestamp);
-                                    } else if (reg.tipo === 'saida' && ultimaEntrada) {
-                                        const saida = new Date(reg.timestamp);
-                                        const diff = (saida - ultimaEntrada) / (1000 * 60 * 60); // em horas
-                                        if (diff > 0 && diff < 24) {
-                                            horasDia += diff;
-                                        }
-                                        ultimaEntrada = null; // limpar entrada após pareamento
+                            eventosOrdenados.forEach(reg => {
+                                if (reg.tipo === 'entrada') {
+                                    ultimaEntrada = new Date(reg.timestamp);
+                                } else if (reg.tipo === 'saida' && ultimaEntrada) {
+                                    const saida = new Date(reg.timestamp);
+                                    const diff = (saida - ultimaEntrada) / (1000 * 60 * 60); // em horas
+                                    if (diff > 0 && diff < 24) {
+                                        horasDia += diff;
                                     }
-                                });
-
-                                totalHorasEstimadas += horasDia;
+                                    ultimaEntrada = null; // limpar entrada após pareamento
+                                }
                             });
 
-                            const obrasUtilizador = [...new Set(registos.map(r => r.Obra?.nome).filter(Boolean))];
+                            totalHorasEstimadas += horasDia;
+                        });
 
-                            resumos.push({
-                                utilizador: user,
-                                totalDias: diasUnicos.length,
-                                totalRegistos,
-                                registosConfirmados,
-                                registosNaoConfirmados: totalRegistos - registosConfirmados,
-                                percentagemConfirmados: totalRegistos > 0 ? ((registosConfirmados / totalRegistos) * 100).toFixed(1) : 0,
-                                totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
-                                obras: obrasUtilizador,
-                                periodoInicio: new Date(Math.min(...registos.map(r => new Date(r.timestamp)))).toLocaleDateString('pt-PT'),
-                                periodoFim: new Date(Math.max(...registos.map(r => new Date(r.timestamp)))).toLocaleDateString('pt-PT')
-                            });
-                        }
+                        const obrasUtilizador = [...new Set(registos.map(r => r.Obra?.nome).filter(Boolean))];
+
+                        resumos.push({
+                            utilizador: user,
+                            totalDias: diasUnicos.length,
+                            totalRegistos,
+                            registosConfirmados,
+                            registosNaoConfirmados: totalRegistos - registosConfirmados,
+                            percentagemConfirmados: totalRegistos > 0 ? ((registosConfirmados / totalRegistos) * 100).toFixed(1) : 0,
+                            totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
+                            obras: obrasUtilizador,
+                            periodoInicio: new Date(Math.min(...registos.map(r => new Date(r.timestamp)))).toLocaleDateString('pt-PT'),
+                            periodoFim: new Date(Math.max(...registos.map(r => new Date(r.timestamp)))).toLocaleDateString('pt-PT')
+                        });
                     }
                 } catch (err) {
                     console.error(`Erro ao carregar dados do utilizador ${user.nome}:`, err);
@@ -1842,11 +1677,7 @@ const RegistosPorUtilizador = () => {
             }
             if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
-            const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            const data = await res.json();
+            const data = await API.listarRegistosPorUserPeriodo(token, query);
 
             const agrupados = {};
             data.forEach(reg => {
@@ -1890,72 +1721,27 @@ const RegistosPorUtilizador = () => {
     }, [agrupadoPorDia, utilizadorDetalhado]);
 
     const exportarResumo = () => {
-        if (!resumoUtilizadores.length) {
-            alert('Não há dados para exportar');
-            return;
-        }
-
-        const workbook = XLSX.utils.book_new();
-
-        const dadosExport = [];
-
-        // Cabeçalho
-        dadosExport.push([
-            'Resumo de Registos por Utilizador',
-            '',
-            '',
-            '',
-            `Período: ${dataSelecionada || `${mesSelecionado}/${anoSelecionado}`}`
-        ]);
-        dadosExport.push([]);
-
-        // Cabeçalhos da tabela
-        dadosExport.push([
-            'Utilizador',
-            'Total Dias',
-            'Total Registos',
-            'Confirmados',
-            'Não Confirmados',
-            '% Confirmação',
-            'Horas Estimadas',
-            'Obras',
-            'Período'
+        const data = resumoUtilizadores.map(resumo => [
+            resumo.utilizador.nome,
+            resumo.totalDias,
+            resumo.totalRegistos,
+            resumo.registosConfirmados,
+            resumo.registosNaoConfirmados,
+            `${resumo.percentagemConfirmados}%`,
+            resumo.totalHorasEstimadas,
+            resumo.obras.join(', '),
+            `${resumo.periodoInicio} - ${resumo.periodoFim}`
         ]);
 
-        // Dados dos utilizadores
-        resumoUtilizadores.forEach(resumo => {
-            dadosExport.push([
-                resumo.utilizador.nome,
-                resumo.totalDias,
-                resumo.totalRegistos,
-                resumo.registosConfirmados,
-                resumo.registosNaoConfirmados,
-                `${resumo.percentagemConfirmados}%`,
-                resumo.totalHorasEstimadas,
-                resumo.obras.join(', '),
-                `${resumo.periodoInicio} - ${resumo.periodoFim}`
-            ]);
+        exportToExcel({
+            fileName: 'Resumo_Utilizadores',
+            sheetName: 'Resumo',
+            data,
+            headers: ['Utilizador', 'Total Dias', 'Total Registos', 'Confirmados', 'Não Confirmados', '% Confirmação', 'Horas Estimadas', 'Obras', 'Período'],
+            columnWidths: [25, 12, 15, 12, 15, 15, 15, 30, 20],
+            title: 'Resumo de Registos por Utilizador',
+            subtitle: `Período: ${dataSelecionada || `${mesSelecionado}/${anoSelecionado}`}`
         });
-
-        const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
-
-        const wscols = [
-            { wch: 25 }, // Utilizador
-            { wch: 12 }, // Total Dias
-            { wch: 15 }, // Total Registos
-            { wch: 12 }, // Confirmados
-            { wch: 15 }, // Não Confirmados
-            { wch: 15 }, // % Confirmação
-            { wch: 15 }, // Horas Estimadas
-            { wch: 30 }, // Obras
-            { wch: 20 }  // Período
-        ];
-        worksheet['!cols'] = wscols;
-
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumo');
-
-        const fileName = `Resumo_Utilizadores_${new Date().toISOString().split('T')[0]}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
     };
 
     const exportarGrade = () => {
@@ -2186,37 +1972,12 @@ const RegistosPorUtilizador = () => {
             return;
         }
 
-        const workbook = XLSX.utils.book_new();
-
-        const dadosExport = [];
-
-        // Cabeçalho
-        dadosExport.push([
-            `Detalhes de Registos - ${utilizadorDetalhado.nome}`,
-            '',
-            '',
-            '',
-            `Período: ${dataSelecionada || `${mesSelecionado}/${anoSelecionado}`}`
-        ]);
-        dadosExport.push([]);
-
-        // Cabeçalhos da tabela
-        dadosExport.push([
-            'Data',
-            'Hora',
-            'Tipo',
-            'Obra',
-            'Confirmado',
-            'Justificação',
-            'Localização'
-        ]);
-
-        // Dados dos registos
+        const data = [];
         Object.entries(agrupadoPorDia).forEach(([dia, eventos]) => {
             eventos
                 .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
                 .forEach(evento => {
-                    dadosExport.push([
+                    data.push([
                         new Date(dia).toLocaleDateString('pt-PT'),
                         new Date(evento.timestamp).toLocaleTimeString('pt-PT'),
                         evento.tipo.toUpperCase(),
@@ -2230,23 +1991,15 @@ const RegistosPorUtilizador = () => {
                 });
         });
 
-        const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
-
-        const wscols = [
-            { wch: 12 }, // Data
-            { wch: 10 }, // Hora
-            { wch: 12 }, // Tipo
-            { wch: 25 }, // Obra
-            { wch: 12 }, // Confirmado
-            { wch: 30 }, // Justificação
-            { wch: 40 }  // Localização
-        ];
-        worksheet['!cols'] = wscols;
-
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Detalhes');
-
-        const fileName = `Detalhes_${utilizadorDetalhado.nome.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
+        exportToExcel({
+            fileName: `Detalhes_${utilizadorDetalhado.nome.replace(/\s+/g, '_')}`,
+            sheetName: 'Detalhes',
+            data,
+            headers: ['Data', 'Hora', 'Tipo', 'Obra', 'Confirmado', 'Justificação', 'Localização'],
+            columnWidths: [12, 10, 12, 25, 12, 30, 40],
+            title: `Detalhes de Registos - ${utilizadorDetalhado.nome}`,
+            subtitle: `Período: ${dataSelecionada || `${mesSelecionado}/${anoSelecionado}`}`
+        });
     };
 
     const registosFiltrados = Object.entries(agrupadoPorDia).reduce((acc, [dia, eventos]) => {
@@ -2289,17 +2042,13 @@ const RegistosPorUtilizador = () => {
         const dataFormatada = formatDate(anoSelecionado, mesSelecionado, dia);
 
         try {
-            const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ tipo, obra_id: oid, user_id: uid, timestamp })
+            const ponto = await API.registarPontoEsquecido(token, {
+                tipo,
+                obra_id: oid,
+                user_id: uid,
+                timestamp
             });
-            if (!res.ok) throw new Error('Falha ao criar ponto');
-            const json = await res.json();
-            await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
-                method: 'PATCH',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await API.confirmarPonto(token, ponto.id);
             if (viewMode === 'grade') carregarDadosGrade();
         } catch (err) {
             alert(err.message);
@@ -2470,23 +2219,10 @@ const RegistosPorUtilizador = () => {
             let falhasNaRemocao = 0;
             for (const faltaItem of todasFaltas) {
                 try {
-                    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionarioId}/${dataFormatada}/${faltaItem.Falta}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${painelToken}`,
-                            urlempresa
-                        }
-                    });
-
-                    if (!res.ok) {
-                        falhasNaRemocao++;
-                        const errorText = await res.text();
-                        console.error(`Erro ao eliminar falta ${faltaItem.Falta} no dia ${dataFormatada}: ${errorText}`);
-                    }
+                    await API.removerFaltaPorParametros(painelToken, urlempresa, funcionarioId, dataFormatada, faltaItem.Falta);
                 } catch (err) {
                     falhasNaRemocao++;
-                    console.error(`Erro inesperado ao eliminar falta ${faltaItem.Falta}:`, err);
+                    console.error(`Erro ao eliminar falta ${faltaItem.Falta}:`, err);
                 }
             }
 
@@ -2535,22 +2271,7 @@ const RegistosPorUtilizador = () => {
                 throw new Error('ID da hora extra não encontrado. Verifique se o campo idFuncRemCBL está presente nos dados.');
             }
 
-            const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/RemoverHoraExtra', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${painelToken}`,
-                    urlempresa
-                },
-                body: JSON.stringify({ IdFuncRemCBL })
-            });
-
-            if (!res.ok) {
-                const errorText = await res.text();
-                throw new Error(`Erro ao remover hora extra: ${errorText}`);
-            }
-
-            const resultado = await res.json();
+            await API.removerHoraExtraPorId(painelToken, urlempresa, IdFuncRemCBL);
             alert('✅ Hora extra removida com sucesso!');
 
             // Atualizar apenas o utilizador afetado
@@ -2632,15 +2353,7 @@ const RegistosPorUtilizador = () => {
             let query = `user_id=${funcionarioSelecionadoClear}&data=${dataFormatada}`;
             if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
-            const resListar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!resListar.ok) {
-                throw new Error('Erro ao obter registos para eliminação');
-            }
-
-            const registosParaEliminar = await resListar.json();
+            const registosParaEliminar = await API.listarRegistosPorUserPeriodo(token, query);
 
             if (registosParaEliminar.length === 0) {
                 alert('Não foram encontrados registos para eliminar.');
@@ -2653,15 +2366,11 @@ const RegistosPorUtilizador = () => {
 
             for (const registo of registosParaEliminar) {
                 try {
-                    const resEliminar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/eliminar/${registo.id}`, {
-                        method: 'DELETE',
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-
-                    if (resEliminar.ok) {
+                    try {
+                        await API.eliminarRegistoPonto(token, registo.id);
                         registosEliminados++;
-                    } else {
-                        console.error(`Erro ao eliminar registo ${registo.id}:`, await resEliminar.text());
+                    } catch (err) {
+                        console.error(`Erro ao eliminar registo ${registo.id}:`, err);
                         erros++;
                     }
 
@@ -2770,33 +2479,17 @@ const RegistosPorUtilizador = () => {
                         const timestamp = makeUTCISO(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10), parseInt(dia, 10), hh, mm);
 
 
-                        const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`
-                            },
-                            body: JSON.stringify({
-                                tipo: tipos[i],
-                                obra_id: Number(obraNoDialog), // Usar obra do modal
-                                user_id: Number(funcionarioSelecionadoAutoFill),
-                                timestamp: timestamp
-                            })
+                        const ponto = await API.registarPontoEsquecido(token, {
+                            tipo: tipos[i],
+                            obra_id: Number(obraNoDialog),
+                            user_id: Number(funcionarioSelecionadoAutoFill),
+                            timestamp: timestamp
                         });
-
-                        if (!res.ok) {
-                            throw new Error(`Falha ao criar ponto ${tipos[i]} para o dia ${dia}`);
-                        }
-
-                        const json = await res.json();
 
                         // Confirmar cada ponto
-                        const resConfirm = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
-                            method: 'PATCH',
-                            headers: { Authorization: `Bearer ${token}` }
-                        });
-
-                        if (!resConfirm.ok) {
+                        try {
+                            await API.confirmarPonto(token, ponto.id);
+                        } catch (confirmErr) {
                             console.warn(`Aviso: Não foi possível confirmar automaticamente o ponto ${tipos[i]} do dia ${dia}`);
                         }
                     }
@@ -2839,13 +2532,7 @@ const RegistosPorUtilizador = () => {
         }
 
         // Agrupar células por utilizador para mostrar um resumo melhor
-        const cellsByUser = {};
-        selectedCells.forEach(cellKey => {
-            const [userId, dia] = cellKey.split('-');
-            const userIdNumber = parseInt(userId, 10);
-            if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
-            cellsByUser[userIdNumber].push(parseInt(dia, 10));
-        });
+        const cellsByUser = groupCellsByUser(selectedCells);
 
         // Criar mensagem de confirmação detalhada
         let mensagemConfirmacao = `⚠️ ATENÇÃO: Esta ação irá eliminar TODOS os registos de ponto dos dias selecionados:\n\n`;
@@ -2896,30 +2583,23 @@ const RegistosPorUtilizador = () => {
                     let query = `user_id=${userIdNumber}&data=${dataFormatada}`;
                     if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
-                    const resListar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    
-                    if (!resListar.ok) {
-                        console.error(`Erro ao obter registos para eliminação do dia ${dia} do utilizador ${userId}`);
+                    let registosParaEliminar;
+                    try {
+                        registosParaEliminar = await API.listarRegistosPorUserPeriodo(token, query);
+                    } catch (err) {
+                        console.error(`Erro ao obter registos para eliminação do dia ${dia} do utilizador ${userId}:`, err);
                         totalErros++;
                         continue;
                     }
 
-                    const registosParaEliminar = await resListar.json();
-
                     // Eliminar cada registo individualmente
                     for (const registo of registosParaEliminar) {
                         try {
-                            const resEliminar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/eliminar/${registo.id}`, {
-                                method: 'DELETE',
-                                headers: { Authorization: `Bearer ${token}` }
-                            });
-
-                            if (resEliminar.ok) {
+                            try {
+                                await API.eliminarRegistoPonto(token, registo.id);
                                 totalEliminados++;
-                            } else {
-                                console.error(`Erro ao eliminar registo ${registo.id}`);
+                            } catch (err) {
+                                console.error(`Erro ao eliminar registo ${registo.id}:`, err);
                                 totalErros++;
                             }
 
@@ -2979,37 +2659,26 @@ const RegistosPorUtilizador = () => {
             // Buscar TODOS os registos existentes para este dia (sem filtro de obra)
             let query = `user_id=${userId}&data=${dataFormatada}`;
 
-            const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const registos = await API.listarRegistosPorUserPeriodo(token, query);
+
+            // Criar um registo "virtual" que representa o dia completo com todos os registos
+            const registoVirtual = {
+                id: registos.length > 0 ? `edit_${userId}_${dia}` : `novo_${userId}_${dia}`,
+                data: dataFormatada,
+                utilizador: utilizadorNome,
+                utilizadorId: userId,
+                dia: dia,
+                registosOriginais: registos || []
+            };
+
+            setRegistoParaEditar(registoVirtual);
+            setDadosEdicao({
+                userId: parseInt(userId, 10),
+                dia: parseInt(dia, 10),
+                registos: registos || []
             });
 
-            if (res.ok) {
-                const registos = await res.json();
-
-                // Criar um registo "virtual" que representa o dia completo com todos os registos
-                const registoVirtual = {
-                    id: registos.length > 0 ? `edit_${userId}_${dia}` : `novo_${userId}_${dia}`,
-                    data: dataFormatada,
-                    utilizador: utilizadorNome,
-                    utilizadorId: userId,
-                    dia: dia,
-                    registosOriginais: registos || []
-                };
-
-
-                setRegistoParaEditar(registoVirtual);
-                setDadosEdicao({
-                    userId: parseInt(userId, 10),
-                    dia: parseInt(dia, 10),
-                    registos: registos || []
-                });
-
-                setEditModalOpen(true);
-            } else {
-                const errorText = await res.text();
-                console.error('Erro ao carregar registos:', errorText);
-                alert('Erro ao carregar registos para edição: ' + errorText);
-            }
+            setEditModalOpen(true);
         } catch (err) {
             console.error('Erro ao abrir edição direta:', err);
             alert('Erro ao abrir edição direta: ' + err.message);
@@ -3026,14 +2695,10 @@ const RegistosPorUtilizador = () => {
             if (dadosEdicao.registos.length > 0) {
                 for (const registo of dadosEdicao.registos) {
                     try {
-                        await fetch(`https://backend.advir.pt/api/registo-ponto-obra/eliminar/${registo.id}`, {
-                            method: 'DELETE',
-                            headers: { Authorization: `Bearer ${token}` }
-                        });
+                        await API.eliminarRegistoPonto(token, registo.id);
                     } catch (err) {
                         console.warn(`Erro ao eliminar registo ${registo.id}:`, err);
-
-                          }
+                    }
                 }
             }
 
@@ -3046,32 +2711,20 @@ const RegistosPorUtilizador = () => {
                 if (registoEditado.hora && registoEditado.tipo && registoEditado.obraId) {
                     const timestamp = createTimestamp(dataFormatada, registoEditado.hora);
 
-                    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
+                    try {
+                        const ponto = await API.registarPontoEsquecido(token, {
                             tipo: registoEditado.tipo,
                             obra_id: Number(registoEditado.obraId),
                             user_id: Number(userId),
                             timestamp: timestamp
-                        })
-                    });
-
-                    if (res.ok) {
-                        const json = await res.json();
-                        // Confirmar automaticamente
-                        await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
-                            method: 'PATCH',
-                            headers: { Authorization: `Bearer ${token}` }
                         });
+
+                        // Confirmar automaticamente
+                        await API.confirmarPonto(token, ponto.id);
                         registosCriados++;
-                    } else {
-                        const errorText = await res.text();
-                        console.error(`Erro ao criar registo ${registoEditado.tipo}:`, errorText);
-                        erros.push(`Erro ao criar registo ${registoEditado.tipo}: ${errorText}`);
+                    } catch (err) {
+                        console.error(`Erro ao criar registo ${registoEditado.tipo}:`, err);
+                        erros.push(`Erro ao criar registo ${registoEditado.tipo}: ${err.message}`);
                     }
                 } else if (registoEditado.hora && registoEditado.tipo && !registoEditado.obraId) {
                     erros.push(`Registo ${registoEditado.tipo} às ${registoEditado.hora}: obra não especificada`);
@@ -3123,7 +2776,7 @@ const RegistosPorUtilizador = () => {
         }
 
         try {
-            setCarregando(true);
+            setLoadingHoraExtra(true);
 
             const dataFormatada = formatDate(anoSelecionado, mesSelecionado, diaToRegistar);
 
@@ -3135,25 +2788,8 @@ const RegistosPorUtilizador = () => {
                 Observacoes: observacoesHoraExtra || 'Registado via interface de administração'
             };
 
-
-            const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirHoraExtra`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${painelToken}`,
-                    urlempresa
-                },
-                body: JSON.stringify(dadosERP)
-            });
-
-
-            if (resERP.ok) {
-                alert('✅ Hora extra registada com sucesso!');
-            } else {
-                const errorText = await resERP.text();
-                console.error(`❌ Erro ao inserir hora extra:`, errorText);
-                throw new Error(`Falha ao registar hora extra: ${errorText}`);
-            }
+            await API.inserirHoraExtraPrimavera(painelToken, urlempresa, dadosERP);
+            alert('✅ Hora extra registada com sucesso!');
 
             setHoraExtraDialogOpen(false);
             setDialogOpen(false);
@@ -3169,7 +2805,7 @@ const RegistosPorUtilizador = () => {
             console.error('❌ Erro ao submeter hora extra:', err);
             alert('Erro ao registar hora extra: ' + err.message);
         } finally {
-            setCarregando(false);
+            setLoadingHoraExtra(false);
         }
     };
 
@@ -3237,20 +2873,9 @@ const RegistosPorUtilizador = () => {
         // Carregar dados completos do tipo de falta do ERP
         let faltaSelecionadaCompleta = null;
         try {
-            const resFaltasERP = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${painelToken}`,
-                    urlempresa: urlempresa,
-                },
-            });
-
-            if (resFaltasERP.ok) {
-                const dataFaltasERP = await resFaltasERP.json();
-                const listaFaltasERP = dataFaltasERP?.DataSet?.Table ?? [];
-                faltaSelecionadaCompleta = listaFaltasERP.find(f => f.Falta === tipoFaltaSelecionado);
-            }
+            const dataFaltasERP = await API.buscarTiposFaltas(painelToken, urlempresa);
+            const listaFaltasERP = dataFaltasERP?.DataSet?.Table ?? [];
+            faltaSelecionadaCompleta = listaFaltasERP.find(f => f.Falta === tipoFaltaSelecionado);
         } catch (err) {
             console.error('Erro ao carregar dados completos da falta:', err);
         }
@@ -3261,7 +2886,7 @@ const RegistosPorUtilizador = () => {
              faltaSelecionadaCompleta.DescontaSubsAlim === true);
 
         try {
-            setCarregando(true);
+            setLoadingFalta(true);
 
             let faltasRegistadas = 0;
             let faltasF40Registadas = 0;
@@ -3313,84 +2938,24 @@ const RegistosPorUtilizador = () => {
                             SubAlimProporcional: 0
                         };
 
-                        const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${painelToken}`,
-                                urlempresa
-                            },
-                            body: JSON.stringify(dadosERP)
-                        });
+                        const resultado = await inserirFaltaComTratamentoErros(painelToken, urlempresa, dadosERP);
 
-
-                        if (resERP.ok) {
+                        if (resultado.success) {
                             faltasRegistadas++;
 
-                            // Se a falta desconta alimentação E NÃO é fim de semana, criar automaticamente a falta F40
-                            if (descontaAlimentacao && !isFimDeSemana) {
-                                const dadosF40 = {
-                                    Funcionario: funcionarioId,
-                                    Data: new Date(dataAtualFormatada).toISOString(),
-                                    Falta: 'F40',
-                                    Horas: 0,
-                                    Tempo: 1,
-                                    DescontaVenc: 0,
-                                    DescontaRem: 0,
-                                    ExcluiProc: 0,
-                                    ExcluiEstat: 0,
-                                    Observacoes: 'Gerada automaticamente (desconto alimentação)',
-                                    CalculoFalta: 1,
-                                    DescontaSubsAlim: 0,
-                                    DataProc: null,
-                                    NumPeriodoProcessado: 0,
-                                    JaProcessado: 0,
-                                    InseridoBloco: 0,
-                                    ValorDescontado: 0,
-                                    AnoProcessado: 0,
-                                    NumProc: 0,
-                                    Origem: "2",
-                                    PlanoCurso: null,
-                                    IdGDOC: null,
-                                    CambioMBase: 0,
-                                    CambioMAlt: 0,
-                                    CotizaPeloMinimo: 0,
-                                    Acerto: 0,
-                                    MotivoAcerto: null,
-                                    NumLinhaDespesa: null,
-                                    NumRelatorioDespesa: null,
-                                    FuncComplementosBaixaId: null,
-                                    DescontaSubsTurno: 0,
-                                    SubTurnoProporcional: 0,
-                                    SubAlimProporcional: 0
-                                };
-
-                                const resF40 = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        Authorization: `Bearer ${painelToken}`,
-                                        urlempresa
-                                    },
-                                    body: JSON.stringify(dadosF40)
-                                });
-
-                                if (resF40.ok) {
-                                    faltasF40Registadas++;
-                                } else {
-                                    const errorF40 = await resF40.text();
-                                    console.error(`❌ Erro ao criar F40 para ${dataAtualFormatada}:`, errorF40);
-                                }
-                            }
+                            // Criar F40 automaticamente se necessário
+                            const resultadoF40 = await criarF40SeNecessario(
+                                painelToken,
+                                urlempresa,
+                                funcionarioId,
+                                dataAtualFormatada,
+                                descontaAlimentacao,
+                                isFimDeSemana
+                            );
+                            if (resultadoF40.success) faltasF40Registadas++;
                         } else {
-                            const errorText = await resERP.text();
-                            console.error(`❌ Erro ao inserir falta para ${dataAtualFormatada}:`, {
-                                status: resERP.status,
-                                statusText: resERP.statusText,
-                                error: errorText,
-                                dadosEnviados: dadosERP
-                            });
-                            erros++;
+                            // Falta falhou - lançar erro com mensagem amigável
+                            throw new Error(`${resultado.errorMessage}\n${resultado.errorSuggestion || ''}`);
                         }
 
                         // Pequena pausa entre cada registo
@@ -3407,13 +2972,23 @@ const RegistosPorUtilizador = () => {
             }
 
             // Mostrar resultado
-            let mensagemResultado = `✅ Registo de falta${datasParaProcessar.length > 1 ? 's' : ''} concluído!\n\n`;
-            mensagemResultado += `• Faltas registadas: ${faltasRegistadas}\n`;
+            let mensagemResultado = '';
+
+            if (erros === 0) {
+                mensagemResultado = `✅ Registo de falta${datasParaProcessar.length > 1 ? 's' : ''} concluído com sucesso!\n\n`;
+            } else if (faltasRegistadas > 0) {
+                mensagemResultado = `⚠️ Registo de falta${datasParaProcessar.length > 1 ? 's' : ''} concluído com alertas\n\n`;
+            } else {
+                mensagemResultado = `❌ Falha no registo de falta${datasParaProcessar.length > 1 ? 's' : ''}\n\n`;
+            }
+
+            mensagemResultado += `• Faltas registadas: ${faltasRegistadas} de ${datasParaProcessar.length}\n`;
             if (faltasF40Registadas > 0) {
                 mensagemResultado += `• Faltas F40 automáticas criadas: ${faltasF40Registadas}\n`;
             }
             if (erros > 0) {
                 mensagemResultado += `• Erros encontrados: ${erros}\n`;
+                mensagemResultado += `\nConsulte o console do browser para mais detalhes sobre os erros.\n`;
             }
 
             alert(mensagemResultado);
@@ -3435,7 +3010,7 @@ const RegistosPorUtilizador = () => {
             console.error('❌ Erro ao submeter falta:', err);
             alert('Erro ao registar falta: ' + err.message);
         } finally {
-            setCarregando(false);
+            setLoadingFalta(false);
         }
     };
 
@@ -3455,13 +3030,7 @@ const RegistosPorUtilizador = () => {
             return alert('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
         }
 
-        const cellsByUser = {};
-        selectedCells.forEach(cellKey => {
-            const [userId, dia] = cellKey.split('-');
-            const userIdNumber = parseInt(userId, 10);
-            if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
-            cellsByUser[userIdNumber].push(parseInt(dia, 10));
-        });
+        const cellsByUser = groupCellsByUser(selectedCells);
 
         let mensagemConfirmacao = `📅 Vai registar horas extras para:\n\n`;
 
@@ -3507,23 +3076,8 @@ const RegistosPorUtilizador = () => {
                             Observacoes: 'Registado em bloco via interface de administração'
                         };
 
-                        const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirHoraExtra`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${painelToken}`,
-                                urlempresa
-                            },
-                            body: JSON.stringify(dadosERP)
-                        });
-
-                        if (resERP.ok) {
-                            horasExtrasRegistadas++;
-                        } else {
-                            const errorText = await resERP.text();
-                            console.error(`Erro ao registar hora extra para dia ${dia}:`, errorText);
-                            erros++;
-                        }
+                        await API.inserirHoraExtraPrimavera(painelToken, urlempresa, dadosERP);
+                        horasExtrasRegistadas++;
 
                         await new Promise(resolve => setTimeout(resolve, 150));
 
@@ -3580,20 +3134,9 @@ const RegistosPorUtilizador = () => {
         // Carregar dados completos do tipo de falta do ERP
         let faltaSelecionadaCompleta = null;
         try {
-            const resFaltasERP = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${painelToken}`,
-                    urlempresa: urlempresa,
-                },
-            });
-
-            if (resFaltasERP.ok) {
-                const dataFaltasERP = await resFaltasERP.json();
-                const listaFaltasERP = dataFaltasERP?.DataSet?.Table ?? [];
-                faltaSelecionadaCompleta = listaFaltasERP.find(f => f.Falta === tipoFaltaSelecionadoBulk);
-            }
+            const dataFaltasERP = await API.buscarTiposFaltas(painelToken, urlempresa);
+            const listaFaltasERP = dataFaltasERP?.DataSet?.Table ?? [];
+            faltaSelecionadaCompleta = listaFaltasERP.find(f => f.Falta === tipoFaltaSelecionadoBulk);
         } catch (err) {
             console.error('Erro ao carregar dados completos da falta:', err);
         }
@@ -3604,13 +3147,7 @@ const RegistosPorUtilizador = () => {
              faltaSelecionadaCompleta.DescontaSubsAlim === true);
 
         // Agrupar células por utilizador
-        const cellsByUser = {};
-        selectedCells.forEach(cellKey => {
-            const [userId, dia] = cellKey.split('-');
-            const userIdNumber = parseInt(userId, 10);
-            if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
-            cellsByUser[userIdNumber].push(parseInt(dia, 10));
-        });
+        const cellsByUser = groupCellsByUser(selectedCells);
 
         // Criar mensagem de confirmação
         let mensagemConfirmacao = `📅 Vai registar faltas para:\n\n`;
@@ -3641,6 +3178,7 @@ const RegistosPorUtilizador = () => {
             let faltasRegistadas = 0;
             let faltasF40Registadas = 0;
             let erros = 0;
+            let errosPrimavera = [];
 
             // Processar cada utilizador separadamente
             for (const [userId, dias] of Object.entries(cellsByUser)) {
@@ -3652,6 +3190,7 @@ const RegistosPorUtilizador = () => {
                 if (!funcionarioId) {
                     console.error(`Código do funcionário não encontrado para userId ${userIdNumber}`);
                     erros += dias.length;
+                    errosPrimavera.push(`Funcionário ID ${userIdNumber}: código não encontrado no sistema`);
                     continue;
                 }
 
@@ -3701,77 +3240,24 @@ const RegistosPorUtilizador = () => {
                             SubAlimProporcional: 0
                         };
 
-                        const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${painelToken}`,
-                                urlempresa
-                            },
-                            body: JSON.stringify(dadosERP)
-                        });
+                        const resultado = await inserirFaltaComTratamentoErros(painelToken, urlempresa, dadosERP);
 
-                        if (resERP.ok) {
+                        if (resultado.success) {
                             faltasRegistadas++;
 
-                            // Se desconta alimentação E NÃO é fim de semana, criar F40 automaticamente
-                            if (descontaAlimentacao && !isFimDeSemana) {
-                                const dadosF40 = {
-                                    Funcionario: funcionarioId,
-                                    Data: new Date(dataFormatada).toISOString(),
-                                    Falta: 'F40',
-                                    Horas: 0,
-                                    Tempo: 1,
-                                    DescontaVenc: 0,
-                                    DescontaRem: 0,
-                                    ExcluiProc: 0,
-                                    ExcluiEstat: 0,
-                                    Observacoes: 'Gerada automaticamente (desconto alimentação - registo em bloco)',
-                                    CalculoFalta: 1,
-                                    DescontaSubsAlim: 0,
-                                    DataProc: null,
-                                    NumPeriodoProcessado: 0,
-                                    JaProcessado: 0,
-                                    InseridoBloco: 0,
-                                    ValorDescontado: 0,
-                                    AnoProcessado: 0,
-                                    NumProc: 0,
-                                    Origem: "2",
-                                    PlanoCurso: null,
-                                    IdGDOC: null,
-                                    CambioMBase: 0,
-                                    CambioMAlt: 0,
-                                    CotizaPeloMinimo: 0,
-                                    Acerto: 0,
-                                    MotivoAcerto: null,
-                                    NumLinhaDespesa: null,
-                                    NumRelatorioDespesa: null,
-                                    FuncComplementosBaixaId: null,
-                                    DescontaSubsTurno: 0,
-                                    SubTurnoProporcional: 0,
-                                    SubAlimProporcional: 0
-                                };
-
-                                const resF40 = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        Authorization: `Bearer ${painelToken}`,
-                                        urlempresa
-                                    },
-                                    body: JSON.stringify(dadosF40)
-                                });
-
-                                if (resF40.ok) {
-                                    faltasF40Registadas++;
-                                } else {
-                                    console.error(`Erro ao registar falta F40 para dia ${dia}:`, await resF40.text());
-                                }
-                            }
+                            // Criar F40 automaticamente se necessário
+                            const resultadoF40 = await criarF40SeNecessario(
+                                painelToken,
+                                urlempresa,
+                                funcionarioId,
+                                dataFormatada,
+                                descontaAlimentacao,
+                                isFimDeSemana
+                            );
+                            if (resultadoF40.success) faltasF40Registadas++;
                         } else {
-                            const errorText = await resERP.text();
-                            console.error(`Erro ao registar falta para dia ${dia}:`, errorText);
                             erros++;
+                            errosPrimavera.push(`Dia ${dia}: ${resultado.errorMessage}`);
                         }
 
                         // Pequena pausa entre cada registo
@@ -3780,19 +3266,40 @@ const RegistosPorUtilizador = () => {
                     } catch (diaErr) {
                         console.error(`Erro ao processar dia ${dia}:`, diaErr);
                         erros++;
+                        errosPrimavera.push(`Dia ${dia}: ${diaErr.message}`);
                     }
                 }
             }
 
             // Mostrar resultado
-            let mensagemResultado = `✅ Registo de faltas em bloco concluído!\n\n`;
-            mensagemResultado += `• Faltas registadas: ${faltasRegistadas}\n`;
+            let mensagemResultado = '';
+
+            if (erros === 0) {
+                mensagemResultado = `✅ Registo de faltas em bloco concluído com sucesso!\n\n`;
+            } else if (faltasRegistadas > 0) {
+                mensagemResultado = `⚠️ Registo de faltas em bloco concluído com alertas\n\n`;
+            } else {
+                mensagemResultado = `❌ Falha no registo de faltas em bloco\n\n`;
+            }
+
+            mensagemResultado += `• Faltas registadas: ${faltasRegistadas} de ${selectedCells.length}\n`;
             if (faltasF40Registadas > 0) {
                 mensagemResultado += `• Faltas F40 automáticas criadas: ${faltasF40Registadas}\n`;
             }
             if (erros > 0) {
-                mensagemResultado += `• Erros encontrados: ${erros}\n`;
-                mensagemResultado += `• Verifique o console para detalhes dos erros\n`;
+                mensagemResultado += `• Erros encontrados: ${erros}\n\n`;
+
+                if (errosPrimavera.length > 0) {
+                    mensagemResultado += `Detalhes dos erros:\n`;
+                    // Mostrar apenas os primeiros 5 erros para não sobrecarregar o alert
+                    const errosParaMostrar = errosPrimavera.slice(0, 5);
+                    errosParaMostrar.forEach(erro => {
+                        mensagemResultado += `• ${erro}\n`;
+                    });
+                    if (errosPrimavera.length > 5) {
+                        mensagemResultado += `\n... e mais ${errosPrimavera.length - 5} erros (consulte o console)\n`;
+                    }
+                }
             }
 
             alert(mensagemResultado);
@@ -3955,161 +3462,51 @@ const RegistosPorUtilizador = () => {
                         </>
                     )}
 
-                    
+
                     {viewMode === 'grade' && (
                         <>
-                            <button
-                                style={{
-                                    ...styles.primaryButton,
-                                    padding: '8px 14px',
-                                    fontSize: '0.85rem'
+                            <ActionBar
+                                onCarregarGrade={carregarDadosGrade}
+                                onExportarGrade={exportarGrade}
+                                onRegistoBloco={() => setBulkDialogOpen(true)}
+                                onFaltasBloco={() => setBulkFaltaDialogOpen(true)}
+                                onHorasExtrasBloco={() => setBulkHoraExtraDialogOpen(true)}
+                                onEliminarBloco={() => setBulkDeleteDialogOpen(true)}
+                                onAutoPreencher={() => {
+                                    setObraNoDialog(obraSelecionada || '');
+                                    setAutoFillDialogOpen(true);
                                 }}
-                                onClick={carregarDadosGrade}
-                                disabled={loadingGrade || !anoSelecionado || !mesSelecionado}
-                            >
-                                {loadingGrade ? '🔄 Carregar...' : '📅 Grade'}
-                            </button>
-
-                            {dadosGrade.length > 0 && (
-                                <button
-                                    style={{
-                                        ...styles.exportButton,
-                                        padding: '8px 14px',
-                                        fontSize: '0.85rem'
-                                    }}
-                                    onClick={exportarGrade}
-                                >
-                                    📊 Exportar
-                                </button>
-                            )}
-
-                            {viewMode === 'grade' && selectedCells.length > 0 && (
-                                <>
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => setBulkDialogOpen(true)}
-                                    >
-                                        🗓️ Bloco ({selectedCells.length})
-                                    </button>
-
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            backgroundColor: '#d69e2e',
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => setBulkFaltaDialogOpen(true)}
-                                    >
-                                        📅 Faltas ({selectedCells.length})
-                                    </button>
-
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            backgroundColor: '#38a169',
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => setBulkHoraExtraDialogOpen(true)}
-                                    >
-                                        ⏰ H.Extras ({selectedCells.length})
-                                    </button>
-
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            backgroundColor: '#e53e3e',
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => setBulkDeleteDialogOpen(true)}
-                                    >
-                                        🗑️ Eliminar ({selectedCells.length})
-                                    </button>
-                                </>
-                            )}
-
-                            {viewMode === 'grade' && dadosGrade.length > 0 && (
-                                <>
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            backgroundColor: '#805ad5',
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => {
-                                            setObraNoDialog(obraSelecionada || '');
-                                            setAutoFillDialogOpen(true);
-                                        }}
-                                    >
-                                        🤖 Auto-Preencher
-                                    </button>
-
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            backgroundColor: '#d69e2e',
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => {
-                                            const primeiroFuncionario = dadosGrade[0];
-                                            if (primeiroFuncionario) {
-                                                setUserToRegistar(primeiroFuncionario.utilizador.id);
-                                                setDiaToRegistar(1);
-                                                setObraNoDialog(obraSelecionada || '');
-                                                setFaltaIntervalo(false);
-                                                setDataFimFalta('');
-                                                setTipoFaltaSelecionado('');
-                                                setDuracaoFalta('');
-                                                setFaltaDialogOpen(true);
-                                            }
-                                        }}
-                                    >
-                                        📅 Nova Falta
-                                    </button>
-
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            backgroundColor: '#38a169',
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => {
-                                            const primeiroFuncionario = dadosGrade[0];
-                                            if (primeiroFuncionario) {
-                                                setUserToRegistar(primeiroFuncionario.utilizador.id);
-                                                setDiaToRegistar(1);
-                                                setTipoHoraExtraSelecionado('');
-                                                setTempoHoraExtra('');
-                                                setObservacoesHoraExtra('');
-                                                setHoraExtraDialogOpen(true);
-                                            }
-                                        }}
-                                    >
-                                        ⏰ Nova H.Extra
-                                    </button>
-
-                                    <button
-                                        style={{
-                                            ...styles.primaryButton,
-                                            backgroundColor: '#e53e3e',
-                                            padding: '8px 12px',
-                                            fontSize: '0.8rem'
-                                        }}
-                                        onClick={() => setClearPointsDialogOpen(true)}
-                                    >
-                                        🗑️ Limpar Dia
-                                    </button>
-                                </>
-                            )}
+                                onNovaFalta={() => {
+                                    const primeiroFuncionario = dadosGrade[0];
+                                    if (primeiroFuncionario) {
+                                        setUserToRegistar(primeiroFuncionario.utilizador.id);
+                                        setDiaToRegistar(1);
+                                        setObraNoDialog(obraSelecionada || '');
+                                        setFaltaIntervalo(false);
+                                        setDataFimFalta('');
+                                        setTipoFaltaSelecionado('');
+                                        setDuracaoFalta('');
+                                        setFaltaDialogOpen(true);
+                                    }
+                                }}
+                                onNovaHoraExtra={() => {
+                                    const primeiroFuncionario = dadosGrade[0];
+                                    if (primeiroFuncionario) {
+                                        setUserToRegistar(primeiroFuncionario.utilizador.id);
+                                        setDiaToRegistar(1);
+                                        setTipoHoraExtraSelecionado('');
+                                        setTempoHoraExtra('');
+                                        setObservacoesHoraExtra('');
+                                        setHoraExtraDialogOpen(true);
+                                    }
+                                }}
+                                onLimparDia={() => setClearPointsDialogOpen(true)}
+                                loadingGrade={loadingGrade}
+                                anoSelecionado={anoSelecionado}
+                                mesSelecionado={mesSelecionado}
+                                temDadosGrade={dadosGrade.length > 0}
+                                selectedCellsCount={selectedCells.length}
+                            />
 
                             <ModalBase
                                 isOpen={bulkDialogOpen}
@@ -4147,82 +3544,14 @@ const RegistosPorUtilizador = () => {
                                                 </div>
                                             </div>
 
-                                            <div style={styles.horariosContainer}>
-                                                <h4 style={styles.horariosTitle}>⏰ Configurar Horários</h4>
+                                            <HorariosInput horarios={horarios} onChange={setHorarios} />
 
-                                                <div style={styles.horariosGrid}>
-                                                    <div style={styles.periodoContainer}>
-                                                        <div style={styles.periodoHeader}>
-                                                            <span style={styles.periodoIcon}>🌅</span>
-                                                            <span style={styles.periodoTitle}>Manhã</span>
-                                                        </div>
-                                                        <div style={styles.horarioRow}>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Entrada</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.entradaManha}
-                                                                    onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Saída</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.saidaManha}
-                                                                    onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div style={styles.periodoContainer}>
-                                                        <div style={styles.periodoHeader}>
-                                                            <span style={styles.periodoIcon}>🌇</span>
-                                                            <span style={styles.periodoTitle}>Tarde</span>
-                                                        </div>
-                                                        <div style={styles.horarioRow}>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Entrada</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.entradaTarde}
-                                                                    onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Saída</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.saidaTarde}
-                                                                    onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div style={styles.obraContainer}>
-                                                <label style={styles.obraLabel}>
-                                                    <span style={styles.obraIcon}>🏗️</span>
-                                                    Selecionar Obra
-                                                </label>
-                                                <select
-                                                    style={styles.obraSelect}
-                                                    value={obraNoDialog}
-                                                    onChange={e => setObraNoDialog(e.target.value)}
-                                                >
-                                                    <option value="">-- Selecione uma obra --</option>
-                                                    {obras.map(o => (
-                                                        <option key={o.id} value={o.id}>{o.nome}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                            <ObraSelector
+                                                value={obraNoDialog}
+                                                onChange={setObraNoDialog}
+                                                obras={obras}
+                                                label="🏗️ Selecionar Obra"
+                                            />
                             </ModalBase>
 
                             {/* Modal para eliminação em bloco */}
@@ -4282,13 +3611,7 @@ const RegistosPorUtilizador = () => {
 
                                                 {(() => {
                                                     // Agrupar por utilizador para mostrar organizadamente
-                                                    const cellsByUser = {};
-                                                    selectedCells.forEach(cellKey => {
-                                                        const [userId, dia] = cellKey.split('-');
-                                                        const userIdNumber = parseInt(userId, 10);
-                                                        if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
-                                                        cellsByUser[userIdNumber].push(parseInt(dia, 10));
-                                                    });
+                                                    const cellsByUser = groupCellsByUser(selectedCells);
 
                                                     return Object.entries(cellsByUser).map(([userId, dias]) => {
                                                         const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
@@ -4352,82 +3675,14 @@ const RegistosPorUtilizador = () => {
                                 styles={styles}
                                 footer={null}
                             >
-                                            <div style={styles.horariosContainer}>
-                                                <h4 style={styles.horariosTitle}>⏰ Configurar Horários</h4>
+                                            <HorariosInput horarios={horarios} onChange={setHorarios} />
 
-                                                <div style={styles.horariosGrid}>
-                                                    <div style={styles.periodoContainer}>
-                                                        <div style={styles.periodoHeader}>
-                                                            <span style={styles.periodoIcon}>🌅</span>
-                                                            <span style={styles.periodoTitle}>Manhã</span>
-                                                        </div>
-                                                        <div style={styles.horarioRow}>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Entrada</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.entradaManha}
-                                                                    onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Saída</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.saidaManha}
-                                                                    onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div style={styles.periodoContainer}>
-                                                        <div style={styles.periodoHeader}>
-                                                            <span style={styles.periodoIcon}>🌇</span>
-                                                            <span style={styles.periodoTitle}>Tarde</span>
-                                                        </div>
-                                                        <div style={styles.horarioRow}>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Entrada</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.entradaTarde}
-                                                                    onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                            <div style={styles.inputGroup}>
-                                                                <label style={styles.timeLabel}>Saída</label>
-                                                                <input
-                                                                    type="time"
-                                                                    style={styles.timeInput}
-                                                                    value={horarios.saidaTarde}
-                                                                    onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div style={styles.obraContainer}>
-                                                <label style={styles.obraLabel}>
-                                                    <span style={styles.obraIcon}>🏗️</span>
-                                                    Selecionar Obra
-                                                </label>
-                                                <select
-                                                    style={styles.obraSelect}
-                                                    value={obraNoDialog}
-                                                    onChange={e => setObraNoDialog(e.target.value)}
-                                                >
-                                                    <option value="">-- Selecione uma obra --</option>
-                                                    {obras.map(o => (
-                                                        <option key={o.id} value={o.id}>{o.nome}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                            <ObraSelector
+                                                value={obraNoDialog}
+                                                onChange={setObraNoDialog}
+                                                obras={obras}
+                                                label="🏗️ Selecionar Obra"
+                                            />
 
                                 <div style={styles.individualModalActions}>
                                     <button
@@ -4445,42 +3700,14 @@ const RegistosPorUtilizador = () => {
 
                                             try {
                                                 const dataFormatada = formatDate(anoSelecionado, mesSelecionado, diaToRegistar);
-                                                const tipos = ['entrada', 'saida', 'entrada', 'saida'];
-                                                const horas = [
-                                                    horarios.entradaManha,
-                                                    horarios.saidaManha,
-                                                    horarios.entradaTarde,
-                                                    horarios.saidaTarde
+                                                const timestamps = [
+                                                    createTimestamp(dataFormatada, horarios.entradaManha),
+                                                    createTimestamp(dataFormatada, horarios.saidaManha),
+                                                    createTimestamp(dataFormatada, horarios.entradaTarde),
+                                                    createTimestamp(dataFormatada, horarios.saidaTarde)
                                                 ];
 
-                                                for (let i = 0; i < 4; i++) {
-                                                    // Criar timestamp com timezone correto
-                                                    const timestamp = createTimestamp(dataFormatada, horas[i]);
-
-
-                                                    const res = await fetch(
-                                                        `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
-                                                        {
-                                                            method: 'POST',
-                                                            headers: {
-                                                                'Content-Type': 'application/json',
-                                                                Authorization: `Bearer ${token}`
-                                                            },
-                                                            body: JSON.stringify({
-                                                                tipo: tipos[i],
-                                                                obra_id: Number(obraNoDialog),
-                                                                user_id: Number(userToRegistar),
-                                                                timestamp: timestamp
-                                                            })
-                                                        }
-                                                    );
-                                                    if (!res.ok) throw new Error('Falha ao criar ponto');
-                                                    const json = await res.json();
-                                                    await fetch(
-                                                        `https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`,
-                                                        { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }
-                                                    );
-                                                }
+                                                await API.registar4Pontos(token, userToRegistar, dataFormatada, timestamps, obraNoDialog);
 
                                                 alert('Quatro pontos registados e confirmados com sucesso!');
                                                 setDialogOpen(false);
@@ -4548,9 +3775,9 @@ const RegistosPorUtilizador = () => {
                                         <button
                                             style={{ ...styles.confirmButton, backgroundColor: '#38a169' }}
                                             onClick={registarHoraExtra}
-                                            disabled={!userToRegistar || !diaToRegistar || !tipoHoraExtraSelecionado || !tempoHoraExtra || carregando}
+                                            disabled={!userToRegistar || !diaToRegistar || !tipoHoraExtraSelecionado || !tempoHoraExtra || loadingHoraExtra}
                                         >
-                                            {carregando ? (
+                                            {loadingHoraExtra ? (
                                                 <>
                                                     <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                                                     A registar...
@@ -4661,9 +3888,9 @@ const RegistosPorUtilizador = () => {
                                         <button
                                             style={styles.confirmButton}
                                             onClick={registarFalta}
-                                            disabled={!userToRegistar || !diaToRegistar || !tipoFaltaSelecionado || !duracaoFalta || carregando}
+                                            disabled={!userToRegistar || !diaToRegistar || !tipoFaltaSelecionado || !duracaoFalta || loadingFalta}
                                         >
-                                            {carregando ? (
+                                            {loadingFalta ? (
                                                 <>
                                                     <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                                                     A registar...
@@ -4846,13 +4073,7 @@ const RegistosPorUtilizador = () => {
                                                 <span style={styles.selectedCellsLabel}>Dias selecionados para registo de hora extra:</span>
 
                                                 {(() => {
-                                                    const cellsByUser = {};
-                                                    selectedCells.forEach(cellKey => {
-                                                        const [userId, dia] = cellKey.split('-');
-                                                        const userIdNumber = parseInt(userId, 10);
-                                                        if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
-                                                        cellsByUser[userIdNumber].push(parseInt(dia, 10));
-                                                    });
+                                                    const cellsByUser = groupCellsByUser(selectedCells);
 
                                                     return Object.entries(cellsByUser).map(([userId, dias]) => {
                                                         const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
@@ -4969,13 +4190,7 @@ const RegistosPorUtilizador = () => {
                                                 <span style={styles.selectedCellsLabel}>Dias selecionados para registo de falta:</span>
 
                                                 {(() => {
-                                                    const cellsByUser = {};
-                                                    selectedCells.forEach(cellKey => {
-                                                        const [userId, dia] = cellKey.split('-');
-                                                        const userIdNumber = parseInt(userId, 10);
-                                                        if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
-                                                        cellsByUser[userIdNumber].push(parseInt(dia, 10));
-                                                    });
+                                                    const cellsByUser = groupCellsByUser(selectedCells);
 
                                                     return Object.entries(cellsByUser).map(([userId, dias]) => {
                                                         const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
@@ -5361,22 +4576,12 @@ const RegistosPorUtilizador = () => {
                                                 </div>
                                             </div>
 
-                                            <div style={styles.obraContainer}>
-                                                <label style={styles.obraLabel}>
-                                                    <span style={styles.obraIcon}>🏗️</span>
-                                                    Selecionar Obra
-                                                </label>
-                                                <select
-                                                    style={styles.obraSelect}
-                                                    value={obraNoDialog}
-                                                    onChange={e => setObraNoDialog(e.target.value)}
-                                                >
-                                                    <option value="">-- Selecione uma obra --</option>
-                                                    {obras.map(o => (
-                                                        <option key={o.id} value={o.id}>{o.nome}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                            <ObraSelector
+                                                value={obraNoDialog}
+                                                onChange={setObraNoDialog}
+                                                obras={obras}
+                                                label="🏗️ Selecionar Obra"
+                                            />
                             </ModalBase>
 
                         </>
@@ -5609,6 +4814,7 @@ const RegistosPorUtilizador = () => {
 
                                                 return (
                                                     <td
+                                                        key={cellKey}
                                                         onClick={async (e) => {
                                                             // Garantir que os valores são números válidos antes de criar a cellKey
                                                             const userId = parseInt(item.utilizador.id, 10);
