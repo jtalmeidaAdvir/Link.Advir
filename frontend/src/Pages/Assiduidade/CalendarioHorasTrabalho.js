@@ -1787,31 +1787,76 @@ const CalendarioHorasTrabalho = () => {
                                     </div>
 
                                     <div className="mt-3 mt-md-4">
-                                        <div className="row g-1 g-md-2 text-center legend-mobile">
-                                            <div className="col-12 col-sm-4">
-                                                <small className="text-muted d-flex align-items-center justify-content-center">
-                                                    <span className="badge bg-success me-1 me-md-2">●</span>
-                                                    <span className="d-none d-sm-inline">Horas registadas</span>
-                                                    <span className="d-sm-none">Registado</span>
+                                        <h6 className="fw-bold text-muted mb-2 small">Legenda:</h6>
+                                        <div className="row g-2 legend-mobile">
+                                            <div className="col-6 col-md-4 col-lg-6 col-xl-4">
+                                                <small className="d-flex align-items-center">
+                                                    <span className="badge bg-success me-2" style={{ width: '20px', height: '20px', borderRadius: '4px' }}></span>
+                                                    <span className="text-muted">Horas registadas</span>
                                                 </small>
                                             </div>
-                                            <div className="col-6 col-sm-4">
-                                                <small className="text-muted d-flex align-items-center justify-content-center">
-                                                    <span className="badge bg-warning me-1 me-md-2">⚠</span>
-                                                    <span className="d-none d-sm-inline">Sem registo</span>
-                                                    <span className="d-sm-none">Falta</span>
+                                            <div className="col-6 col-md-4 col-lg-6 col-xl-4">
+                                                <small className="d-flex align-items-center">
+                                                    <span className="badge bg-primary me-2" style={{ width: '20px', height: '20px', borderRadius: '4px' }}></span>
+                                                    <span className="text-muted">Hoje</span>
                                                 </small>
                                             </div>
-                                            <div className="col-6 col-sm-4">
-                                                <small className="text-muted d-flex align-items-center justify-content-center">
-                                                    <span className="badge bg-primary me-1 me-md-2">●</span>
-                                                    <span>Hoje</span>
+                                            <div className="col-6 col-md-4 col-lg-6 col-xl-4">
+                                                <small className="d-flex align-items-center">
+                                                    <span className="me-2" style={{
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        borderRadius: '4px',
+                                                        backgroundColor: '#ffcc80',
+                                                        border: '1px solid #ffa726',
+                                                        display: 'inline-block'
+                                                    }}></span>
+                                                    <span className="text-muted">Feriado</span>
                                                 </small>
                                             </div>
-                                            <div className="col-6 col-sm-3">
-                                                <small className="text-muted d-flex align-items-center justify-content-center">
-                                                    <span className="badge" style={{ backgroundColor: '#ffcc80', color: '#5d4037' }}>■</span>
-                                                    <span className="ms-1">Feriado</span>
+                                            <div className="col-6 col-md-4 col-lg-6 col-xl-4">
+                                                <small className="d-flex align-items-center">
+                                                    <span className="me-2" style={{
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        borderRadius: '4px',
+                                                        backgroundColor: '#e0f7fa',
+                                                        border: '1px solid #b2ebf2',
+                                                        display: 'inline-block'
+                                                    }}></span>
+                                                    <span className="text-muted">Fim de semana</span>
+                                                </small>
+                                            </div>
+                                            <div className="col-6 col-md-4 col-lg-6 col-xl-4">
+                                                <small className="d-flex align-items-center">
+                                                    <span className="me-2" style={{
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        borderRadius: '4px',
+                                                        backgroundImage: 'repeating-linear-gradient(45deg, #dee2e6 0, #dee2e6 4px, #f8f9fa 4px, #f8f9fa 8px)',
+                                                        border: '1px solid #ced4da',
+                                                        display: 'inline-block'
+                                                    }}></span>
+                                                    <span className="text-muted">Falta registada</span>
+                                                </small>
+                                            </div>
+                                            <div className="col-6 col-md-4 col-lg-6 col-xl-4">
+                                                <small className="d-flex align-items-center">
+                                                    <span className="me-2" style={{
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        borderRadius: '4px',
+                                                        backgroundColor: '#ffe0b2',
+                                                        border: '1px solid #ffb74d',
+                                                        display: 'inline-block'
+                                                    }}></span>
+                                                    <span className="text-muted">Pendente aprovação</span>
+                                                </small>
+                                            </div>
+                                            <div className="col-6 col-md-4 col-lg-6 col-xl-4">
+                                                <small className="d-flex align-items-center">
+                                                    <span className="badge bg-warning me-2" style={{ width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem' }}>⚠</span>
+                                                    <span className="text-muted">Sem registo</span>
                                                 </small>
                                             </div>
                                         </div>
