@@ -1,7 +1,22 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaCalendarCheck, FaClock, FaPlus, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
+import { FaCalendarCheck, FaClock, FaPlus, FaCheckCircle } from 'react-icons/fa';
 import { secureStorage } from '../../utils/secureStorage';
+import { formatISO, toLocalISODate, formatarData, isBeforeToday, extractDateISO, toLocalDate } from './utils/dateUtils';
+import { fetchJSON, fetchJSONWithRetry, safeJson } from './utils/apiUtils';
+import { carregarFeriados, normalizarFeriados } from './services/feriadosService';
+import { uploadAnexoTemporario, associarAnexosAPedido } from './services/anexosService';
+import { carregarDiasPendentesFuncionario, carregarFaltasPendentesFuncionario } from './services/pedidosPendentesService';
+import CalendarDayCell from './components/CalendarDayCell';
+
+// Lazy loading dos modais - só carregam quando necessário
+const ModalDividirHoras = lazy(() => import('./components/ModalDividirHoras'));
+const ModalFalta = lazy(() => import('./components/ModalFalta'));
+const ModalFerias = lazy(() => import('./components/ModalFerias'));
+
+// Constantes
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
 const CalendarioHorasTrabalho = () => {
     // NOVO: feriados (array de 'YYYY-MM-DD')
     const [feriados, setFeriados] = useState([]);
@@ -26,13 +41,11 @@ const CalendarioHorasTrabalho = () => {
     const [mostrarFormularioFalta, setMostrarFormularioFalta] = useState(false);
     const [MostrarFormularioFerias, setMostrarFormularioFerias] = useState(false);
     const [faltas, setFaltas] = useState([]);
-    const [faltasDoDia, setFaltasDoDia] = useState([]);
     const [tiposFalta, setTiposFalta] = useState([]);
     const [mapaFaltas, setMapaFaltas] = useState({});
     const [horarioFuncionario, setHorarioFuncionario] = useState(null);
     const [horariosTrabalho, setHorariosTrabalho] = useState([]);
     const [detalhesHorario, setDetalhesHorario] = useState(null);
-    const [pedidosPendentesDoDia, setPedidosPendentesDoDia] = useState([]);
     const [novaFalta, setNovaFalta] = useState({
         Falta: '',
         Horas: false,
@@ -73,238 +86,22 @@ const CalendarioHorasTrabalho = () => {
         return ['diretor', 'administrador', 'encarregado'].includes(tipoUser?.toLowerCase());
     }, []);
 
-    const isBeforeToday = (dateLike) => {
-        if (!dateLike) return false;
-        const d = new Date(dateLike);
-        d.setHours(0, 0, 0, 0);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return d < today;
-    };
-
-    const fetchJSON = async (url, options = {}) => {
-        const res = await fetch(url, options);
-        const txt = await res.text();
-        if (!res.ok) throw new Error(`${res.status} ${txt || res.statusText}`);
-        return txt ? JSON.parse(txt) : null;
-    };
-
-    const safeJson = (p) =>
-        p.then((v) => ({ ok: true, v })).catch((e) => ({ ok: false, e }));
-
-    const formatISO = (d) => toLocalISODate(d);
-
-    const toLocalISODate = (value) => {
-        const d = new Date(value);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    };
-
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-    const fetchJSONWithRetry = async (url, {
-        method = 'GET',
-        headers = {},
-        body,
-        maxAttempts = 4,
-        timeoutMs = 12000,
-        backoffBaseMs = 600,
-        retryOn = [429, 500, 502, 503, 504]
-    } = {}) => {
-        let attempt = 0;
-        let lastErr;
-        while (attempt < maxAttempts) {
-            attempt++;
-            const ac = new AbortController();
-            const t = setTimeout(() => ac.abort(), timeoutMs);
-            try {
-                const res = await fetch(url, { method, headers, body, signal: ac.signal });
-                const txt = await res.text();
-                clearTimeout(t);
-                if (!res.ok) {
-                    if (!retryOn.includes(res.status)) {
-                        throw new Error(`${res.status} ${txt || res.statusText}`);
-                    }
-                    lastErr = new Error(`${res.status} ${txt || res.statusText}`);
-                } else {
-                    return txt ? JSON.parse(txt) : null;
-                }
-            } catch (e) {
-                clearTimeout(t);
-                lastErr = e.name === 'AbortError' ? new Error('Timeout') : e;
-            }
-            const wait = Math.round(backoffBaseMs * (2 ** (attempt - 1)) * (0.75 + Math.random() * 0.5));
-            await sleep(wait);
-        }
-        throw lastErr || new Error('Falha ao obter recurso');
-    };
-
-    const carregarFaltasPendentes = async () => {
+    // Wrapper para carregar faltas pendentes usando o serviço
+    const carregarFaltasPendentesLocal = useCallback(async () => {
         const token = secureStorage.getItem('loginToken');
-        try {
-            const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    urlempresa: secureStorage.getItem('empresa_id'),
-                    'Content-Type': 'application/json'
-                }
-            });
+        const empresaId = secureStorage.getItem('empresa_id');
+        const data = await carregarFaltasPendentesFuncionario(token, empresaId);
+        setFaltasPendentes(data);
+    }, []);
 
-            if (res.ok) {
-                const data = await res.json();
-                setFaltasPendentes(data || []);
-            } else {
-                console.warn("Erro ao buscar pendentes:", await res.text());
-            }
-        } catch (err) {
-            console.error("Erro ao carregar faltas pendentes:", err);
-        }
-    };
-
-    // NOVO: normalizador de feriados (aceita vários formatos do endpoint)
-    // Substituir completamente:
-    const normalizarFeriados = (payload) => {
-        try {
-            const out = new Set();
-
-            // Função melhorada para extrair data ISO (YYYY-MM-DD) de strings datetime
-            const extractDateISO = (v) => {
-                if (typeof v !== 'string') return null;
-                // Se a string contém 'T' (formato ISO datetime), pega apenas a parte da data
-                if (v.includes('T')) {
-                    return v.split('T')[0];
-                }
-                // Senão, assume que já está no formato YYYY-MM-DD e pega os primeiros 10 caracteres
-                return v.slice(0, 10);
-            };
-
-            const toLocalDate = (isoYYYYMMDD) => {
-                const [y, m, d] = isoYYYYMMDD.split('-').map(Number);
-                return new Date(y, m - 1, d); // local time, evita desvios por fuso/DST
-            };
-
-            const addISO = (s) => { if (s && s.match(/^\d{4}-\d{2}-\d{2}$/)) out.add(s); };
-
-            const handleRow = (row) => {
-                if (!row) return;
-
-                // Procura por diferentes propriedades de data
-                const dStr =
-                    extractDateISO(row.Feriado) ||
-                    extractDateISO(row.feriado) ||
-                    extractDateISO(row.Data) ||
-                    extractDateISO(row.data) ||
-                    extractDateISO(row.Date) ||
-                    extractDateISO(row.date) ||
-                    extractDateISO(row.DataFeriado) ||
-                    extractDateISO(row.dataFeriado) ||
-                    extractDateISO(row.DataDia) ||
-                    extractDateISO(row.dataDia) ||
-                    extractDateISO(row.DataInicio) ||
-                    extractDateISO(row.dataInicio);
-
-                const fStrRaw =
-                    row.DataFim || row.dataFim || row.Fim || row.fim;
-
-                if (dStr && fStrRaw) {
-                    // intervalo [dStr..fStr]
-                    const fStr = extractDateISO(typeof fStrRaw === 'string' ? fStrRaw : String(fStrRaw));
-                    if (!fStr) { addISO(dStr); return; }
-                    let cur = toLocalDate(dStr);
-                    const end = toLocalDate(fStr);
-                    while (cur <= end) {
-                        addISO(
-                            `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
-                        );
-                        cur.setDate(cur.getDate() + 1);
-                    }
-                } else if (dStr) {
-                    addISO(dStr);
-                }
-            };
-
-            if (Array.isArray(payload)) {
-                payload.forEach((item) => {
-                    if (typeof item === 'string') addISO(extractDateISO(item));
-                    else handleRow(item);
-                });
-            } else if (payload?.DataSet?.Table) {
-                payload.DataSet.Table.forEach(handleRow);
-            } else {
-                handleRow(payload);
-            }
-
-            //console.log(`Feriados normalizados: ${out.size} datas encontradas`, Array.from(out));
-            return out;
-
-        } catch (error) {
-            console.error('Erro na normalização de feriados:', error);
-            console.error('Payload que causou o erro:', payload);
-            return new Set(); // Retorna conjunto vazio em caso de erro
-        }
-    };
-
-
-    // NOVO: carregar feriados da WebAPI
-    const carregarFeriados = async (tentativa = 1, maxTentativas = 3) => {
+    // Wrapper para carregar feriados usando o serviço
+    const carregarFeriadosLocal = useCallback(async () => {
         const painelAdminToken = secureStorage.getItem('painelAdminToken');
         const urlempresa = secureStorage.getItem('urlempresa');
         const ano = mesAtual.getFullYear();
-
-        if (!painelAdminToken || !urlempresa) {
-            console.warn('Token ou URL da empresa não encontrados para carregar feriados');
-            return;
-        }
-
-        try {
-            //console.log(`Carregando feriados para o ano ${ano}... (tentativa ${tentativa}/${maxTentativas})`);
-
-            const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/Feriados`, {
-                headers: {
-                    'Authorization': `Bearer ${painelAdminToken}`,
-                    'urlempresa': urlempresa,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            //console.log(`Resposta da API feriados: Status ${res.status}`);
-
-            if (!res.ok) {
-                const errorText = await res.text();
-                console.error('Erro na resposta da API feriados:', errorText);
-
-                // Se for erro 409 e ainda temos tentativas, aguardar e tentar novamente
-                if (res.status === 409 && tentativa < maxTentativas) {
-                    //console.log(`Erro 409 detectado. Aguardando 2s antes da próxima tentativa...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    return carregarFeriados(tentativa + 1, maxTentativas);
-                }
-
-                throw new Error(`HTTP ${res.status}: ${errorText}`);
-            }
-
-            const data = await res.json();
-            //console.log('Dados feriados recebidos:', data);
-            const listaISO = normalizarFeriados(data);
-            //console.log('Feriados normalizados:', listaISO);
-            setFeriados(listaISO);
-
-        } catch (err) {
-            console.error(`Erro ao carregar feriados (tentativa ${tentativa}):`, err);
-
-            // Se ainda temos tentativas e não foi um erro de rede crítico
-            if (tentativa < maxTentativas && !err.message.includes('TypeError: Failed to fetch')) {
-                //console.log(`Tentando novamente em 3s...`);
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                return carregarFeriados(tentativa + 1, maxTentativas);
-            }
-
-            console.warn('Usando conjunto vazio de feriados como fallback');
-            setFeriados(new Set()); // fallback para conjunto vazio
-        }
-    };
+        const feriadosSet = await carregarFeriados(painelAdminToken, urlempresa, ano);
+        setFeriados(feriadosSet);
+    }, [mesAtual]);
 
 
     useEffect(() => {
@@ -312,7 +109,7 @@ const CalendarioHorasTrabalho = () => {
             setLoading(true);
             try {
                 const hojeISO = formatarData(new Date());
-                await carregarFeriados();             // <- carrega feriados primeiro
+                await carregarFeriadosLocal();        // <- carrega feriados primeiro
                 await carregarTudoEmParalelo(hojeISO);
             } catch (e) {
                 console.error('Erro no bootstrap:', e);
@@ -325,113 +122,43 @@ const CalendarioHorasTrabalho = () => {
     }, [mesAtual]);
 
 
-    const carregarDiasPendentes = async () => {
+    // Wrapper para carregar dias pendentes usando o serviço
+    const carregarDiasPendentes = useCallback(async () => {
         const token = secureStorage.getItem('loginToken');
+        const empresaId = secureStorage.getItem('empresa_id');
         const funcionarioId = secureStorage.getItem('codFuncionario');
+        const diasArray = await carregarDiasPendentesFuncionario(token, empresaId, funcionarioId);
+        setDiasPendentes(diasArray);
+    }, []);
 
-        try {
-            const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    urlempresa: secureStorage.getItem('empresa_id'),
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                const apenasDoFuncionario = data.filter(p => p.funcionario === funcionarioId);
-                const diasPendentesSet = new Set();
-
-                apenasDoFuncionario.forEach(p => {
-                    if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
-                        const inicio = new Date(p.dataInicio);
-                        const fim = new Date(p.dataFim);
-                        let dataAtual = new Date(inicio);
-
-                        while (dataAtual <= fim) {
-                            const iso = dataAtual.toISOString().split('T')[0];
-                            diasPendentesSet.add(iso);
-                            dataAtual.setDate(dataAtual.getDate() + 1);
-                        }
-                    } else if (p.dataPedido) {
-                        const data = new Date(p.dataPedido).toISOString().split('T')[0];
-                        diasPendentesSet.add(data);
-                    }
-                });
-
-                setDiasPendentes(Array.from(diasPendentesSet));
-            } else {
-                console.warn("Erro ao carregar pendentes:", await res.text());
-            }
-        } catch (err) {
-            console.error("Erro ao carregar pendentes:", err);
-        }
-    };
-
-    const handleAnexoFaltaChange = async (e) => {
+    const handleAnexoFaltaChange = useCallback(async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (file.size > 10 * 1024 * 1024) {
-            alert('Ficheiro demasiado grande. Máximo 10MB.');
-            e.target.value = '';
-            return;
-        }
-
-        const allowedTypes = [
-            'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'text/plain'
-        ];
-
-        if (!allowedTypes.includes(file.type)) {
-            alert('Tipo de ficheiro não permitido. Use: JPG, PNG, GIF, PDF, DOC, DOCX ou TXT.');
-            e.target.value = '';
-            return;
-        }
-
         const token = secureStorage.getItem('loginToken');
-        const formData = new FormData();
-        formData.append('arquivo', file); // ✅ nome certo
 
         try {
             setUploadingAnexo(true);
+            const resultado = await uploadAnexoTemporario(token, file);
 
-            const res = await fetch('https://backend.advir.pt/api/anexo-falta/upload-temp', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}` // ✅ sem Content-Type
-                },
-                body: formData
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setAnexosFalta(prev => [...prev, data.arquivo_temp]);
+            if (resultado.success) {
+                setAnexosFalta(prev => [...prev, resultado.arquivo_temp]);
                 alert('Anexo adicionado com sucesso!');
             } else {
-                const erro = await res.text();
-                console.error('Erro do servidor:', erro);
-                alert('Erro ao fazer upload: ' + erro);
+                alert(resultado.error);
             }
-        } catch (err) {
-            console.error('Erro no upload:', err);
-            alert('Erro ao fazer upload do anexo: ' + err.message);
         } finally {
             setUploadingAnexo(false);
             e.target.value = '';
         }
-    };
+    }, []);
 
 
-    const removerAnexoFalta = (index) => {
+    const removerAnexoFalta = useCallback((index) => {
         setAnexosFalta(prev => prev.filter((_, i) => i !== index));
-    };
+    }, []);
 
-    const submeterFalta = async (e) => {
+    const submeterFalta = useCallback(async (e) => {
         e.preventDefault();
 
         const token = secureStorage.getItem('loginToken');
@@ -476,29 +203,14 @@ const CalendarioHorasTrabalho = () => {
 
                 // Associar anexos ao pedido se existirem
                 if (anexosFalta.length > 0 && pedidoCriado.id) {
-                    try {
-                        const resAnexos = await fetch('https://backend.advir.pt/api/anexo-falta/associar-temp', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`,
-                                'urlempresa': secureStorage.getItem('empresa_id')
-                            },
-                            body: JSON.stringify({
-                                pedido_falta_id: pedidoCriado.id.toString(),
-                                anexos_temp: anexosFalta
-                            })
-                        });
-
-                        if (!resAnexos.ok) {
-                            const erroTexto = await resAnexos.text();
-                            console.warn('Erro ao associar anexos:', erroTexto);
-                        } else {
-                            const resultAnexos = await resAnexos.json();
-                            console.log('Anexos associados com sucesso:', resultAnexos);
-                        }
-                    } catch (errAnexo) {
-                        console.error('Erro ao associar anexos:', errAnexo);
+                    const resultadoAnexos = await associarAnexosAPedido(
+                        token,
+                        empresaId,
+                        pedidoCriado.id,
+                        anexosFalta
+                    );
+                    if (!resultadoAnexos.success) {
+                        console.warn('Erro ao associar anexos:', resultadoAnexos.error);
                     }
                 }
 
@@ -568,29 +280,12 @@ const CalendarioHorasTrabalho = () => {
                     setDiasPendentes(novosDiasPendentes);
                 }
 
-                const pedidosDoDia = novosPedidosPendentes.filter(p => {
-                    const dataSelecionada = new Date(dataFalta);
-                    dataSelecionada.setHours(0, 0, 0, 0);
-
-                    if (p.tipoPedido === 'FALTA' && p.dataPedido) {
-                        const dataPedido = new Date(p.dataPedido);
-                        dataPedido.setHours(0, 0, 0, 0);
-                        return p.funcionario === funcionarioId &&
-                            p.estadoAprovacao === 'Pendente' &&
-                            dataPedido.getTime() === dataSelecionada.getTime();
-                    }
-                    return false;
-                });
-                setPedidosPendentesDoDia(pedidosDoDia);
-
                 setMostrarFormularioFalta(false);
                 setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '', DescontaAlimentacao: false, DescontaSubsidioTurno: false });
                 setAnexosFalta([]);
 
                 setDiaSelecionado(null);
                 setDetalhes([]);
-                setFaltasDoDia([]);
-                setPedidosPendentesDoDia([]);
                 setRegistosBrutos([]);
 
                 await Promise.all([
@@ -609,7 +304,7 @@ const CalendarioHorasTrabalho = () => {
             console.error('Erro ao submeter falta:', err);
             alert('Erro inesperado.');
         }
-    };
+    }, [diaSelecionado, novaFalta, anexosFalta, faltasPendentes, diasPendentes, mesAtual]);
 
     const carregarFaltasFuncionario = async () => {
         const token = secureStorage.getItem("painelAdminToken");
@@ -630,18 +325,7 @@ const CalendarioHorasTrabalho = () => {
                 const data = await res.json();
                 const listaFaltas = data?.DataSet?.Table ?? [];
                 setFaltas(listaFaltas);
-
-                if (diaSelecionado) {
-                    const faltasNoDia = listaFaltas.filter(f => {
-                        const dataFalta = new Date(f.Data);
-                        return (
-                            dataFalta.getFullYear() === new Date(diaSelecionado).getFullYear() &&
-                            dataFalta.getMonth() === new Date(diaSelecionado).getMonth() &&
-                            dataFalta.getDate() === new Date(diaSelecionado).getDate()
-                        );
-                    });
-                    setFaltasDoDia(faltasNoDia);
-                }
+                // faltasDoDia é calculado via useMemo
 
                 //console.log('Faltas carregadas:', listaFaltas);
             } else {
@@ -846,8 +530,6 @@ const CalendarioHorasTrabalho = () => {
 
                 setDiaSelecionado(null);
                 setDetalhes([]);
-                setFaltasDoDia([]);
-                setPedidosPendentesDoDia([]);
                 setRegistosBrutos([]);
 
                 await Promise.all([
@@ -930,9 +612,7 @@ const CalendarioHorasTrabalho = () => {
                 return !(dataFalta === dataISO && f.Falta === codigoFalta);
             });
             setFaltas(novasFaltas);
-
-            const novasFaltasDoDia = faltasDoDia.filter(f => f.Falta !== codigoFalta);
-            setFaltasDoDia(novasFaltasDoDia);
+            // faltasDoDia e pedidosPendentesDoDia são calculados via useMemo
 
             const novosDiasPendentes = [...diasPendentes];
             if (!novosDiasPendentes.includes(dataISO)) {
@@ -940,15 +620,11 @@ const CalendarioHorasTrabalho = () => {
                 setDiasPendentes(novosDiasPendentes);
             }
 
-            if (diaSelecionado === dataISO) {
-                setPedidosPendentesDoDia(prev => [...prev, novoPedidoCancelamento]);
-            }
-
             setMesAtual(new Date(mesAtual));
 
             await Promise.all([
                 carregarFaltasFuncionario(),
-                carregarFaltasPendentes(),
+                carregarFaltasPendentesLocal(),
                 carregarDiasPendentes(),
                 carregarDetalhes(diaSelecionado),
                 carregarResumo()
@@ -987,8 +663,6 @@ const CalendarioHorasTrabalho = () => {
 
                 setDiaSelecionado(null);
                 setDetalhes([]);
-                setFaltasDoDia([]);
-                setPedidosPendentesDoDia([]);
                 setRegistosBrutos([]);
 
                 setFaltasPendentes(prev => prev.filter(p => p.id !== pedido.id));
@@ -1013,7 +687,7 @@ const CalendarioHorasTrabalho = () => {
 
                 await Promise.all([
                     carregarFaltasFuncionario(),
-                    carregarFaltasPendentes(),
+                    carregarFaltasPendentesLocal(),
                     carregarDiasPendentes(),
                     carregarResumo()
                 ]);
@@ -1173,12 +847,6 @@ const CalendarioHorasTrabalho = () => {
 
         const mapa = Object.fromEntries(tiposFaltaLista.map(f => [f.Falta, f.Descricao]));
 
-        const faltasNoDiaBootstrap = faltasLista.filter(f => {
-            const d = new Date(f.Data);
-            const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            return iso === diaISO;
-        });
-
         const pendDoFuncionario = (pendentesAprovacao || []).filter(p => p.funcionario === funcionarioId);
         const diasPendSet = new Set();
         pendDoFuncionario.forEach(p => {
@@ -1257,20 +925,6 @@ const CalendarioHorasTrabalho = () => {
             minutos: Math.round(o.totalMinutos % 60),
         }));
 
-        const pendentesDoDia = pendDoFuncionario.filter(p => {
-            const dataSel = new Date(diaISO); dataSel.setHours(0, 0, 0, 0);
-            if (p.tipoPedido === 'FALTA' && p.dataPedido) {
-                const d = new Date(p.dataPedido); d.setHours(0, 0, 0, 0);
-                return p.estadoAprovacao === 'Pendente' && d.getTime() === dataSel.getTime();
-            }
-            if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
-                const i = new Date(p.dataInicio), f = new Date(p.dataFim);
-                i.setHours(0, 0, 0, 0); f.setHours(0, 0, 0, 0);
-                return p.estadoAprovacao === 'Pendente' && dataSel >= i && dataSel <= f;
-            }
-            return false;
-        });
-
         setResumo(resumoMap);
         setObras(listaObras);
         setFaltas(faltasLista);
@@ -1284,8 +938,7 @@ const CalendarioHorasTrabalho = () => {
         setDiaSelecionado(diaISO);
         setRegistosBrutos(registosDia);
         setDetalhes(detalhesPorObra);
-        setPedidosPendentesDoDia(pendentesDoDia);
-        setFaltasDoDia(faltasNoDiaBootstrap);
+        // faltasDoDia e pedidosPendentesDoDia são calculados via useMemo
     };
 
     const solicitarCancelamentoFeria = async (dataFeria) => {
@@ -1352,14 +1005,11 @@ const CalendarioHorasTrabalho = () => {
                 novosDiasPendentes.push(dataISO);
                 setDiasPendentes(novosDiasPendentes);
             }
-
-            if (diaSelecionado === dataISO) {
-                setPedidosPendentesDoDia(prev => [...prev, novoPedidoCancelamento]);
-            }
+            // pedidosPendentesDoDia é calculado via useMemo
 
             await Promise.all([
                 carregarFaltasFuncionario(),
-                carregarFaltasPendentes(),
+                carregarFaltasPendentesLocal(),
                 carregarDiasPendentes(),
                 carregarDetalhes(diaSelecionado),
                 carregarResumo()
@@ -1406,7 +1056,6 @@ const CalendarioHorasTrabalho = () => {
         const mes = String(mesAtual.getMonth() + 1).padStart(2, '0');
 
         try {
-            setLoading(true);
             const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/resumo-mensal?ano=${ano}&mes=${mes}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -1462,8 +1111,6 @@ const CalendarioHorasTrabalho = () => {
         } catch (err) {
             console.error('Erro ao carregar resumo mensal:', err);
             alert('Erro ao carregar resumo mensal');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -1597,47 +1244,7 @@ const CalendarioHorasTrabalho = () => {
 
     const carregarDetalhes = useCallback(async (data) => {
         setDiaSelecionado(data);
-        const faltasNoDia = faltas.filter(f => {
-            const dataFalta = new Date(f.Data);
-            return (
-                dataFalta.getFullYear() === new Date(data).getFullYear() &&
-                dataFalta.getMonth() === new Date(data).getMonth() &&
-                dataFalta.getDate() === new Date(data).getDate()
-            );
-        });
-        setFaltasDoDia(faltasNoDia);
-
-        const funcionarioId = secureStorage.getItem('codFuncionario');
-
-        const pedidosPendentesDoDia = faltasPendentes.filter(p => {
-            const dataSelecionada = new Date(data);
-            dataSelecionada.setHours(0, 0, 0, 0);
-
-            const isDoFuncionario = p.funcionario === funcionarioId;
-            const isFalta = p.tipoPedido === 'FALTA' && p.dataPedido;
-            const isFerias = p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim;
-
-            let coincide = false;
-
-            if (isFalta) {
-                const dataPedido = new Date(p.dataPedido);
-                dataPedido.setHours(0, 0, 0, 0);
-                coincide = dataPedido.getTime() === dataSelecionada.getTime();
-            }
-
-            if (isFerias) {
-                const inicio = new Date(p.dataInicio);
-                const fim = new Date(p.dataFim);
-                inicio.setHours(0, 0, 0, 0);
-                fim.setHours(0, 0, 0, 0);
-                coincide = dataSelecionada >= inicio && dataSelecionada <= fim;
-            }
-
-            return isDoFuncionario && p.estadoAprovacao === 'Pendente' && coincide;
-        });
-
-        setPedidosPendentesDoDia(pedidosPendentesDoDia);
-        //console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
+        // faltasDoDia e pedidosPendentesDoDia são calculados via useMemo
 
         const token = secureStorage.getItem('loginToken');
         try {
@@ -1745,31 +1352,31 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
-    const gerarCalendario = () => {
+    const diasDoMes = useMemo(() => {
         const ano = mesAtual.getFullYear();
         const mes = mesAtual.getMonth();
         const primeiroDia = new Date(ano, mes, 1);
         const ultimoDia = new Date(ano, mes + 1, 0);
-        const diasDoMes = [];
+        const dias = [];
 
         const diaSemanaInicio = primeiroDia.getDay();
         for (let i = 0; i < diaSemanaInicio; i++) {
-            diasDoMes.push(null);
+            dias.push(null);
         }
 
         for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
-            diasDoMes.push(new Date(ano, mes, dia));
+            dias.push(new Date(ano, mes, dia));
         }
 
-        return diasDoMes;
-    };
+        return dias;
+    }, [mesAtual]);
 
-    const iniciarEdicaoRegisto = (registo) => {
+    const iniciarEdicaoRegisto = useCallback((registo) => {
         const data = new Date(registo.timestamp);
         setNovaHoraEdicao(data.toTimeString().slice(0, 5));
         setJustificacaoAlteracao(registo.justificacao || '');
         setRegistoEmEdicao(registo);
-    };
+    }, []);
 
     const submeterAlteracaoHora = async () => {
         if (!registoEmEdicao || !novaHoraEdicao) return;
@@ -1831,83 +1438,71 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
-    const obterClasseDia = (date) => {
-        if (!date) return '';
-
-        const hoje = new Date();
-        const dataFormatada = formatarData(date);
-        const isHoje = formatarData(hoje) === dataFormatada;
-        const isPassado = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-        const temRegisto = resumo[dataFormatada];
-        const diaSemana = date.getDay();
-        const isDiaUtil = diaSemana !== 0 && diaSemana !== 6;
-        const isSelecionado = diaSelecionado === dataFormatada;
-        const isPendente = diasPendentes.includes(dataFormatada);
-
-        // NOVO: feriado
-        const isFeriado = feriadosSet.has(dataFormatada);
-
-        const existeFalta = Array.isArray(faltas) && faltas.some(f => {
-            const dataFalta = new Date(f.Data);
-            return (
-                dataFalta.getFullYear() === date.getFullYear() &&
-                dataFalta.getMonth() === date.getMonth() &&
-                dataFalta.getDate() === date.getDate()
-            );
-        });
-
-        let classes = 'calendario-dia btn';
-
-        // NOVO: prioridade ao feriado (fica laranja)
-        if (isFeriado) {
-            classes += ' dia-feriado';
-            // se também estiver selecionado, mantém o realce visual subtil
-            if (isSelecionado) classes += ' border-2';
-            return classes;
-        }
-
-        // Verificar se é fim de semana (sábado ou domingo)
-        const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
-
-        if (isSelecionado) classes += ' btn-primary';
-        else if (existeFalta) classes += ' dia-falta';
-        else if (isHoje) classes += ' btn-outline-primary';
-        else if (isPendente) classes += ' dia-pendente';
-        else if (temRegisto) {
-            const horasStr = resumo[dataFormatada]?.split('h')[0];
-            const horasTrabalhadas = parseInt(horasStr, 10);
-            if (horasTrabalhadas >= 8) {
-                classes += ' btn-success';
-            } else {
-                classes += ' btn-menor-8h';
-            }
-        } else if (isFimDeSemana) {
-            classes += ' dia-weekend'; // Azul claro para fins de semana
-        } else {
-            classes += ' btn-outline-secondary';
-        }
-
-        return classes;
-    };
-
 
     useEffect(() => {
         const boot = async () => {
             setLoading(true);
             try {
                 const hojeISO = formatarData(new Date());
+
+                // Carregar dados em paralelo sem bloquear o calendário
+                // carregarTudoEmParalelo é rápido (feriados, faltas pendentes, etc)
                 await carregarTudoEmParalelo(hojeISO);
+
+                // Libera o calendário para ser exibido
+                setLoading(false);
+
+                // Carregar resumo em background (pode demorar mais)
+                // Os pontos aparecerão assim que estiver pronto
+                carregarResumo().catch(e => {
+                    console.error('Erro ao carregar resumo:', e);
+                });
             } catch (e) {
                 console.error('Erro no bootstrap:', e);
                 alert('Erro ao carregar dados iniciais.');
-            } finally {
                 setLoading(false);
             }
         };
         boot();
     }, [mesAtual]);
 
-    const diasDoMes = gerarCalendario();
+    // Memoizar cálculo do total de horas do dia
+    const totalHorasDia = useMemo(() => {
+        const totalMinutos = detalhes.reduce((acc, entry) => acc + (entry.horas * 60 + entry.minutos), 0);
+        const totalHoras = Math.floor(totalMinutos / 60);
+        const minutosRestantes = totalMinutos % 60;
+        return { totalHoras, minutosRestantes };
+    }, [detalhes]);
+
+    // Memoizar faltas do dia selecionado
+    const faltasDoDia = useMemo(() => {
+        if (!diaSelecionado || !Array.isArray(faltas)) return [];
+        return faltas.filter(f => {
+            const dataFalta = new Date(f.Data);
+            const dataSelecionada = new Date(diaSelecionado);
+            return (
+                dataFalta.getFullYear() === dataSelecionada.getFullYear() &&
+                dataFalta.getMonth() === dataSelecionada.getMonth() &&
+                dataFalta.getDate() === dataSelecionada.getDate()
+            );
+        });
+    }, [faltas, diaSelecionado]);
+
+    // Memoizar pedidos pendentes do dia selecionado
+    const pedidosPendentesDoDia = useMemo(() => {
+        if (!diaSelecionado || !Array.isArray(faltasPendentes)) return [];
+        const funcionarioId = secureStorage.getItem('codFuncionario');
+        return faltasPendentes.filter(p => {
+            const dataSelecionada = new Date(diaSelecionado);
+            const dataInicio = new Date(p.data_inicio);
+            const dataFim = new Date(p.data_fim);
+            return (
+                p.funcionario_id === parseInt(funcionarioId) &&
+                dataSelecionada >= dataInicio &&
+                dataSelecionada <= dataFim
+            );
+        });
+    }, [faltasPendentes, diaSelecionado]);
 
     return (
         <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)' }}>
@@ -2101,161 +1696,21 @@ const CalendarioHorasTrabalho = () => {
             `}</style>
 
             {/* Modal de Divisão de Horas */}
-            {mostrarModalDividirHoras && (
-                <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} role="dialog" aria-modal="true">
-                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '95%', margin: '1rem auto' }}>
-                        <div className="modal-content" style={{ borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
-                            <div className="modal-header bg-primary text-white" style={{ borderRadius: '12px 12px 0 0', padding: '1rem' }}>
-                                <h6 className="modal-title mb-0" style={{ fontSize: 'clamp(0.95rem, 3vw, 1.1rem)', fontWeight: '600' }}>
-                                    Dividir Horas
-                                </h6>
-                                <button type="button" className="btn-close btn-close-white" onClick={fecharModalDividirHoras}></button>
-                            </div>
-                            <div className="modal-body" style={{ padding: 'clamp(0.75rem, 3vw, 1.5rem)' }}>
-                                <div className="mb-3 p-2 bg-light rounded" style={{ fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)' }}>
-                                    <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.75rem' }}>Obra Original:</div>
-                                    <div className="text-truncate mb-2" style={{ fontSize: '0.85rem' }}>
-                                        {obraSelecionadaParaDividir?.nome}
-                                    </div>
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <span className="text-muted" style={{ fontSize: '0.8rem' }}>Total a dividir:</span>
-                                        <span className="badge bg-primary" style={{ fontSize: '0.9rem', padding: '0.4rem 0.8rem' }}>
-                                            {horasParaDividir}h {minutosParaDividir}min
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                {divisoes.length > 0 && (() => {
-                                    const totalDividido = divisoes.reduce((acc, div) => acc + (div.horas * 60 + div.minutos), 0);
-                                    const totalOrigem = horasParaDividir * 60 + minutosParaDividir;
-                                    const restante = totalOrigem - totalDividido;
-                                    const restanteHoras = Math.floor(Math.abs(restante) / 60);
-                                    const restanteMinutos = Math.abs(restante) % 60;
-                                    
-                                    return (
-                                        <div className={`alert ${restante === 0 ? 'alert-success' : restante > 0 ? 'alert-warning' : 'alert-danger'} mb-3`} 
-                                             style={{ padding: '0.6rem', fontSize: 'clamp(0.75rem, 2.5vw, 0.85rem)', borderRadius: '8px' }}>
-                                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <span>
-                                                    <strong>Dividido:</strong> {Math.floor(totalDividido / 60)}h {totalDividido % 60}min
-                                                </span>
-                                                {restante !== 0 ? (
-                                                    <span className="badge bg-dark">
-                                                        {restante > 0 ? 'Falta' : 'Excede'}: {restanteHoras}h {restanteMinutos}min
-                                                    </span>
-                                                ) : (
-                                                    <span className="badge bg-success">✓ Completo</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                <div className="mb-3">
-                                    <label className="form-label fw-semibold mb-2" style={{ fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)' }}>
-                                        Divisões por obra:
-                                    </label>
-                                    <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                                        {divisoes.map((div, index) => (
-                                            <div key={index} className="card mb-2" style={{ borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-                                                <div className="card-body p-2">
-                                                    <div className="mb-2">
-                                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem', color: '#666' }}>
-                                                            Obra de destino
-                                                        </label>
-                                                        <select
-                                                            className="form-select form-select-sm"
-                                                            value={div.obra_id}
-                                                            onChange={(e) => atualizarDivisao(index, 'obra_id', e.target.value)}
-                                                            style={{ fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)', borderRadius: '6px' }}
-                                                        >
-                                                            <option value="">Selecione...</option>
-                                                            {obrasDestino.map(obra => (
-                                                                <option key={obra.id} value={obra.id}>
-                                                                    {obra.codigo ? `${obra.codigo} - ${obra.nome}` : obra.nome}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                    <div className="d-flex gap-2 align-items-end">
-                                                        <div className="flex-fill">
-                                                            <label className="form-label mb-1" style={{ fontSize: '0.7rem', color: '#666' }}>
-                                                                Horas
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                inputMode="numeric"
-                                                                className="form-control form-control-sm text-center"
-                                                                placeholder="0"
-                                                                value={div.horas || ''}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value.replace(/\D/g, '');
-                                                                    atualizarDivisao(index, 'horas', val === '' ? 0 : parseInt(val));
-                                                                }}
-                                                                style={{ fontSize: '1rem', fontWeight: '500', borderRadius: '6px', padding: '0.5rem' }}
-                                                            />
-                                                        </div>
-                                                        <div className="flex-fill">
-                                                            <label className="form-label mb-1" style={{ fontSize: '0.7rem', color: '#666' }}>
-                                                                Minutos
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                inputMode="numeric"
-                                                                className="form-control form-control-sm text-center"
-                                                                placeholder="0"
-                                                                value={div.minutos || ''}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value.replace(/\D/g, '');
-                                                                    const num = val === '' ? 0 : parseInt(val);
-                                                                    atualizarDivisao(index, 'minutos', Math.min(59, num));
-                                                                }}
-                                                                style={{ fontSize: '1rem', fontWeight: '500', borderRadius: '6px', padding: '0.5rem' }}
-                                                            />
-                                                        </div>
-                                                        <button 
-                                                            className="btn btn-sm btn-outline-danger" 
-                                                            onClick={() => removerDivisao(index)}
-                                                            style={{ padding: '0.5rem 0.75rem', borderRadius: '6px' }}
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <button 
-                                    className="btn btn-outline-primary w-100 btn-sm" 
-                                    onClick={adicionarDivisao}
-                                    style={{ borderRadius: '8px', padding: '0.6rem', fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)' }}
-                                >
-                                    <FaPlus size={14} className="me-2" /> Adicionar Divisão
-                                </button>
-                            </div>
-                            <div className="modal-footer" style={{ padding: '0.75rem 1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-secondary flex-fill" 
-                                    onClick={fecharModalDividirHoras}
-                                    style={{ borderRadius: '8px', fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)', minWidth: '100px' }}
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    type="button" 
-                                    className="btn btn-primary flex-fill" 
-                                    onClick={reconstruirPicagens}
-                                    style={{ borderRadius: '8px', fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)', minWidth: '100px' }}
-                                >
-                                    Reconstruir
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <Suspense fallback={null}>
+                <ModalDividirHoras
+                    show={mostrarModalDividirHoras}
+                    onClose={fecharModalDividirHoras}
+                    obraSelecionada={obraSelecionadaParaDividir}
+                    horasParaDividir={horasParaDividir}
+                    minutosParaDividir={minutosParaDividir}
+                    divisoes={divisoes}
+                    obrasDestino={obrasDestino}
+                    onAtualizarDivisao={atualizarDivisao}
+                    onRemoverDivisao={removerDivisao}
+                    onAdicionarDivisao={adicionarDivisao}
+                    onReconstruir={reconstruirPicagens}
+                />
+            </Suspense>
 
             <div className="row justify-content-center">
                 <div className="col-12 col-xl-11">
@@ -2308,7 +1763,7 @@ const CalendarioHorasTrabalho = () => {
                                     </div>
 
                                     <div className="calendario-grid mb-2">
-                                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia, index) => (
+                                        {DIAS_SEMANA.map((dia, index) => (
                                             <div key={dia} className="text-center fw-bold text-muted py-1 py-md-2" style={{ fontSize: 'clamp(0.7rem, 2.5vw, 0.9rem)' }}>
                                                 <span className="d-none d-sm-inline">{dia}</span>
                                                 <span className="d-sm-none">{dia.substr(0, 1)}</span>
@@ -2317,82 +1772,18 @@ const CalendarioHorasTrabalho = () => {
                                     </div>
 
                                     <div className="calendario-grid">
-                                        {diasDoMes.map((date, index) => {
-                                            if (!date) return <button key={index} className="invisible" disabled></button>;
-
-                                            const dataFormatada = formatarData(date);
-                                            const isPendente = diasPendentes.includes(dataFormatada);
-
-                                            const isFeriado = feriadosSet.has(dataFormatada);
-
-                                            const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
-                                                const dataFalta = new Date(f.Data);
-                                                return (
-                                                    f.Falta === 'F50' &&
-                                                    dataFalta.getFullYear() === date.getFullYear() &&
-                                                    dataFalta.getMonth() === date.getMonth() &&
-                                                    dataFalta.getDate() === date.getDate()
-                                                );
-                                            });
-
-                                            return (
-                                                <button
-                                                    key={index}
-                                                    className={obterClasseDia(date)}
-                                                    onClick={() => carregarDetalhes(dataFormatada)}
-                                                >
-                                                    <span>{date.getDate()}</span>
-
-                                                    {isFeriado && (
-                                                        <span className="horas-dia" style={{ fontSize: '0.65rem', color: '#5d4037' }}>
-                                                            Fe
-                                                        </span>
-                                                    )}
-
-                                                    {existeFaltaF50 && (
-                                                        <span
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: '4px',
-                                                                right: '6px',
-                                                                fontSize: '0.8rem'
-                                                            }}
-                                                            title="Férias"
-                                                        >
-                                                            🌴
-                                                        </span>
-                                                    )}
-                                                    {isPendente && (
-                                                        <span
-                                                            style={{
-                                                                position: 'absolute',
-                                                                bottom: '4px',
-                                                                right: '6px',
-                                                                fontSize: '0.85rem',
-                                                                color: '#f0ad4e'
-                                                            }}
-                                                            title="Pendente de aprovação"
-                                                        >
-                                                            ⏳
-                                                        </span>
-                                                    )}
-
-                                                    {resumo[dataFormatada] && !isFeriado && (
-                                                        <span className="horas-dia">
-                                                            {resumo[dataFormatada]}
-                                                        </span>
-                                                    )}
-
-                                                    {!resumo[dataFormatada] &&
-                                                        !isFeriado &&
-                                                        date < new Date() &&
-                                                        date.getDay() !== 0 &&
-                                                        date.getDay() !== 6 && (
-                                                            <FaExclamationTriangle className="text-warning mt-1" size={12} />
-                                                        )}
-                                                </button>
-                                            );
-                                        })}
+                                        {diasDoMes.map((date, index) => (
+                                            <CalendarDayCell
+                                                key={index}
+                                                date={date}
+                                                resumo={resumo}
+                                                diasPendentes={diasPendentes}
+                                                feriadosSet={feriadosSet}
+                                                faltas={faltas}
+                                                diaSelecionado={diaSelecionado}
+                                                onDayClick={carregarDetalhes}
+                                            />
+                                        ))}
                                     </div>
 
                                     <div className="mt-3 mt-md-4">
@@ -2501,16 +1892,9 @@ const CalendarioHorasTrabalho = () => {
                                                 <hr />
                                                 <div className="d-flex justify-content-between">
                                                     <span className="fw-bold">Total:</span>
-                                                    {(() => {
-                                                        const totalMinutos = detalhes.reduce((acc, entry) => acc + (entry.horas * 60 + entry.minutos), 0);
-                                                        const totalHoras = Math.floor(totalMinutos / 60);
-                                                        const minutosRestantes = totalMinutos % 60;
-                                                        return (
-                                                            <span className="fw-bold text-primary">
-                                                                {totalHoras}h{minutosRestantes > 0 ? minutosRestantes : ''}
-                                                            </span>
-                                                        );
-                                                    })()}
+                                                    <span className="fw-bold text-primary">
+                                                        {totalHorasDia.totalHoras}h{totalHorasDia.minutosRestantes > 0 ? totalHorasDia.minutosRestantes : ''}
+                                                    </span>
                                                 </div>
                                             </div>
                                         )}
@@ -2734,155 +2118,26 @@ const CalendarioHorasTrabalho = () => {
                                             {mostrarFormularioFalta ? '- Recolher Falta' : '+ Registar Falta'}
                                         </button>
 
-                                        {mostrarFormularioFalta && (
-                                            <div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
-                                                <h6 className="text-danger fw-bold mb-3">
-                                                    <FaPlus className="me-2" />
-                                                    <span className="d-none d-sm-inline">Registar Falta</span>
-                                                    <span className="d-sm-none">Falta</span>
-                                                </h6>
-
-                                                <form onSubmit={submeterFalta}>
-                                                    <div className="mb-3">
-                                                        <label className="form-label small fw-semibold">Tipo de Falta</label>
-                                                        <select
-                                                            className="form-select form-moderno"
-                                                            value={novaFalta.Falta}
-                                                            onChange={(e) => {
-                                                                const codigo = e.target.value;
-                                                                const faltaSelecionada = tiposFalta.find(f => f.Falta === codigo);
-                                                                if (faltaSelecionada) {
-                                                                    setNovaFalta({
-                                                                        Falta: codigo,
-                                                                        Horas: Number(faltaSelecionada.Horas) === 1,
-                                                                        Tempo: 1,
-                                                                        Observacoes: '',
-                                                                        DescontaAlimentacao: Number(faltaSelecionada.DescontaSubsAlim) === 1,
-                                                                        DescontaSubsidioTurno: Number(faltaSelecionada.DescontaSubsTurno) === 1
-                                                                    });
-                                                                } else {
-                                                                    setNovaFalta({
-                                                                        Falta: '',
-                                                                        Horas: false,
-                                                                        Tempo: 1,
-                                                                        Observacoes: '',
-                                                                        DescontaAlimentacao: false,
-                                                                        DescontaSubsidioTurno: false
-                                                                    });
-                                                                }
-                                                            }}
-                                                            required
-                                                        >
-                                                            <option value="">Selecione o tipo...</option>
-                                                            {tiposFalta.map((t, i) => (
-                                                                <option key={i} value={t.Falta}>
-                                                                    {t.Falta} – {t.Descricao}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-
-                                                    <div className="row g-2 mb-3">
-                                                        <div className="col-6">
-                                                            <label className="form-label small fw-semibold">Duração</label>
-                                                            <input
-                                                                type="number"
-                                                                className="form-control form-moderno"
-                                                                min="1"
-                                                                value={novaFalta.Tempo}
-                                                                onChange={(e) => setNovaFalta({ ...novaFalta, Tempo: parseInt(e.target.value) })}
-                                                                required
-                                                            />
-                                                        </div>
-                                                        <div className="col-6">
-                                                            <label className="form-label small fw-semibold">Tipo</label>
-                                                            <input
-                                                                type="text"
-                                                                className="form-control form-moderno bg-light"
-                                                                readOnly
-                                                                value={novaFalta.Horas ? 'Por horas' : 'Dia completo'}
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="mb-3">
-                                                        <label className="form-label small fw-semibold">Observações</label>
-                                                        <textarea
-                                                            className="form-control form-moderno"
-                                                            rows="2"
-                                                            value={novaFalta.Observacoes}
-                                                            onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
-                                                        />
-                                                    </div>
-
-                                                    <div className="mb-3">
-                                                        <label className="form-label small fw-semibold">Anexos (opcional)</label>
-                                                        <input
-                                                            type="file"
-                                                            className="form-control form-moderno"
-                                                            onChange={handleAnexoFaltaChange}
-                                                            disabled={uploadingAnexo}
-                                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                        />
-                                                        {uploadingAnexo && (
-                                                            <div className="text-primary small mt-1">
-                                                                <span className="spinner-border spinner-border-sm me-1"></span>
-                                                                A enviar...
-                                                            </div>
-                                                        )}
-                                                        {anexosFalta.length > 0 && (
-                                                            <div className="mt-2">
-                                                                <small className="text-muted">Anexos adicionados:</small>
-                                                                {anexosFalta.map((anexo, idx) => (
-                                                                    <div key={idx} className="d-flex align-items-center justify-content-between border rounded p-2 mt-1">
-                                                                        <span className="small text-truncate">{anexo.nome_arquivo}</span>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="btn btn-sm btn-outline-danger"
-                                                                            onClick={() => removerAnexoFalta(idx)}
-                                                                        >
-                                                                            ×
-                                                                        </button>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {novaFalta.Falta && (
-                                                        <div className="alert alert-light border small">
-                                                            <div><strong>Tipo:</strong> {novaFalta.Horas ? 'Por horas' : 'Dia completo'}</div>
-                                                            <div><strong>Desconta Subsídio Alimentação:</strong> {novaFalta.DescontaAlimentacao ? 'Sim' : 'Não'}</div>
-                                                            <div><strong>Desconta Subsídio Turno:</strong> {novaFalta.DescontaSubsidioTurno ? 'Sim' : 'Não'}</div>
-                                                        </div>
-                                                    )}
-
-                                                    <button
-                                                        type="submit"
-                                                        className={`btn ${modoEdicaoFalta ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
-                                                        disabled={loading}
-                                                    >
-                                                        {loading
-                                                            ? modoEdicaoFalta ? "A editar..." : "A registar..."
-                                                            : modoEdicaoFalta ? "Guardar Alterações" : "Registar Falta"}
-                                                    </button>
-
-                                                    {modoEdicaoFalta && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
-                                                            onClick={() => {
-                                                                setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
-                                                                setModoEdicaoFalta(false);
-                                                                setFaltaOriginal(null);
-                                                            }}
-                                                        >
-                                                            Cancelar Edição
-                                                        </button>
-                                                    )}
-                                                </form>
-                                            </div>
-                                        )}
+                                        <Suspense fallback={<div className="text-center p-2"><small>A carregar...</small></div>}>
+                                            <ModalFalta
+                                                show={mostrarFormularioFalta}
+                                                novaFalta={novaFalta}
+                                                setNovaFalta={setNovaFalta}
+                                                tiposFalta={tiposFalta}
+                                                anexosFalta={anexosFalta}
+                                                uploadingAnexo={uploadingAnexo}
+                                                modoEdicao={modoEdicaoFalta}
+                                                loading={loading}
+                                                onSubmit={submeterFalta}
+                                                onAnexoChange={handleAnexoFaltaChange}
+                                                onRemoverAnexo={removerAnexoFalta}
+                                                onCancelarEdicao={() => {
+                                                    setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+                                                    setModoEdicaoFalta(false);
+                                                    setFaltaOriginal(null);
+                                                }}
+                                            />
+                                        </Suspense>
 
                                         <button
                                             className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
@@ -2892,74 +2147,21 @@ const CalendarioHorasTrabalho = () => {
                                             {MostrarFormularioFerias ? '- Recolher Férias' : '+ Registar Férias'}
                                         </button>
 
-                                        {MostrarFormularioFerias && (
-                                            <div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
-                                                <h6 className="text-danger fw-bold mb-3">
-                                                    <FaPlus className="me-2" />
-                                                    <span className="d-none d-sm-inline">Registar Férias</span>
-                                                    <span className="d-sm-none">Férias</span>
-                                                </h6>
-
-                                                <form onSubmit={submeterFerias}>
-                                                    <div className="row g-2 mb-3">
-                                                        <div className="col-6">
-                                                            <label className="form-label small fw-semibold">Data Início</label>
-                                                            <input
-                                                                type="date"
-                                                                className="form-control form-moderno"
-                                                                value={novaFaltaFerias.dataInicio}
-                                                                onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataInicio: e.target.value })}
-                                                                required
-                                                            />
-                                                        </div>
-                                                        <div className="col-6">
-                                                            <label className="form-label small fw-semibold">Data Fim</label>
-                                                            <input
-                                                                type="date"
-                                                                className="form-control form-moderno"
-                                                                value={novaFaltaFerias.dataFim}
-                                                                onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataFim: e.target.value })}
-                                                                required
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="mb-3">
-                                                        <label className="form-label small fw-semibold">Observações</label>
-                                                        <textarea
-                                                            className="form-control form-moderno"
-                                                            rows="2"
-                                                            value={novaFaltaFerias.Observacoes}
-                                                            onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, Observacoes: e.target.value })}
-                                                        />
-                                                    </div>
-
-                                                    <button
-                                                        type="submit"
-                                                        className={`btn ${modoEdicaoFerias ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
-                                                        disabled={loading}
-                                                    >
-                                                        {loading
-                                                            ? modoEdicaoFerias ? "A editar..." : "A registar..."
-                                                            : modoEdicaoFerias ? "Guardar Alterações" : "Registar Férias"}
-                                                    </button>
-
-                                                    {modoEdicaoFerias && (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
-                                                            onClick={() => {
-                                                                setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
-                                                                setModoEdicaoFerias(false);
-                                                                setFaltaOriginal(null);
-                                                            }}
-                                                        >
-                                                            Cancelar Edição
-                                                        </button>
-                                                    )}
-                                                </form>
-                                            </div>
-                                        )}
+                                        <Suspense fallback={<div className="text-center p-2"><small>A carregar...</small></div>}>
+                                            <ModalFerias
+                                                show={MostrarFormularioFerias}
+                                                novaFaltaFerias={novaFaltaFerias}
+                                                setNovaFaltaFerias={setNovaFaltaFerias}
+                                                modoEdicao={modoEdicaoFerias}
+                                                loading={loading}
+                                                onSubmit={submeterFerias}
+                                                onCancelarEdicao={() => {
+                                                    setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+                                                    setModoEdicaoFerias(false);
+                                                    setFaltaOriginal(null);
+                                                }}
+                                            />
+                                        </Suspense>
 
                                         {registoEmEdicao && (
                                             <div className="mt-3 border rounded p-3 bg-light">
