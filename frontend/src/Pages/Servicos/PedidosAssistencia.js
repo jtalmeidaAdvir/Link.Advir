@@ -52,7 +52,7 @@ const PedidosAssistencia = ({ navigation }) => {
     const [expandedSections, setExpandedSections] = useState({});
     const [loading, setLoading] = useState(true);
     const [filterPrioridade, setFilterPrioridade] = useState("");
-    const [filterSerie, setFilterSerie] = useState("2025");
+    const [filterSerie, setFilterSerie] = useState("2026");
     const [filterEstado, setFilterEstado] = useState("1");
     const [filterTecnico, setFilterTecnico] = useState("");
     const [tecnicos, setTecnicos] = useState([]);
@@ -668,6 +668,8 @@ const PedidosAssistencia = ({ navigation }) => {
                 return "2024";
             case "2025":
                 return "2025";
+			case "2026":
+                return "2026";
             default:
                 return serie || "Desconhecida";
         }
@@ -806,6 +808,7 @@ const PedidosAssistencia = ({ navigation }) => {
     const series = [
         { label: "2024", value: "2024", descricao: "2024" },
         { label: "2025", value: "2025", descricao: "2025" },
+		{ label: "2026", value: "2026", descricao: "2026" },
     ];
 
     const renderFilterMenu = () => (
