@@ -42,6 +42,8 @@ const LoginPOS = () => {
                 secureStorage.setItem('empresa_areacliente', result.empresa_areacliente);
                 secureStorage.setItem('obra_predefinida_id', result.obra_predefinida_id || '');
                 secureStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome || '');
+                secureStorage.setItem('pos_latitude', result.latitude || '');
+                secureStorage.setItem('pos_longitude', result.longitude || '');
                 
                 // Debug: verificar se os dados foram guardados
                 console.log('Dados POS guardados:', {

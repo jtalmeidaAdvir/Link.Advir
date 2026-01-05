@@ -27,13 +27,16 @@ const GestaoPOS = () => {
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [fadeAnimation] = useState(new Animated.Value(0));
+    const [showMapModal, setShowMapModal] = useState(false);
     const [formData, setFormData] = useState({
         nome: '',
         codigo: '',
         email: '',
         password: '',
         obra_predefinida_id: '',
-        ativo: true
+        ativo: true,
+        latitude: '',
+        longitude: ''
     });
 
     useEffect(() => {
@@ -106,8 +109,12 @@ const GestaoPOS = () => {
 
             const body = {
                 ...formData,
-                empresa_id: empresaId
+                empresa_id: empresaId,
+                latitude: formData.latitude && formData.latitude.trim() !== '' ? parseFloat(formData.latitude) : null,
+                longitude: formData.longitude && formData.longitude.trim() !== '' ? parseFloat(formData.longitude) : null
             };
+
+            console.log('📤 Enviando dados para o backend:', body);
 
             if (editingPOS && !formData.password) {
                 delete body.password;
@@ -150,7 +157,9 @@ const GestaoPOS = () => {
             email: pos.email,
             password: '',
             obra_predefinida_id: pos.obra_predefinida_id,
-            ativo: pos.ativo
+            ativo: pos.ativo,
+            latitude: pos.latitude || '',
+            longitude: pos.longitude || ''
         });
         setShowModal(true);
     };
@@ -185,7 +194,9 @@ const GestaoPOS = () => {
             email: '',
             password: '',
             obra_predefinida_id: '',
-            ativo: true
+            ativo: true,
+            latitude: '',
+            longitude: ''
         });
         setEditingPOS(null);
         setErrorMessage('');
@@ -195,6 +206,42 @@ const GestaoPOS = () => {
     const handleCloseModal = () => {
         setShowModal(false);
         resetForm();
+    };
+
+    const handleOpenMapPicker = () => {
+        // Coordenadas atuais ou coordenadas padrão (Lisboa, Portugal)
+        const lat = formData.latitude || '38.7223';
+        const lng = formData.longitude || '-9.1393';
+
+        // Abrir Google Maps numa nova janela
+        const mapUrl = `https://www.google.com/maps/@${lat},${lng},15z`;
+        window.open(mapUrl, '_blank', 'width=800,height=600');
+
+        // Mostrar instruções
+        alert(
+            'Como obter coordenadas do Google Maps:\n\n' +
+            '1. Clique com o botão direito no local desejado\n' +
+            '2. Clique nas coordenadas que aparecem no topo\n' +
+            '3. As coordenadas serão copiadas automaticamente\n' +
+            '4. Cole-as no campo Latitude (serão separadas automaticamente)\n\n' +
+            'Formato: Primeira coordenada = Latitude, Segunda = Longitude'
+        );
+    };
+
+    const handleLatitudeChange = (text) => {
+        // Detectar se o usuário colou coordenadas no formato "lat, lng"
+        if (text.includes(',')) {
+            const parts = text.split(',').map(part => part.trim());
+            if (parts.length === 2) {
+                setFormData({
+                    ...formData,
+                    latitude: parts[0],
+                    longitude: parts[1]
+                });
+                return;
+            }
+        }
+        setFormData({...formData, latitude: text});
     };
 
     const renderPOSItem = ({ item }) => (
@@ -228,6 +275,14 @@ const GestaoPOS = () => {
                     <MaterialCommunityIcons name="office-building" size={16} color="#7f8c8d" />
                     <Text style={styles.posDetailText}>{item.ObraPredefinida?.nome || 'Sem obra definida'}</Text>
                 </View>
+                {(item.latitude && item.longitude) && (
+                    <View style={styles.posDetailRow}>
+                        <MaterialCommunityIcons name="map-marker" size={16} color="#7f8c8d" />
+                        <Text style={styles.posDetailText}>
+                            {parseFloat(item.latitude).toFixed(4)}, {parseFloat(item.longitude).toFixed(4)}
+                        </Text>
+                    </View>
+                )}
             </View>
 
             <View style={styles.posActions}>
@@ -455,6 +510,52 @@ const GestaoPOS = () => {
                                     </Picker>
                                 </View>
                             </View>
+
+                            {/* Latitude */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>
+                                    <MaterialCommunityIcons name="map-marker-outline" size={16} color="#2c3e50" />
+                                    {' '}Latitude (ou cole "lat, lng" do Maps)
+                                </Text>
+                                <View style={styles.inputWrapper}>
+                                    <MaterialCommunityIcons name="latitude" size={20} color="#7f8c8d" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.textInput}
+                                        placeholder="Ex: 38.7223 ou cole 38.7223, -9.1393"
+                                        value={formData.latitude}
+                                        onChangeText={handleLatitudeChange}
+                                        placeholderTextColor="#95a5a6"
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Longitude */}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>
+                                    <MaterialCommunityIcons name="map-marker-outline" size={16} color="#2c3e50" />
+                                    {' '}Longitude
+                                </Text>
+                                <View style={styles.inputWrapper}>
+                                    <MaterialCommunityIcons name="longitude" size={20} color="#7f8c8d" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.textInput}
+                                        placeholder="Ex: -9.1393"
+                                        value={formData.longitude}
+                                        onChangeText={(text) => setFormData({...formData, longitude: text})}
+                                        keyboardType="numeric"
+                                        placeholderTextColor="#95a5a6"
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Botão para abrir Google Maps */}
+                            <TouchableOpacity
+                                style={styles.mapButton}
+                                onPress={handleOpenMapPicker}
+                            >
+                                <MaterialCommunityIcons name="map-search" size={20} color="#4481EB" />
+                                <Text style={styles.mapButtonText}>Selecionar no Google Maps</Text>
+                            </TouchableOpacity>
 
                             {/* Status Ativo */}
                             <View style={styles.switchGroup}>
@@ -909,6 +1010,26 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontWeight: '700',
         letterSpacing: 0.5,
+    },
+    mapButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#e6f2ff',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        borderColor: '#4481EB',
+        marginBottom: 20,
+        marginTop: 5,
+    },
+    mapButtonText: {
+        fontSize: 14,
+        color: '#4481EB',
+        fontWeight: '600',
+        marginLeft: 8,
+        letterSpacing: 0.3,
     },
 });
 

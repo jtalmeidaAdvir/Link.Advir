@@ -581,11 +581,18 @@ const RegistoPontoFacial = (props) => {
 
       setIsAuthLoading(false);
 
-      // 2) Localização - Verificar se é POS CASAPEDOME para pular obtenção de localização
+      // 2) Localização - Verificar se o terminal tem coordenadas predefinidas
       const posNome = secureStorage.getItem("posNome");
+      const posLatitude = secureStorage.getItem("pos_latitude");
+      const posLongitude = secureStorage.getItem("pos_longitude");
       let loc = null;
 
-      if (posNome === "CASAPEDOME") {
+      if (posLatitude && posLongitude) {
+        // Se o terminal tem coordenadas definidas, usar essas coordenadas
+        console.log("📍 Coordenadas do terminal detectadas - usando coordenadas predefinidas");
+        setStatusMessage(`${userName} identificado. A registar ponto...`);
+        loc = { coords: { latitude: posLatitude, longitude: posLongitude } };
+      } else if (posNome === "CASAPEDOME") {
         // Para CASAPEDOME, não obter localização (mais rápido)
         console.log("📍 POS CASAPEDOME detectado - localização desativada");
         setStatusMessage(`${userName} identificado. A registar ponto...`);
@@ -1089,10 +1096,15 @@ const RegistoPontoFacial = (props) => {
       const token = secureStorage.getItem("loginToken");
       const empresaId = secureStorage.getItem("empresa_id");
       const posNome = secureStorage.getItem("posNome");
+      const posLatitude = secureStorage.getItem("pos_latitude");
+      const posLongitude = secureStorage.getItem("pos_longitude");
 
-      // Obter localização apenas se não for CASAPEDOME
+      // Obter localização - priorizar coordenadas do terminal
       let loc = { coords: { latitude: null, longitude: null } };
-      if (posNome !== "CASAPEDOME") {
+      if (posLatitude && posLongitude) {
+        // Usar coordenadas predefinidas do terminal
+        loc = { coords: { latitude: posLatitude, longitude: posLongitude } };
+      } else if (posNome !== "CASAPEDOME") {
         try {
           loc = await getCurrentLocation();
         } catch {}
@@ -1333,11 +1345,15 @@ const RegistoPontoFacial = (props) => {
       const token = secureStorage.getItem("loginToken");
       const empresaId = secureStorage.getItem("empresa_id");
       const posNome = secureStorage.getItem("posNome");
+      const posLatitude = secureStorage.getItem("pos_latitude");
+      const posLongitude = secureStorage.getItem("pos_longitude");
 
       let loc = { coords: { latitude: null, longitude: null } };
 
-      // Apenas obter localização se não for CASAPEDOME
-      if (posNome !== "CASAPEDOME") {
+      // Priorizar coordenadas do terminal
+      if (posLatitude && posLongitude) {
+        loc = { coords: { latitude: posLatitude, longitude: posLongitude } };
+      } else if (posNome !== "CASAPEDOME") {
         try {
           loc = await getCurrentLocation();
         } catch {}
