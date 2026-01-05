@@ -46,6 +46,14 @@ const POS = sequelize.define('POS', {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
     },
+    latitude: {
+        type: DataTypes.DECIMAL(10, 6),
+        allowNull: true,
+    },
+    longitude: {
+        type: DataTypes.DECIMAL(10, 6),
+        allowNull: true,
+    },
     createdAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,

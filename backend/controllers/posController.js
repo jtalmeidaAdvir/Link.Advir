@@ -10,6 +10,8 @@ const criarPOS = async (req, res) => {
     try {
         const { nome, codigo, email, password, empresa_id, obra_predefinida_id, latitude, longitude } = req.body;
 
+        console.log('Dados recebidos para criar POS:', { nome, codigo, email, empresa_id, obra_predefinida_id, latitude, longitude });
+
         // Validar dados obrigatórios
         if (!nome || !codigo || !email || !password || !empresa_id) {
             return res.status(400).json({
@@ -133,12 +135,20 @@ const loginPOS = async (req, res) => {
 const listarPOS = async (req, res) => {
     try {
         const posList = await POS.findAll({
+            attributes: ['id', 'nome', 'codigo', 'email', 'obra_predefinida_id', 'empresa_id', 'ativo', 'latitude', 'longitude', 'createdAt', 'updatedAt'],
             include: [
                 { model: Obra, as: 'ObraPredefinida' },
                 { model: Empresa, as: 'Empresa' }
             ],
             order: [['nome', 'ASC']]
         });
+
+        console.log('📋 Listando POS - Primeiro item:', posList[0] ? {
+            id: posList[0].id,
+            nome: posList[0].nome,
+            latitude: posList[0].latitude,
+            longitude: posList[0].longitude
+        } : 'Nenhum POS encontrado');
 
         res.json(posList);
     } catch (error) {
@@ -152,6 +162,8 @@ const atualizarPOS = async (req, res) => {
     try {
         const { id } = req.params;
         const { nome, codigo, email, password, empresa_id, obra_predefinida_id, ativo, latitude, longitude } = req.body;
+
+        console.log('Dados recebidos para atualizar POS:', { id, nome, codigo, email, empresa_id, obra_predefinida_id, ativo, latitude, longitude });
 
         const pos = await POS.findByPk(id);
         if (!pos) {
@@ -167,7 +179,7 @@ const atualizarPOS = async (req, res) => {
         }
 
         // Atualizar o POS
-        await pos.update({
+        const updateData = {
             nome: nome || pos.nome,
             codigo: codigo || pos.codigo,
             email: email || pos.email,
@@ -177,6 +189,16 @@ const atualizarPOS = async (req, res) => {
             ativo: ativo !== undefined ? ativo : pos.ativo,
             latitude: latitude !== undefined ? latitude : pos.latitude,
             longitude: longitude !== undefined ? longitude : pos.longitude
+        };
+
+        console.log('Dados para atualizar:', updateData);
+
+        await pos.update(updateData);
+
+        console.log('POS após atualização:', {
+            id: pos.id,
+            latitude: pos.latitude,
+            longitude: pos.longitude
         });
 
         res.json({
