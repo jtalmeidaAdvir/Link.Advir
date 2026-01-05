@@ -1,8 +1,19 @@
-
 import React, { useState, useEffect } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    TextInput,
+    Modal,
+    ActivityIndicator,
+    Animated,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { secureStorage } from '../../utils/secureStorage';
-import { motion } from 'framer-motion';
-import { FaClock, FaPlus, FaEdit, FaTrash, FaUsers, FaHistory, FaCheck, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
+import { Picker } from '@react-native-picker/picker';
 
 const GestaoHorarios = () => {
     const [activeTab, setActiveTab] = useState('visao-geral');
@@ -557,215 +568,262 @@ const GestaoHorarios = () => {
     });
 
     return (
-        <div style={styles.container}>
-            <div style={styles.header}>
-                <h1 style={styles.title}>
-                    <FaClock style={styles.titleIcon} />
-                    Gestão de Horários
-                </h1>
-            </div>
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.scrollContentWrapper}
+            showsVerticalScrollIndicator={false}
+        >
+            <LinearGradient
+                colors={['#1976D2', '#42A5F5']}
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+            >
+                <View style={styles.headerContent}>
+                    <MaterialCommunityIcons name="clock-outline" size={48} color="#ffffff" />
+                    <Text style={styles.headerTitle}>Gestão de Horários</Text>
+                    <Text style={styles.headerSubtitle}>Gerir horários de trabalho dos utilizadores</Text>
+                </View>
+            </LinearGradient>
 
-            {errorMessage && (
-                <div style={styles.errorMessage}>{errorMessage}</div>
-            )}
-            {successMessage && (
-                <div style={styles.successMessage}>{successMessage}</div>
-            )}
+            {errorMessage ? (
+                <View style={styles.errorContainer}>
+                    <MaterialCommunityIcons name="alert-circle" size={22} color="#ff6b6b" />
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+            ) : null}
+            {successMessage ? (
+                <View style={styles.successContainer}>
+                    <MaterialCommunityIcons name="check-circle" size={22} color="#4caf50" />
+                    <Text style={styles.successText}>{successMessage}</Text>
+                </View>
+            ) : null}
 
             {/* Tabs */}
-            <div style={styles.tabs}>
-                <button
-                    style={activeTab === 'visao-geral' ? styles.activeTab : styles.tab}
-                    onClick={() => setActiveTab('visao-geral')}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.navTabsContainer}
+                contentContainerStyle={styles.navTabsContent}
+            >
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'visao-geral' && styles.activeTab]}
+                    onPress={() => setActiveTab('visao-geral')}
                 >
-                    <FaUsers /> Visão Geral
-                </button>
-                <button
-                    style={activeTab === 'horarios' ? styles.activeTab : styles.tab}
-                    onClick={() => setActiveTab('horarios')}
+                    <MaterialCommunityIcons
+                        name="account-group"
+                        size={20}
+                        color={activeTab === 'visao-geral' ? "#ffffff" : "#7f8c8d"}
+                    />
+                    <Text style={[styles.tabText, activeTab === 'visao-geral' && styles.activeTabText]}>
+                        Visão Geral
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'horarios' && styles.activeTab]}
+                    onPress={() => setActiveTab('horarios')}
                 >
-                    <FaClock /> Horários
-                </button>
-                <button
-                    style={activeTab === 'calendario' ? styles.activeTab : styles.tab}
-                    onClick={() => setActiveTab('calendario')}
+                    <MaterialCommunityIcons
+                        name="clock-outline"
+                        size={20}
+                        color={activeTab === 'horarios' ? "#ffffff" : "#7f8c8d"}
+                    />
+                    <Text style={[styles.tabText, activeTab === 'horarios' && styles.activeTabText]}>
+                        Horários
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'calendario' && styles.activeTab]}
+                    onPress={() => setActiveTab('calendario')}
                 >
-                    <FaHistory /> Calendário
-                </button>
-            </div>
+                    <MaterialCommunityIcons
+                        name="calendar-month"
+                        size={20}
+                        color={activeTab === 'calendario' ? "#ffffff" : "#7f8c8d"}
+                    />
+                    <Text style={[styles.tabText, activeTab === 'calendario' && styles.activeTabText]}>
+                        Calendário
+                    </Text>
+                </TouchableOpacity>
+            </ScrollView>
 
             {/* Visão Geral - Nova Tab Principal */}
             {activeTab === 'visao-geral' && (
-                <div style={styles.content}>
+                <View style={styles.content}>
                     {/* Estatísticas */}
-                    <div style={styles.statsGrid}>
-                        <div style={styles.statCard}>
-                            <div style={styles.statIcon} className="stat-icon-total">
-                                <FaUsers />
-                            </div>
-                            <div style={styles.statContent}>
-                                <div style={styles.statValue}>{totalUsers}</div>
-                                <div style={styles.statLabel}>Total de Utilizadores</div>
-                            </div>
-                        </div>
+                    <View style={styles.statsGrid}>
+                        <View style={styles.statCard}>
+                            <View style={styles.statIcon}>
+                                <MaterialCommunityIcons name="account-group" size={24} color="#1976D2" />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={styles.statValue}>{totalUsers}</Text>
+                                <Text style={styles.statLabel}>Total de Utilizadores</Text>
+                            </View>
+                        </View>
 
-                        <div style={styles.statCard}>
-                            <div style={{...styles.statIcon, backgroundColor: '#e8f5e9'}} className="stat-icon-com">
-                                <FaCheck style={{color: '#4caf50'}} />
-                            </div>
-                            <div style={styles.statContent}>
-                                <div style={{...styles.statValue, color: '#4caf50'}}>{usersComHorario}</div>
-                                <div style={styles.statLabel}>Com Horário Definido</div>
-                            </div>
-                        </div>
+                        <View style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: '#e8f5e9' }]}>
+                                <MaterialCommunityIcons name="check" size={24} color="#4caf50" />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={[styles.statValue, { color: '#4caf50' }]}>{usersComHorario}</Text>
+                                <Text style={styles.statLabel}>Com Horário Definido</Text>
+                            </View>
+                        </View>
 
-                        <div style={styles.statCard}>
-                            <div style={{...styles.statIcon, backgroundColor: '#fff3e0'}} className="stat-icon-sem">
-                                <FaExclamationTriangle style={{color: '#ff9800'}} />
-                            </div>
-                            <div style={styles.statContent}>
-                                <div style={{...styles.statValue, color: '#ff9800'}}>{usersSemHorario}</div>
-                                <div style={styles.statLabel}>Sem Horário Definido</div>
-                            </div>
-                        </div>
-                    </div>
+                        <View style={styles.statCard}>
+                            <View style={[styles.statIcon, { backgroundColor: '#fff3e0' }]}>
+                                <MaterialCommunityIcons name="alert" size={24} color="#ff9800" />
+                            </View>
+                            <View style={styles.statContent}>
+                                <Text style={[styles.statValue, { color: '#ff9800' }]}>{usersSemHorario}</Text>
+                                <Text style={styles.statLabel}>Sem Horário Definido</Text>
+                            </View>
+                        </View>
+                    </View>
 
                     {/* Ações Rápidas */}
-                    <div style={styles.actionBar}>
-                        <button
+                    <View style={styles.actionBar}>
+                        <TouchableOpacity
                             style={styles.btnPrimary}
-                            onClick={() => setShowPlanoModal(true)}
+                            onPress={() => setShowPlanoModal(true)}
                         >
-                            <FaPlus /> Atribuir Horário
-                        </button>
-                    </div>
+                            <MaterialCommunityIcons name="plus" size={20} color="#ffffff" />
+                            <Text style={styles.btnPrimaryText}>Atribuir Horário</Text>
+                        </TouchableOpacity>
+                    </View>
 
-                    {/* Lista de Utilizadores com Status Visual */}
+                    {/* Lista de Utilizadores */}
                     <div style={styles.usersListContainer}>
-                        <h3 style={styles.sectionTitle}>Utilizadores</h3>
-                        
-                        {/* Barra de Pesquisa e Filtros */}
                         <div style={styles.searchFilterContainer}>
                             <div style={styles.searchBox}>
                                 <input
                                     type="text"
-                                    placeholder="Pesquisar por nome "
+                                    placeholder="Pesquisar por nome ou email..."
+                                    style={styles.searchInput}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={styles.searchInput}
                                 />
                             </div>
-                            
                             <div style={styles.filterButtons}>
                                 <button
-                                    style={filtroStatus === 'todos' ? styles.filterButtonActive : styles.filterButton}
+                                    style={{
+                                        ...styles.filterButton,
+                                        ...(filtroStatus === 'todos' ? styles.filterButtonActive : {})
+                                    }}
                                     onClick={() => setFiltroStatus('todos')}
                                 >
-                                    Todos ({totalUsers})
+                                    Todos ({planosAtivos.length})
                                 </button>
                                 <button
-                                    style={filtroStatus === 'com-horario' ? styles.filterButtonActiveSuccess : styles.filterButton}
+                                    style={{
+                                        ...styles.filterButton,
+                                        ...(filtroStatus === 'com-horario' ? styles.filterButtonActive : {})
+                                    }}
                                     onClick={() => setFiltroStatus('com-horario')}
                                 >
-                                    <FaCheck style={{marginRight: '5px'}} />
                                     Com Horário ({usersComHorario})
                                 </button>
                                 <button
-                                    style={filtroStatus === 'sem-horario' ? styles.filterButtonActiveWarning : styles.filterButton}
+                                    style={{
+                                        ...styles.filterButton,
+                                        ...(filtroStatus === 'sem-horario' ? styles.filterButtonActive : {})
+                                    }}
                                     onClick={() => setFiltroStatus('sem-horario')}
                                 >
-                                    <FaExclamationTriangle style={{marginRight: '5px'}} />
                                     Sem Horário ({usersSemHorario})
                                 </button>
                             </div>
                         </div>
 
-                        {/* Resultados da Pesquisa */}
-                        {planosFiltrados.length === 0 ? (
-                            <div style={styles.noResults}>
-                                <FaExclamationTriangle style={{fontSize: '48px', color: '#ff9800', marginBottom: '15px'}} />
-                                <p style={{fontSize: '16px', color: '#757575'}}>
-                                    Nenhum utilizador encontrado com os filtros selecionados.
-                                </p>
-                            </div>
-                        ) : (
-                            <div style={styles.resultadosInfo}>
-                                A mostrar <strong>{planosFiltrados.length}</strong> de <strong>{totalUsers}</strong> utilizadores
-                            </div>
-                        )}
-                        
-                        <div style={styles.usersCompactList}>
-                            {planosFiltrados.map(plano => (
-                                <div 
-                                    key={plano.userId} 
-                                    style={plano.hasPlano ? styles.userItemComHorario : styles.userItemSemHorario}
-                                >
-                                    <div style={styles.userItemLeft}>
-                                        <div style={plano.hasPlano ? styles.statusIndicatorAtivo : styles.statusIndicatorInativo}>
-                                            {plano.hasPlano ? <FaCheck /> : <FaTimes />}
-                                        </div>
-                                        <div style={styles.userItemInfo}>
-                                            <h4 style={styles.userName}>{plano.userName}</h4>
-                                            <p style={styles.userEmail}></p>
-                                            {plano.hasPlano && plano.plano?.Horario && (
-                                                <>
-                                                    <div style={styles.horarioTag}>
-                                                        <FaClock style={{fontSize: '12px', marginRight: '5px'}} />
-                                                        {plano.plano.Horario.descricao} ({plano.plano.Horario.horasSemanais}h/sem)
+                        <div style={styles.usersList}>
+                            {planosFiltrados.length === 0 ? (
+                                <div style={styles.emptyState}>
+                                    <span style={{fontSize: '48px'}}>👥</span>
+                                    <p style={styles.emptyStateText}>Nenhum utilizador encontrado</p>
+                                </div>
+                            ) : (
+                                planosFiltrados.map(plano => (
+                                    <div key={plano.userId} style={styles.userCard}>
+                                        <div style={styles.userInfo}>
+                                            <div style={styles.userAvatar}>
+                                                <span style={{fontSize: '24px'}}>👤</span>
+                                            </div>
+                                            <div style={styles.userDetails}>
+                                                <h4 style={styles.userName}>{plano.userName}</h4>
+                                                <p style={styles.userEmail}>{plano.userEmail}</p>
+                                                {plano.hasPlano && plano.horarioDescricao && (
+                                                    <div style={styles.horarioBadge}>
+                                                        <span style={{fontSize: '12px', marginRight: '5px'}}>⏰</span>
+                                                        {plano.horarioDescricao}
                                                     </div>
-                                                    {plano.plano.tipoPeriodo && plano.plano.tipoPeriodo !== 'permanente' && (
-                                                        <div style={{...styles.horarioTag, backgroundColor: '#fff3e0', color: '#f57c00', fontSize: '12px', marginTop: '5px'}}>
-                                                            {plano.plano.tipoPeriodo === 'dia' && `📅 Dia: ${new Date(plano.plano.diaEspecifico).toLocaleDateString('pt-PT')}`}
-                                                            {plano.plano.tipoPeriodo === 'mes' && `📅 Mês: ${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][plano.plano.mesEspecifico - 1]}`}
-                                                            {plano.plano.tipoPeriodo === 'ano' && `📅 Ano: ${plano.plano.anoEspecifico}`}
-                                                        </div>
-                                                    )}
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div style={styles.userActions}>
+                                            {plano.hasPlano ? (
+                                                <>
+                                                    <div style={styles.statusBadge}>
+                                                        <span style={{fontSize: '12px', marginRight: '5px'}}>✓</span>
+                                                        Com Horário
+                                                    </div>
+                                                    <button
+                                                        style={styles.btnIcon}
+                                                        onClick={() => {
+                                                            setNovoPlano({
+                                                                user_id: plano.userId,
+                                                                horario_id: '',
+                                                                tipoPeriodo: 'indefinido',
+                                                                dataInicio: '',
+                                                                dataFim: '',
+                                                                diaEspecifico: '',
+                                                                mesEspecifico: '',
+                                                                anoEspecifico: '',
+                                                                observacoes: ''
+                                                            });
+                                                            setShowPlanoModal(true);
+                                                        }}
+                                                        title="Editar horário"
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div style={styles.statusBadgeWarning}>
+                                                        <span style={{fontSize: '12px', marginRight: '5px'}}>⚠</span>
+                                                        Sem Horário
+                                                    </div>
+                                                    <button
+                                                        style={styles.btnPrimary}
+                                                        onClick={() => {
+                                                            setNovoPlano({
+                                                                user_id: plano.userId,
+                                                                horario_id: '',
+                                                                tipoPeriodo: 'indefinido',
+                                                                dataInicio: '',
+                                                                dataFim: '',
+                                                                diaEspecifico: '',
+                                                                mesEspecifico: '',
+                                                                anoEspecifico: '',
+                                                                observacoes: ''
+                                                            });
+                                                            setShowPlanoModal(true);
+                                                        }}
+                                                    >
+                                                        Atribuir
+                                                    </button>
                                                 </>
                                             )}
                                         </div>
                                     </div>
-                                    
-                                    <div style={styles.userItemActions}>
-                                        {plano.hasPlano ? (
-                                            <>
-                                              
-                                                <button
-                                                    style={styles.btnEditar}
-                                                    onClick={() => {
-                                                        setNovoPlano({
-                                                            user_id: plano.userId,
-                                                            horario_id: '',
-                                                            dataInicio: new Date().toISOString().split('T')[0],
-                                                            observacoes: ''
-                                                        });
-                                                        setShowPlanoModal(true);
-                                                    }}
-                                                >
-                                                    <FaEdit />
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <button
-                                                style={styles.btnAtribuir}
-                                                onClick={() => {
-                                                    setNovoPlano({
-                                                        user_id: plano.userId,
-                                                        horario_id: '',
-                                                        dataInicio: new Date().toISOString().split('T')[0],
-                                                        observacoes: ''
-                                                    });
-                                                    setShowPlanoModal(true);
-                                                }}
-                                            >
-                                                <FaPlus />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </div>
-                </div>
+
+                </View>
             )}
 
             {/* Tab Horários */}
@@ -776,16 +834,14 @@ const GestaoHorarios = () => {
                             style={styles.btnPrimary}
                             onClick={() => setShowModal(true)}
                         >
-                            <FaPlus /> Novo Horário
+                            ➕ Novo Horário
                         </button>
                     </div>
 
                     <div style={styles.grid}>
                         {horarios.map(horario => (
-                            <motion.div
+                            <div
                                 key={horario.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
                                 style={styles.card}
                             >
                                 <div style={styles.cardHeader}>
@@ -799,13 +855,13 @@ const GestaoHorarios = () => {
                                                 setShowModal(true);
                                             }}
                                         >
-                                            <FaEdit />
+                                            ✏️
                                         </button>
                                         <button
                                             style={styles.btnIconDanger}
                                             onClick={() => handleEliminarHorario(horario.id)}
                                         >
-                                            <FaTrash />
+                                            🗑️
                                         </button>
                                     </div>
                                 </div>
@@ -864,7 +920,7 @@ const GestaoHorarios = () => {
                                         ))}
                                     </div>
                                 </div>
-                            </motion.div>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -1050,7 +1106,7 @@ const GestaoHorarios = () => {
                         </div>
                     ) : (
                         <div style={styles.calendarioPlaceholder}>
-                            <FaUsers style={{fontSize: '48px', color: '#ccc', marginBottom: '15px'}} />
+                            <span style={{fontSize: '48px', marginBottom: '15px'}}>👥</span>
                             <p>Selecione um utilizador para ver e gerir o calendário de horários</p>
                         </div>
                     )}
@@ -1388,162 +1444,207 @@ const GestaoHorarios = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </ScrollView>
     );
 };
 
-const styles = {
+const styles = StyleSheet.create({
     container: {
-    padding: '20px',
-    width: '100%',
-    fontFamily: 'Poppins, sans-serif',
-    boxSizing: 'border-box',
-    minHeight: '100vh',
-    height: '100%',
-    overflowY: 'auto',
-    overflowX: 'hidden'
-},
-
-
-'@media (min-width: 600px)': {
-    container: {
-        padding: '20px'
-    }
-}
-,
+        flex: 1,
+        backgroundColor: '#e3f2fd',
+    },
+    scrollContentWrapper: {
+        flexGrow: 1,
+        paddingBottom: 40,
+    },
     header: {
-        marginBottom: '30px'
+        width: '100%',
+        paddingTop: 50,
+        paddingBottom: 50,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 8,
     },
-    title: {
-        fontSize: '32px',
-        fontWeight: '700',
-        color: '#1976D2',
-        display: 'flex',
+    headerContent: {
         alignItems: 'center',
-        gap: '15px'
     },
-    titleIcon: {
-        fontSize: '28px'
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#ffffff',
+        marginTop: 12,
+        marginBottom: 6,
+        letterSpacing: 0.5,
     },
-    tabs: {
-        display: 'flex',
-        gap: '10px',
-        marginBottom: '30px',
-        borderBottom: '2px solid #e0e0e0'
+    headerSubtitle: {
+        fontSize: 15,
+        color: 'rgba(255, 255, 255, 0.95)',
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fee',
+        padding: 14,
+        borderRadius: 14,
+        marginTop: 20,
+        marginHorizontal: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: '#ff6b6b',
+    },
+    errorText: {
+        color: '#ff6b6b',
+        marginLeft: 10,
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+    },
+    successContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#e8f5e9',
+        padding: 14,
+        borderRadius: 14,
+        marginTop: 20,
+        marginHorizontal: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: '#4caf50',
+    },
+    successText: {
+        color: '#4caf50',
+        marginLeft: 10,
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+    },
+    navTabsContainer: {
+        marginTop: 20,
+        marginHorizontal: 20,
+    },
+    navTabsContent: {
+        paddingRight: 20,
     },
     tab: {
-        padding: '12px 24px',
-        backgroundColor: 'transparent',
-        border: 'none',
-        borderBottom: '3px solid transparent',
-        cursor: 'pointer',
-        fontSize: '16px',
-        fontWeight: '500',
-        color: '#757575',
-        display: 'flex',
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: '8px',
-        transition: 'all 0.2s ease'
+        backgroundColor: '#ffffff',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        marginRight: 12,
+        shadowColor: '#1976D2',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     activeTab: {
-        padding: '12px 24px',
-        backgroundColor: 'transparent',
-        border: 'none',
-        borderBottom: '3px solid #1976D2',
-        cursor: 'pointer',
-        fontSize: '16px',
+        backgroundColor: '#1976D2',
+        shadowOpacity: 0.3,
+        elevation: 4,
+    },
+    tabText: {
+        fontSize: 14,
         fontWeight: '600',
-        color: '#1976D2',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px'
+        color: '#7f8c8d',
+        marginLeft: 8,
+        letterSpacing: 0.3,
+    },
+    activeTabText: {
+        color: '#ffffff',
     },
     content: {
-        backgroundColor: '#fff',
-        borderRadius: '12px',
-        padding: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        marginBottom: '20px'
+        marginTop: 20,
+        marginHorizontal: 20,
+        backgroundColor: '#ffffff',
+        borderRadius: 24,
+        padding: 20,
+        shadowColor: '#1976D2',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
     },
     statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '15px',
-    marginBottom: '30px',
-},
-
-// Responsivo
-'@media (min-width: 600px)': {
-    statsGrid: {
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        marginBottom: 30,
     },
-},
-'@media (min-width: 900px)': {
-    statsGrid: {
-        grid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '20px'
-},
-
-'@media (min-width: 600px)': {
-    grid: {
-        gridTemplateColumns: 'repeat(2, 1fr)',
-    },
-},
-
-'@media (min-width: 900px)': {
-    grid: {
-        gridTemplateColumns: 'repeat(3, 1fr)',
-    },
-},
-
-    },
-},
 
     statCard: {
-        backgroundColor: '#fff',
-        borderRadius: '12px',
-        padding: '20px',
-        display: 'flex',
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 20,
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: '15px',
-        border: '1px solid #e0e0e0',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     statIcon: {
-        width: '60px',
-        height: '60px',
-        borderRadius: '12px',
+        width: 60,
+        height: 60,
+        borderRadius: 12,
         backgroundColor: '#e3f2fd',
-        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '24px',
-        color: '#1976D2'
     },
     statContent: {
-        flex: 1
+        flex: 1,
     },
     statValue: {
-        fontSize: '32px',
+        fontSize: 32,
         fontWeight: '700',
         color: '#1976D2',
-        marginBottom: '5px'
+        marginBottom: 5,
     },
     statLabel: {
-        fontSize: '14px',
+        fontSize: 14,
         color: '#757575',
-        fontWeight: '500'
+        fontWeight: '500',
     },
     sectionTitle: {
-        fontSize: '20px',
+        fontSize: 20,
         fontWeight: '600',
         color: '#333',
-        marginBottom: '20px'
+        marginBottom: 20,
+    },
+    actionBar: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    btnPrimary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1976D2',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        gap: 8,
+        shadowColor: '#1976D2',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    btnPrimaryText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '600',
     },
     usersListContainer: {
-        marginTop: '20px'
+        marginTop: 20,
     },
     searchFilterContainer: {
         marginBottom: '20px',
@@ -2196,7 +2297,116 @@ userItemLeft: {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center'
+    },
+    usersList: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+    },
+    emptyState: {
+        textAlign: 'center',
+        padding: '40px 20px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    emptyStateText: {
+        fontSize: '16px',
+        color: '#757575',
+        marginTop: '10px',
+        fontWeight: '500'
+    },
+    userCard: {
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        padding: '16px',
+        borderRadius: '12px',
+        border: '2px solid #e0e0e0',
+        gap: '15px',
+        transition: 'all 0.2s ease'
+    },
+    userInfo: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: '15px',
+        flex: 1,
+        minWidth: 0
+    },
+    userAvatar: {
+        width: '50px',
+        height: '50px',
+        borderRadius: '50%',
+        backgroundColor: '#e3f2fd',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+    },
+    userDetails: {
+        flex: 1,
+        minWidth: 0
+    },
+    horarioBadge: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '4px 10px',
+        backgroundColor: '#e3f2fd',
+        color: '#1976D2',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '500',
+        marginTop: '5px'
+    },
+    userActions: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: '10px',
+        flexShrink: 0
+    },
+    statusBadge: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '6px 12px',
+        backgroundColor: '#e8f5e9',
+        color: '#4caf50',
+        borderRadius: '12px',
+        fontSize: '13px',
+        fontWeight: '600',
+        whiteSpace: 'nowrap'
+    },
+    statusBadgeWarning: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '6px 12px',
+        backgroundColor: '#fff3e0',
+        color: '#ff9800',
+        borderRadius: '12px',
+        fontSize: '13px',
+        fontWeight: '600',
+        whiteSpace: 'nowrap'
+    },
+    btnIcon: {
+        padding: '8px 12px',
+        backgroundColor: '#fff',
+        color: '#1976D2',
+        border: '2px solid #1976D2',
+        borderRadius: '8px',
+        fontSize: '16px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s ease',
+        minWidth: '40px'
     }
-};
+});
 
 export default GestaoHorarios;

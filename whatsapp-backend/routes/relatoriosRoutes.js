@@ -82,10 +82,15 @@ router.put("/relatorios-agendados/:id", async (req, res) => {
         const { id } = req.params;
         const updates = req.body;
 
+        console.log("🔄 Atualizando relatório ID:", id);
+        console.log("📦 Dados recebidos:", updates);
+
         const relatorio = await Schedule.findByPk(id);
         if (!relatorio) {
             return res.status(404).json({ error: "Relatório não encontrado" });
         }
+
+        console.log("📋 Relatório antes da atualização:", relatorio.toJSON());
 
         // Preparar dados para atualização
         const updateData = {};
@@ -100,11 +105,16 @@ router.put("/relatorios-agendados/:id", async (req, res) => {
         if (updates.obra_id !== undefined) updateData.obra_id = updates.obra_id || null;
         if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
 
+        console.log("💾 Dados para atualizar:", updateData);
+
         await relatorio.update(updateData);
+
+        const relatorioAtualizado = await Schedule.findByPk(id);
+        console.log("✅ Relatório após atualização:", relatorioAtualizado.toJSON());
 
         res.json({ message: "Relatório atualizado com sucesso" });
     } catch (error) {
-        console.error("Erro ao atualizar relatório:", error);
+        console.error("❌ Erro ao atualizar relatório:", error);
         res.status(500).json({ error: "Erro ao atualizar relatório" });
     }
 });

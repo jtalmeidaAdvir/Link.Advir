@@ -1,4 +1,13 @@
 import React, { useState, useEffect } from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+} from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import ConnectionTab from "./components/ConnectionTab";
 import ContactsTab from "./components/ContactsTab";
 import ScheduleTab from "./components/ScheduleTab";
@@ -93,34 +102,8 @@ const WhatsAppWebConfig = () => {
         loadUserInfo,
     } = useWhatsAppData(API_BASE_URL, activeTab);
 
-    // Estilos
-    const styles = getWhatsAppStyles();
-
-    // Add custom scrollbar styles for webkit browsers
-    useEffect(() => {
-        const style = document.createElement("style");
-        style.textContent = `
-            .custom-scroll::-webkit-scrollbar {
-                width: 8px;
-            }
-            .custom-scroll::-webkit-scrollbar-track {
-                background: #f1f1f1;
-                border-radius: 10px;
-            }
-            .custom-scroll::-webkit-scrollbar-thumb {
-                background: #c1c1c1;
-                border-radius: 10px;
-            }
-            .custom-scroll::-webkit-scrollbar-thumb:hover {
-                background: #a8a8a8;
-            }
-        `;
-        document.head.appendChild(style);
-
-        return () => {
-            document.head.removeChild(style);
-        };
-    }, []);
+    // Estilos do WhatsApp (para uso interno nos componentes)
+    const whatsAppStyles = getWhatsAppStyles();
 
     useEffect(() => {
         // Load initial data when the component mounts or activeTab changes
@@ -951,7 +934,7 @@ const WhatsAppWebConfig = () => {
             handleTestMessage={handleTestMessage}
             checkStatus={checkStatus}
             API_BASE_URL={API_BASE_URL}
-            styles={styles}
+            styles={whatsAppStyles}
         />
     );
 
@@ -974,7 +957,7 @@ const WhatsAppWebConfig = () => {
             addEditContact={addEditContact}
             removeEditContact={removeEditContact}
             updateEditContact={updateEditContact}
-            styles={styles}
+            styles={whatsAppStyles}
         />
     );
 
@@ -993,7 +976,7 @@ const WhatsAppWebConfig = () => {
             simulateTimeExecution={simulateTimeExecution}
             toggleSchedule={toggleSchedule}
             loadScheduledMessages={loadScheduledMessages}
-            styles={styles}
+            styles={whatsAppStyles}
         />
     );
 
@@ -1004,10 +987,10 @@ const WhatsAppWebConfig = () => {
             externosDisponiveis={externosDisponiveis}
             obrasDisponiveis={obrasDisponiveis}
             externosContactos={externosContactos}
-            setExternosContactos={setExternosContactos} // Ensure this is passed if needed by the component
+            setExternosContactos={setExternosContactos}
             handleCreateExternoContacto={handleCreateExternoContacto}
             deleteExternoContacto={deleteExternoContacto}
-            styles={styles}
+            styles={whatsAppStyles}
         />
     );
 
@@ -1020,76 +1003,174 @@ const WhatsAppWebConfig = () => {
             scheduledMessages={scheduledMessages}
             loadLogs={loadLogs}
             clearLogs={clearLogs}
-            styles={styles}
+            styles={whatsAppStyles}
         />
     );
 
     const renderConfiguracaoAutomaticaTab = () => (
         <ConfiguracaoAutomaticaTab
-            styles={styles}
+            styles={whatsAppStyles}
         />
     );
 
     const renderRelatoriosTab = () => (
         <RelatoriosTab
-            styles={styles}
+            styles={whatsAppStyles}
             API_BASE_URL={API_BASE_URL}
         />
     );
 
+    const tabs = [
+        { id: "connection", icon: "connection", label: "Conexão" },
+        { id: "contacts", icon: "account-group", label: "Contactos" },
+        { id: "schedule", icon: "clock-outline", label: "Agendamento" },
+        { id: "configuracao", icon: "silverware-fork-knife", label: "Almoços" },
+        { id: "relatorios", icon: "email-outline", label: "Relatórios" },
+        { id: "verificacao", icon: "alert-outline", label: "Verificação Ponto" },
+        { id: "relatoriospontos", icon: "chart-bar", label: "Relatórios Pontos" },
+    ];
+
     return (
-        <div
-            style={{
-                ...styles.container,
-                scrollbarWidth: "thin",
-                scrollbarColor: "#c1c1c1 #f1f1f1",
-            }}
-            className="custom-scroll"
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.scrollContentWrapper}
+            showsVerticalScrollIndicator={false}
         >
-            {/* Header */}
-            <div style={styles.header}>
-                <h1 style={styles.title}>WhatsApp Web API</h1>
-                <p style={styles.subtitle}>
-                    Sistema completo de gestão de mensagens WhatsApp
-                </p>
-            </div>
+            <LinearGradient
+                colors={['#25D366', '#128C7E']}
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+            >
+                <View style={styles.headerContent}>
+                    <MaterialCommunityIcons name="whatsapp" size={48} color="#ffffff" />
+                    <Text style={styles.headerTitle}>WhatsApp Web API</Text>
+                    <Text style={styles.headerSubtitle}>Sistema completo de gestão de mensagens WhatsApp</Text>
+                </View>
+            </LinearGradient>
 
-            {/* Navigation Tabs */}
-            <div style={styles.navTabs}>
-                {[
-                    { id: "connection", icon: "🔗", label: "Conexão" },
-                    { id: "contacts", icon: "👥", label: "Contactos" },
-                    { id: "schedule", icon: "⏰", label: "Agendamento" },
-                    { id: "configuracao", icon: "🍽️", label: "Almoços" },
-                    { id: "relatorios", icon: "📧", label: "Relatórios" },
-                    { id: "verificacao", icon: "⚠️", label: "Verificação Ponto" },
-                    { id: "relatoriospontos", icon: "📊", label: "Relatórios Pontos" },
-                ].map((tab) => (
-                    <button
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.navTabsContainer}
+                contentContainerStyle={styles.navTabsContent}
+            >
+                {tabs.map((tab) => (
+                    <TouchableOpacity
                         key={tab.id}
-                        style={{
-                            ...styles.tab,
-                            ...(activeTab === tab.id ? styles.activeTab : {}),
-                        }}
-                        onClick={() => setActiveTab(tab.id)}
+                        style={[
+                            styles.tab,
+                            activeTab === tab.id && styles.activeTab
+                        ]}
+                        onPress={() => setActiveTab(tab.id)}
                     >
-                        {tab.icon} {tab.label}
-                    </button>
+                        <MaterialCommunityIcons
+                            name={tab.icon}
+                            size={20}
+                            color={activeTab === tab.id ? "#ffffff" : "#7f8c8d"}
+                        />
+                        <Text style={[
+                            styles.tabText,
+                            activeTab === tab.id && styles.activeTabText
+                        ]}>
+                            {tab.label}
+                        </Text>
+                    </TouchableOpacity>
                 ))}
-            </div>
+            </ScrollView>
 
-            {/* Content */}
-            <div style={styles.content}>
+            <View style={styles.content}>
                 {activeTab === "connection" && renderConnectionTab()}
                 {activeTab === "contacts" && renderContactsTab()}
                 {activeTab === "schedule" && renderScheduleTab()}
                 {activeTab === "configuracao" && renderConfiguracaoAutomaticaTab()}
                 {activeTab === "relatorios" && renderRelatoriosTab()}
-                {activeTab === "verificacao" && <VerificacaoPontoTab styles={styles} API_BASE_URL={API_BASE_URL} />}
-                {activeTab === "relatoriospontos" && <RelatoriosPontosTab styles={styles} />}
-            </div>
-        </div>
+                {activeTab === "verificacao" && <VerificacaoPontoTab styles={whatsAppStyles} API_BASE_URL={API_BASE_URL} />}
+                {activeTab === "relatoriospontos" && <RelatoriosPontosTab styles={whatsAppStyles} />}
+            </View>
+        </ScrollView>
     );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#e8f5e9',
+    },
+    scrollContentWrapper: {
+        flexGrow: 1,
+        paddingBottom: 40,
+    },
+    header: {
+        width: '100%',
+        paddingTop: 50,
+        paddingBottom: 50,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 30,
+        borderBottomRightRadius: 30,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    headerContent: {
+        alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#ffffff',
+        marginTop: 12,
+        marginBottom: 6,
+        letterSpacing: 0.5,
+    },
+    headerSubtitle: {
+        fontSize: 15,
+        color: 'rgba(255, 255, 255, 0.95)',
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+    navTabsContainer: {
+        marginTop: 20,
+        marginHorizontal: 20,
+    },
+    navTabsContent: {
+        paddingRight: 20,
+    },
+    tab: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        marginRight: 12,
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    activeTab: {
+        backgroundColor: '#25D366',
+        shadowOpacity: 0.3,
+        elevation: 4,
+    },
+    tabText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#7f8c8d',
+        marginLeft: 8,
+        letterSpacing: 0.3,
+    },
+    activeTabText: {
+        color: '#ffffff',
+    },
+    content: {
+        marginTop: 20,
+        marginHorizontal: 20,
+    },
+});
 
 export default WhatsAppWebConfig;

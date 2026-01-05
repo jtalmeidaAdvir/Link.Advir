@@ -292,88 +292,105 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
 
             {expandedUser === item.id && (
                 <View style={styles.expandedActions}>
-                    <Text style={styles.actionTitle}>{"Gerir Empresas"}</Text>
-                    
-                    <View style={styles.pickerContainer}>
-                        <Picker
-                            selectedValue={empresaSelecionada[item.id]}
-                            onValueChange={(value) =>
-                                setEmpresaSelecionada((prev) => ({
-                                    ...prev,
-                                    [item.id]: value,
-                                }))
-                            }
-                            style={styles.empresaPicker}
-                            itemStyle={styles.pickerItem}
-                        >
-                            <Picker.Item label={t("UsersEmpresa.Selecionar")} value="" />
-                            {empresas.map((empresa) => (
-                                <Picker.Item key={empresa.id} label={empresa.empresa} value={empresa.id} />
-                            ))}
-                        </Picker>
+                    {/* Seção de Gestão de Empresas */}
+                    <View style={styles.sectionContainer}>
+                        <View style={styles.sectionHeader}>
+                            <MaterialCommunityIcons name="office-building-outline" size={20} color="#4481EB" />
+                            <Text style={styles.sectionTitle}>Gerir Empresas</Text>
+                        </View>
+
+                        <View style={styles.pickerContainer}>
+                            <Picker
+                                selectedValue={empresaSelecionada[item.id]}
+                                onValueChange={(value) =>
+                                    setEmpresaSelecionada((prev) => ({
+                                        ...prev,
+                                        [item.id]: value,
+                                    }))
+                                }
+                                style={styles.empresaPicker}
+                                itemStyle={styles.pickerItem}
+                            >
+                                <Picker.Item label={t("UsersEmpresa.Selecionar")} value="" />
+                                {empresas.map((empresa) => (
+                                    <Picker.Item key={empresa.id} label={empresa.empresa} value={empresa.id} />
+                                ))}
+                            </Picker>
+                        </View>
+
+                        <View style={styles.actionButtons}>
+                            <TouchableOpacity
+                                onPress={() => handleAddEmpresa(item.id, empresaSelecionada[item.id])}
+                                style={styles.addButton}
+                            >
+                                <LinearGradient
+                                    colors={['#10ac84', '#1dd1a1']}
+                                    style={styles.buttonGradient}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                >
+                                    <MaterialCommunityIcons name="plus-circle" size={20} color="#fff" />
+                                    <Text style={styles.buttonText}>Adicionar Empresa</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => handleRemoveEmpresa(item.id, empresaSelecionada[item.id])}
+                                style={styles.removeButton}
+                            >
+                                <LinearGradient
+                                    colors={['#ff6b6b', '#ee5253']}
+                                    style={styles.buttonGradient}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                >
+                                    <MaterialCommunityIcons name="minus-circle" size={20} color="#fff" />
+                                    <Text style={styles.buttonText}>Remover Empresa</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                    
-                    <View style={styles.actionButtons}>
+
+                    {/* Divisor */}
+                    <View style={styles.divider} />
+
+                    {/* Seção de Outras Ações */}
+                    <View style={styles.sectionContainer}>
+                        <View style={styles.sectionHeader}>
+                            <MaterialCommunityIcons name="cog-outline" size={20} color="#6c5ce7" />
+                            <Text style={styles.sectionTitle}>Outras Ações</Text>
+                        </View>
+
                         <TouchableOpacity
-                            onPress={() => handleAddEmpresa(item.id, empresaSelecionada[item.id])}
-                            style={styles.addButton}
+                            onPress={() => handleUserClick(item.id)}
+                            style={styles.modulesButton}
                         >
                             <LinearGradient
-                                colors={['#4481EB', '#04BEFE']}
+                                colors={['#6c5ce7', '#a29bfe']}
                                 style={styles.buttonGradient}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                             >
-                                <MaterialCommunityIcons name="plus-circle-outline" size={18} color="#fff" />
-                                <Text style={styles.buttonText}>{t("UsersEmpresa.BtAdcionar")}</Text>
+                                <MaterialCommunityIcons name="view-module-outline" size={20} color="#fff" />
+                                <Text style={styles.buttonText}>Gerir Módulos</Text>
                             </LinearGradient>
                         </TouchableOpacity>
-                        
+
                         <TouchableOpacity
-                            onPress={() => handleRemoveEmpresa(item.id, empresaSelecionada[item.id])}
-                            style={styles.removeButton}
+                            onPress={() => handleRemoveUser(item.id, item.username)}
+                            style={styles.deleteButton}
                         >
                             <LinearGradient
-                                colors={['#ff6b6b', '#ee5253']}
+                                colors={['#e17055', '#d63031']}
                                 style={styles.buttonGradient}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                             >
-                                <MaterialCommunityIcons name="minus-circle-outline" size={18} color="#fff" />
-                                <Text style={styles.buttonText}>{t("UsersEmpresa.BtRemover")}</Text>
+                                <MaterialCommunityIcons name="delete-outline" size={20} color="#fff" />
+                                <Text style={styles.buttonText}>Remover Utilizador</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                     </View>
-                    
-                    <TouchableOpacity
-                        onPress={() => handleUserClick(item.id)}
-                        style={styles.modulesButton}
-                    >
-                        <LinearGradient
-                            colors={['#6c5ce7', '#a29bfe']}
-                            style={styles.buttonGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                        >
-                            <MaterialCommunityIcons name="view-module-outline" size={18} color="#fff" />
-                            <Text style={styles.buttonText}>{"Gerir Módulos"}</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                        onPress={() => handleRemoveUser(item.id, item.username)}
-                        style={styles.deleteButton}
-                    >
-                        <LinearGradient
-                            colors={['#e17055', '#d63031']}
-                            style={styles.buttonGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                        >
-                            <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
-                            <Text style={styles.buttonText}>{"Remover Utilizador"}</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
                 </View>
             )}
         </View>
@@ -634,10 +651,31 @@ const styles = StyleSheet.create({
         color: '#4481EB',
     },
     expandedActions: {
-        padding: 16,
+        padding: 20,
         borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-        backgroundColor: '#f9fafc',
+        borderTopColor: '#e8eef5',
+        backgroundColor: '#fafbfd',
+    },
+    sectionContainer: {
+        marginBottom: 8,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 14,
+        paddingBottom: 8,
+    },
+    sectionTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#2c3e50',
+        marginLeft: 8,
+        letterSpacing: 0.3,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#e8eef5',
+        marginVertical: 20,
     },
     actionTitle: {
         fontSize: 16,
@@ -646,12 +684,17 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     pickerContainer: {
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 12,
-        marginBottom: 16,
+        borderWidth: 1.5,
+        borderColor: '#d1dbed',
+        borderRadius: 14,
+        marginBottom: 14,
         backgroundColor: '#fff',
         overflow: 'hidden',
+        shadowColor: '#4481EB',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
     },
     empresaPicker: {
         width: '100%',
@@ -664,41 +707,60 @@ const styles = StyleSheet.create({
     actionButtons: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        gap: 10,
     },
     addButton: {
         flex: 1,
-        marginRight: 8,
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
+        shadowColor: '#10ac84',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     removeButton: {
         flex: 1,
-        marginLeft: 8,
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
+        shadowColor: '#ff6b6b',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     modulesButton: {
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
         marginBottom: 12,
+        shadowColor: '#6c5ce7',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     deleteButton: {
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
+        shadowColor: '#e17055',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
     },
     buttonGradient: {
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 18,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
     },
     buttonText: {
         color: '#fff',
-        fontWeight: '600',
-        marginLeft: 8,
+        fontWeight: '700',
+        marginLeft: 10,
         fontSize: 14,
+        letterSpacing: 0.3,
     },
     emptyContainer: {
         alignItems: 'center',

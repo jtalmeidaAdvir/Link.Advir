@@ -304,6 +304,21 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
 
         setLoading(true);
         try {
+            // Preparar dados para envio, convertendo strings vazias em null
+            const dadosAtualizacao = {
+                nome: editandoRelatorio.nome,
+                tipo: editandoRelatorio.tipo,
+                emails: editandoRelatorio.emails,
+                frequency: editandoRelatorio.frequency,
+                time: editandoRelatorio.time,
+                days: editandoRelatorio.days,
+                empresa_id: editandoRelatorio.empresa_id || null,
+                obra_id: editandoRelatorio.obra_id || editandoRelatorio.empresa_id || null,
+                enabled: editandoRelatorio.enabled
+            };
+
+            console.log("Enviando dados para atualização:", dadosAtualizacao);
+
             const response = await fetch(
                 `${API_BASE_URL}/relatorios-agendados/${editandoRelatorio.id}`,
                 {
@@ -311,10 +326,7 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                        ...editandoRelatorio,
-                        obra_id: editandoRelatorio.obra_id || editandoRelatorio.empresa_id
-                    }),
+                    body: JSON.stringify(dadosAtualizacao),
                 },
             );
 

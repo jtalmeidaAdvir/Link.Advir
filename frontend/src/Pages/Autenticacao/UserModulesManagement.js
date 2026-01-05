@@ -365,64 +365,84 @@ const UserModulesManagement = ({ route }) => {
         const isChecked = isSubmoduloChecked(moduleId, submodulo.id);
 
         return (
-            <View style={styles.submoduleItem} key={submodulo.id}>
+            <TouchableOpacity
+                style={[styles.submoduleItem, isChecked && styles.submoduleItemActive]}
+                key={submodulo.id}
+                onPress={() => handleToggleSubmodulo(moduleId, submodulo.id, isChecked)}
+                activeOpacity={0.7}
+            >
                 <View style={styles.submoduleContent}>
+                    <View style={[styles.submoduleIndicator, isChecked && styles.submoduleIndicatorActive]} />
                     <MaterialCommunityIcons
-                        name="subdirectory-arrow-right"
-                        size={18}
-                        color="#4481EB"
+                        name={isChecked ? "checkbox-marked-circle" : "checkbox-blank-circle-outline"}
+                        size={20}
+                        color={isChecked ? "#4481EB" : "#95a5a6"}
+                        style={styles.submoduleIcon}
                     />
-                    <Text style={styles.submoduleText}>{submodulo.nome}</Text>
+                    <Text style={[styles.submoduleText, isChecked && styles.submoduleTextActive]}>
+                        {submodulo.nome}
+                    </Text>
                 </View>
 
                 <Switch
-                    trackColor={{ false: "#e0e0e0", true: "#c4dafa" }}
-                    thumbColor={isChecked ? "#4481EB" : "#f4f3f4"}
-                    ios_backgroundColor="#e0e0e0"
+                    trackColor={{ false: "#dfe6e9", true: "#b2d7ff" }}
+                    thumbColor={isChecked ? "#4481EB" : "#bdc3c7"}
+                    ios_backgroundColor="#dfe6e9"
                     onValueChange={() =>
                         handleToggleSubmodulo(moduleId, submodulo.id, isChecked)
                     }
                     value={isChecked}
                 />
-            </View>
+            </TouchableOpacity>
         );
     };
 
     const renderModuleItem = ({ item }) => {
         const isExpanded = expandedModules[item.id];
         const isChecked = isModuloChecked(item.id);
-
-        // Always render the module - it may have no submodules or submodules may be loading
-        // if (!availableSubmodules[item.id] || availableSubmodules[item.id].length === 0) {
-        //     return null;
-        // }
+        const availableSubmodulesForModule = availableSubmodules[item.id] || [];
+        const submodulesCount = availableSubmodulesForModule.length;
 
         return (
             <View style={styles.moduleCard}>
                 <TouchableOpacity
                     style={styles.moduleHeader}
                     onPress={() => toggleModuleExpand(item.id)}
+                    activeOpacity={0.7}
                 >
-                    <View style={styles.moduleTitle}>
-                        <MaterialCommunityIcons
-                            name="view-dashboard-outline"
-                            size={22}
-                            color="#4481EB"
-                        />
-                        <Text style={styles.moduleName}>{item.nome}</Text>
+                    <View style={styles.moduleLeftSection}>
+                        <View style={[styles.moduleIconContainer, isChecked && styles.moduleIconContainerActive]}>
+                            <MaterialCommunityIcons
+                                name="view-dashboard-outline"
+                                size={24}
+                                color={isChecked ? "#4481EB" : "#95a5a6"}
+                            />
+                        </View>
+                        <View style={styles.moduleInfo}>
+                            <Text style={styles.moduleName}>{item.nome}</Text>
+                            {submodulesCount > 0 && (
+                                <View style={styles.submoduleBadge}>
+                                    <MaterialCommunityIcons name="folder-outline" size={12} color="#7f8c8d" />
+                                    <Text style={styles.submoduleBadgeText}>
+                                        {submodulesCount} {submodulesCount === 1 ? 'submódulo' : 'submódulos'}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                     </View>
 
                     <View style={styles.moduleControls}>
-                        <Switch
-                            trackColor={{ false: "#e0e0e0", true: "#c4dafa" }}
-                            thumbColor={isChecked ? "#4481EB" : "#f4f3f4"}
-                            ios_backgroundColor="#e0e0e0"
-                            onValueChange={(value) =>
-                                handleToggleModulo(item.id, value)
-                            }
-                            value={isChecked}
-                            style={styles.moduleSwitch}
-                        />
+                        <View style={styles.switchContainer}>
+                            <Switch
+                                trackColor={{ false: "#dfe6e9", true: "#b2d7ff" }}
+                                thumbColor={isChecked ? "#4481EB" : "#bdc3c7"}
+                                ios_backgroundColor="#dfe6e9"
+                                onValueChange={(value) =>
+                                    handleToggleModulo(item.id, value)
+                                }
+                                value={isChecked}
+                            />
+                        </View>
 
                         <Ionicons
                             name={
@@ -430,52 +450,38 @@ const UserModulesManagement = ({ route }) => {
                                     ? "chevron-up-circle"
                                     : "chevron-down-circle"
                             }
-                            size={22}
-                            color="#4481EB"
+                            size={26}
+                            color={isChecked ? "#4481EB" : "#95a5a6"}
                         />
                     </View>
                 </TouchableOpacity>
 
                 {isExpanded && (
                     <View style={styles.submodulesContainer}>
-                        {(() => {
-                            // Get all available submodules for this module from the company
-                            const availableSubmodulesForModule =
-                                availableSubmodules[item.id] || [];
-
-                          
-                            if (availableSubmodulesForModule.length > 0) {
-                                return availableSubmodulesForModule.map(
-                                    (submodulo) =>
-                                        renderSubmoduleItem(submodulo, item.id),
-                                );
-                            } else {
-                                // This case should ideally not be reached due to the filter above,
-                                // but kept for safety and debugging.
-                                return (
-                                    <View style={styles.noSubmodulesContainer}>
-                                        <Text style={styles.noSubmodulesText}>
-                                            {Object.keys(availableSubmodules)
-                                                .length === 0
-                                                ? "A carregar submódulos..."
-                                                : `Nenhum submódulo disponível para o módulo ${item.nome}`}
-                                        </Text>
-                                        {Object.keys(availableSubmodules)
-                                            .length > 0 && (
-                                                <Text style={styles.debugText}>
-                                                    Debug: availableSubmodules[
-                                                    {item.id}] ={" "}
-                                                    {JSON.stringify(
-                                                        availableSubmodules[
-                                                        item.id
-                                                        ],
-                                                    )}
-                                                </Text>
-                                            )}
-                                    </View>
-                                );
-                            }
-                        })()}
+                        {submodulesCount > 0 ? (
+                            <>
+                                <View style={styles.submodulesHeader}>
+                                    <MaterialCommunityIcons name="folder-multiple-outline" size={16} color="#4481EB" />
+                                    <Text style={styles.submodulesHeaderText}>Submódulos Disponíveis</Text>
+                                </View>
+                                {availableSubmodulesForModule.map((submodulo) =>
+                                    renderSubmoduleItem(submodulo, item.id)
+                                )}
+                            </>
+                        ) : (
+                            <View style={styles.noSubmodulesContainer}>
+                                <MaterialCommunityIcons
+                                    name="folder-remove-outline"
+                                    size={32}
+                                    color="#d1dbed"
+                                />
+                                <Text style={styles.noSubmodulesText}>
+                                    {Object.keys(availableSubmodules).length === 0
+                                        ? "A carregar submódulos..."
+                                        : "Sem submódulos disponíveis"}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
             </View>
@@ -871,20 +877,46 @@ const styles = StyleSheet.create({
     },
     moduleCard: {
         backgroundColor: "#ffffff",
-        borderRadius: 16,
-        marginBottom: 16,
+        borderRadius: 18,
+        marginBottom: 18,
         overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        elevation: 2,
+        shadowColor: "#4481EB",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: "#e8eef5",
     },
     moduleHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 16,
+        padding: 18,
+        backgroundColor: "#fff",
+    },
+    moduleLeftSection: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1,
+    },
+    moduleIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+        backgroundColor: "#f5f7fa",
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 14,
+        borderWidth: 1.5,
+        borderColor: "#e8eef5",
+    },
+    moduleIconContainerActive: {
+        backgroundColor: "#e6f2ff",
+        borderColor: "#b2d7ff",
+    },
+    moduleInfo: {
+        flex: 1,
     },
     moduleTitle: {
         flexDirection: "row",
@@ -892,42 +924,100 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     moduleName: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#333",
-        marginLeft: 10,
+        fontSize: 17,
+        fontWeight: "700",
+        color: "#2c3e50",
+        letterSpacing: 0.3,
+    },
+    submoduleBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 5,
+        backgroundColor: "#f5f7fa",
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+        alignSelf: "flex-start",
+    },
+    submoduleBadgeText: {
+        fontSize: 11,
+        color: "#7f8c8d",
+        marginLeft: 4,
+        fontWeight: "500",
     },
     moduleControls: {
         flexDirection: "row",
         alignItems: "center",
+        gap: 12,
+    },
+    switchContainer: {
+        padding: 4,
     },
     moduleSwitch: {
         marginRight: 10,
     },
     submodulesContainer: {
-        backgroundColor: "#f9fafc",
-        borderTopWidth: 1,
-        borderTopColor: "#f0f0f0",
-        paddingVertical: 8,
+        backgroundColor: "#fafbfd",
+        borderTopWidth: 2,
+        borderTopColor: "#e8eef5",
+        paddingVertical: 12,
+    },
+    submodulesHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        backgroundColor: "#f0f4f8",
+    },
+    submodulesHeaderText: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: "#4481EB",
+        marginLeft: 8,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
     },
     submoduleItem: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingVertical: 10,
-        paddingHorizontal: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 18,
+        paddingLeft: 24,
         borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
+        borderBottomColor: "#f0f4f8",
+        backgroundColor: "#fff",
+    },
+    submoduleItemActive: {
+        backgroundColor: "#f8fbff",
     },
     submoduleContent: {
         flexDirection: "row",
         alignItems: "center",
         flex: 1,
     },
+    submoduleIndicator: {
+        width: 3,
+        height: 24,
+        backgroundColor: "#e8eef5",
+        borderRadius: 2,
+        marginRight: 12,
+    },
+    submoduleIndicatorActive: {
+        backgroundColor: "#4481EB",
+    },
+    submoduleIcon: {
+        marginRight: 10,
+    },
     submoduleText: {
-        fontSize: 14,
-        color: "#555",
-        marginLeft: 8,
+        fontSize: 15,
+        color: "#7f8c8d",
+        fontWeight: "500",
+        flex: 1,
+    },
+    submoduleTextActive: {
+        color: "#2c3e50",
+        fontWeight: "600",
     },
     emptyContainer: {
         alignItems: "center",
@@ -949,14 +1039,23 @@ const styles = StyleSheet.create({
         maxWidth: "80%",
     },
     noSubmodulesContainer: {
-        padding: 16,
+        padding: 24,
         alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f8fbff",
+        marginHorizontal: 12,
+        marginVertical: 8,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        borderColor: "#e8eef5",
+        borderStyle: "dashed",
     },
     noSubmodulesText: {
         fontSize: 14,
-        color: "#888",
-        fontStyle: "italic",
+        color: "#95a5a6",
+        fontWeight: "500",
         textAlign: "center",
+        marginTop: 8,
     },
     debugText: {
         fontSize: 12,
@@ -969,70 +1068,89 @@ const styles = StyleSheet.create({
     editUserButton: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        borderRadius: 20,
-        marginTop: 10,
+        backgroundColor: "rgba(255, 255, 255, 0.25)",
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        borderRadius: 24,
+        marginTop: 12,
+        borderWidth: 1.5,
+        borderColor: "rgba(255, 255, 255, 0.4)",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
     editUserButtonText: {
         color: "#ffffff",
         fontSize: 14,
-        fontWeight: "600",
-        marginLeft: 5,
+        fontWeight: "700",
+        marginLeft: 6,
+        letterSpacing: 0.3,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        backgroundColor: "rgba(44, 62, 80, 0.7)",
         justifyContent: "center",
         alignItems: "center",
         padding: 20,
     },
     modalContent: {
         backgroundColor: "#ffffff",
-        borderRadius: 20,
+        borderRadius: 24,
         width: "100%",
-        maxWidth: 400,
-        maxHeight: "80%",
+        maxWidth: 420,
+        maxHeight: "85%",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 10,
     },
     modalHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: "#f0f0f0",
+        padding: 24,
+        borderBottomWidth: 1.5,
+        borderBottomColor: "#e8eef5",
+        backgroundColor: "#fafbfd",
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
     },
     modalTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#333",
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#2c3e50",
+        letterSpacing: 0.3,
     },
     modalBody: {
-        padding: 20,
+        padding: 24,
     },
     inputGroup: {
-        marginBottom: 20,
+        marginBottom: 22,
     },
     inputLabel: {
         fontSize: 14,
-        fontWeight: "600",
-        color: "#333",
-        marginBottom: 8,
+        fontWeight: "700",
+        color: "#2c3e50",
+        marginBottom: 10,
+        letterSpacing: 0.3,
     },
     textInput: {
-        borderWidth: 1,
-        borderColor: "#e0e0e0",
-        borderRadius: 12,
-        padding: 12,
+        borderWidth: 1.5,
+        borderColor: "#d1dbed",
+        borderRadius: 14,
+        padding: 14,
         fontSize: 16,
         backgroundColor: "#f9fafc",
+        color: "#2c3e50",
     },
     pickerContainer: {
-        borderWidth: 1,
-        borderColor: "#e0e0e0",
-        borderRadius: 12,
+        borderWidth: 1.5,
+        borderColor: "#d1dbed",
+        borderRadius: 14,
         backgroundColor: "#f9fafc",
+        overflow: "hidden",
     },
     picker: {
         height: 50,
@@ -1040,47 +1158,61 @@ const styles = StyleSheet.create({
     modalActions: {
         flexDirection: "row",
         justifyContent: "space-between",
-        padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: "#f0f0f0",
+        padding: 24,
+        borderTopWidth: 1.5,
+        borderTopColor: "#e8eef5",
+        backgroundColor: "#fafbfd",
+        gap: 12,
     },
     cancelButton: {
         flex: 1,
-        padding: 12,
-        borderRadius: 12,
-        backgroundColor: "#f5f5f5",
+        padding: 14,
+        borderRadius: 14,
+        backgroundColor: "#ecf0f1",
         alignItems: "center",
-        marginRight: 10,
+        borderWidth: 1.5,
+        borderColor: "#d1dbed",
     },
     cancelButtonText: {
         fontSize: 16,
-        color: "#666",
-        fontWeight: "600",
+        color: "#7f8c8d",
+        fontWeight: "700",
+        letterSpacing: 0.3,
     },
     saveButton: {
         flex: 1,
-        padding: 12,
-        borderRadius: 12,
+        padding: 14,
+        borderRadius: 14,
         backgroundColor: "#4481EB",
         alignItems: "center",
-        marginLeft: 10,
+        shadowColor: "#4481EB",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     saveButtonText: {
         fontSize: 16,
         color: "#ffffff",
-        fontWeight: "600",
+        fontWeight: "700",
+        letterSpacing: 0.3,
     },
     checkboxContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 12,
+        backgroundColor: '#f9fafc',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1.5,
+        borderColor: '#e8eef5',
     },
     checkbox: {
-        width: 20,
-        height: 20,
+        width: 24,
+        height: 24,
         borderWidth: 2,
-        borderColor: '#ddd',
-        borderRadius: 4,
+        borderColor: '#d1dbed',
+        borderRadius: 6,
         marginRight: 12,
         alignItems: 'center',
         justifyContent: 'center',
@@ -1092,16 +1224,23 @@ const styles = StyleSheet.create({
     },
     checkboxLabel: {
         fontSize: 14,
-        color: '#333',
-        fontWeight: '500',
+        color: '#2c3e50',
+        fontWeight: '600',
         flex: 1,
+        letterSpacing: 0.2,
     },
     checkboxDescription: {
         fontSize: 12,
-        color: '#666',
-        fontStyle: 'italic',
-        marginLeft: 32,
-        lineHeight: 16,
+        color: '#7f8c8d',
+        lineHeight: 18,
+        marginTop: 8,
+        paddingLeft: 12,
+        paddingRight: 8,
+        backgroundColor: '#f0f4f8',
+        padding: 10,
+        borderRadius: 8,
+        borderLeftWidth: 3,
+        borderLeftColor: '#4481EB',
     },
 });
 
