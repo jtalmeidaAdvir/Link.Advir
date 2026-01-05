@@ -1,19 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    TextInput,
-    Modal,
-    ActivityIndicator,
-    Animated,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { secureStorage } from '../../utils/secureStorage';
-import { Picker } from '@react-native-picker/picker';
+import { motion } from 'framer-motion';
+import { FaClock, FaPlus, FaEdit, FaTrash, FaUsers, FaHistory, FaCheck, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 
 const GestaoHorarios = () => {
     const [activeTab, setActiveTab] = useState('visao-geral');
@@ -30,6 +19,363 @@ const GestaoHorarios = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [filtroStatus, setFiltroStatus] = useState('todos'); // 'todos', 'com-horario', 'sem-horario'
+
+    // Adicionar estilos globais para animações
+    useEffect(() => {
+        const styleId = 'gestao-horarios-animations';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+
+                /* Hover effects */
+                [style*="userItemComHorario"]:hover,
+                [style*="userItemSemHorario"]:hover {
+                    transform: translateY(-4px) !important;
+                    box-shadow: 0 12px 28px rgba(0,0,0,0.15) !important;
+                }
+
+                [style*="statCard"]:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 12px 32px rgba(0,0,0,0.12) !important;
+                }
+
+                [style*="statCard"]:hover [style*="statIcon"] {
+                    transform: scale(1.1);
+                }
+
+                [style*="card"]:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important;
+                }
+
+                [style*="tab"]:hover:not([style*="activeTab"]) {
+                    background-color: #f1f5f9;
+                    color: #1976D2;
+                }
+
+                [style*="btnPrimary"]:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 20px rgba(25, 118, 210, 0.45) !important;
+                }
+
+                [style*="btnSecondary"]:hover {
+                    background-color: #1976D2;
+                    color: #fff;
+                    border-color: #1976D2;
+                }
+
+                [style*="btnEditar"]:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4) !important;
+                }
+
+                [style*="btnAtribuir"]:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 20px rgba(255, 152, 0, 0.4) !important;
+                }
+
+                [style*="btnIcon"]:hover {
+                    transform: scale(1.1);
+                }
+
+                [style*="btnIconDanger"]:hover {
+                    transform: scale(1.1);
+                }
+
+                [style*="filterButton"]:hover {
+                    background-color: #e2e8f0;
+                    transform: translateY(-2px);
+                }
+
+                [style*="calendarioDia"]:hover:not([style*="calendarioDiaVazio"]) {
+                    transform: scale(1.05);
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important;
+                }
+
+                [style*="formInput"]:focus,
+                [style*="formTextarea"]:focus {
+                    border-color: #1976D2 !important;
+                    box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.1) !important;
+                    outline: none !important;
+                }
+
+                [style*="searchInput"]:focus {
+                    border-color: #1976D2 !important;
+                    box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.1) !important;
+                    outline: none !important;
+                }
+
+                [style*="diaButton"]:hover {
+                    transform: translateY(-2px);
+                }
+
+                /* Scrollbar personalizada */
+                *::-webkit-scrollbar {
+                    width: 10px;
+                    height: 10px;
+                }
+
+                *::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 10px;
+                }
+
+                *::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 10px;
+                }
+
+                *::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                }
+
+                /* Responsividade */
+                @media (min-width: 600px) {
+                    [data-responsive="statsGrid"] {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                    }
+                }
+
+                @media (min-width: 900px) {
+                    [data-responsive="statsGrid"] {
+                        grid-template-columns: repeat(3, 1fr) !important;
+                    }
+
+                    /* Desktop - items em linha */
+                    [style*="userItemComHorario"],
+                    [style*="userItemSemHorario"] {
+                        flex-direction: row !important;
+                        align-items: center !important;
+                    }
+
+                    [style*="userItemLeft"] {
+                        flex-grow: 1;
+                    }
+
+                    [style*="userItemActions"] {
+                        width: auto !important;
+                        flex-shrink: 0;
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    [data-responsive="header"] {
+                        padding: 20px !important;
+                    }
+
+                    [data-responsive="title"] {
+                        font-size: 24px !important;
+                    }
+
+                    [data-responsive="modal"] {
+                        padding: 25px !important;
+                    }
+
+                    [data-responsive="calendarioGrid"] {
+                        gap: 6px !important;
+                    }
+
+                    [data-responsive="calendarioDia"] {
+                        min-height: 60px !important;
+                        padding: 6px !important;
+                        border-radius: 8px !important;
+                    }
+
+                    [style*="calendarioDiaNumero"] {
+                        font-size: 12px !important;
+                        margin-bottom: 3px !important;
+                    }
+
+                    [style*="calendarioDiaHorario"] {
+                        font-size: 9px !important;
+                    }
+
+                    [style*="calendarioHorarioNome"] {
+                        font-size: 9px !important;
+                    }
+
+                    [style*="calendarioHorarioHoras"] {
+                        font-size: 8px !important;
+                    }
+
+                    [style*="calendarioDiaSemana"] {
+                        font-size: 11px !important;
+                        padding: 8px 0 !important;
+                    }
+
+                    [style*="calendarioHeader"] {
+                        gap: 6px !important;
+                        margin-bottom: 8px !important;
+                    }
+
+                    [data-responsive="statCard"] {
+                        flex-direction: column;
+                        text-align: center;
+                    }
+
+                    [data-responsive="userItem"] {
+                        flex-direction: column;
+                        align-items: flex-start !important;
+                    }
+
+                    [data-responsive="userItemActions"] {
+                        width: 100% !important;
+                        flex-direction: column !important;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    [data-responsive="container"] {
+                        padding: 12px !important;
+                    }
+
+                    [data-responsive="content"] {
+                        padding: 15px !important;
+                    }
+
+                    [data-responsive="tabs"] {
+                        padding: 6px !important;
+                    }
+
+                    [data-responsive="tab"],
+                    [data-responsive="activeTab"] {
+                        padding: 10px 14px !important;
+                        font-size: 12px !important;
+                    }
+
+                    /* Calendário ultra compacto para mobile */
+                    [data-responsive="calendarioGrid"] {
+                        gap: 4px !important;
+                    }
+
+                    [data-responsive="calendarioDia"] {
+                        min-height: 50px !important;
+                        padding: 4px !important;
+                        border-radius: 6px !important;
+                    }
+
+                    [style*="calendarioDiaNumero"] {
+                        font-size: 11px !important;
+                        margin-bottom: 2px !important;
+                    }
+
+                    [style*="calendarioDiaHorario"] {
+                        font-size: 8px !important;
+                        gap: 2px !important;
+                    }
+
+                    /* Em mobile, esconder texto do horário e mostrar apenas indicador */
+                    [style*="calendarioDiaHorario"] {
+                        align-items: center !important;
+                        justify-content: center !important;
+                    }
+
+                    [style*="calendarioHorarioNome"] {
+                        width: 6px !important;
+                        height: 6px !important;
+                        background-color: #4caf50 !important;
+                        border-radius: 50% !important;
+                        overflow: visible !important;
+                        text-indent: -9999px !important;
+                        flex-shrink: 0 !important;
+                    }
+
+                    [style*="calendarioHorarioHoras"] {
+                        display: none !important;
+                    }
+
+                    [style*="calendarioDiaSemana"] {
+                        font-size: 10px !important;
+                        padding: 6px 0 !important;
+                    }
+
+                    [style*="calendarioContainer"] {
+                        padding: 15px !important;
+                    }
+
+                    [style*="calendarioNav"] h3 {
+                        font-size: 16px !important;
+                    }
+
+                    [style*="btnSecondary"] {
+                        padding: 8px 12px !important;
+                        font-size: 12px !important;
+                    }
+
+                    /* Controles do calendário em mobile */
+                    [style*="calendarioControls"] {
+                        gap: 15px !important;
+                    }
+
+                    [style*="calendarioNav"] {
+                        flex-direction: row !important;
+                        gap: 8px !important;
+                    }
+
+                    [style*="calendarioMesAno"] {
+                        font-size: 14px !important;
+                    }
+
+                    [style*="legendaItem"] {
+                        font-size: 11px !important;
+                        gap: 6px !important;
+                    }
+
+                    [style*="legendaCor"] {
+                        width: 16px !important;
+                        height: 16px !important;
+                    }
+                }
+
+                /* Media query adicional para tablets */
+                @media (min-width: 481px) and (max-width: 768px) {
+                    [data-responsive="calendarioDia"] {
+                        min-height: 70px !important;
+                        padding: 8px !important;
+                    }
+
+                    [style*="calendarioDiaNumero"] {
+                        font-size: 13px !important;
+                    }
+
+                    [style*="calendarioDiaHorario"] {
+                        font-size: 10px !important;
+                    }
+
+                    [style*="calendarioHorarioNome"] {
+                        font-size: 10px !important;
+                    }
+
+                    [style*="calendarioHorarioHoras"] {
+                        font-size: 9px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        return () => {
+            const existingStyle = document.getElementById(styleId);
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+        };
+    }, []);
 
     // Estados para o calendário
     const [calendarioUser, setCalendarioUser] = useState(null);
@@ -568,262 +914,219 @@ const GestaoHorarios = () => {
     });
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.scrollContentWrapper}
-            showsVerticalScrollIndicator={false}
-        >
-            <LinearGradient
-                colors={['#1976D2', '#42A5F5']}
-                style={styles.header}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-            >
-                <View style={styles.headerContent}>
-                    <MaterialCommunityIcons name="clock-outline" size={48} color="#ffffff" />
-                    <Text style={styles.headerTitle}>Gestão de Horários</Text>
-                    <Text style={styles.headerSubtitle}>Gerir horários de trabalho dos utilizadores</Text>
-                </View>
-            </LinearGradient>
+        <div style={styles.container} data-responsive="container">
+            <div style={styles.header} data-responsive="header">
+                <h1 style={styles.title} data-responsive="title">
+                    <FaClock style={styles.titleIcon} />
+                    Gestão de Horários
+                </h1>
+            </div>
 
-            {errorMessage ? (
-                <View style={styles.errorContainer}>
-                    <MaterialCommunityIcons name="alert-circle" size={22} color="#ff6b6b" />
-                    <Text style={styles.errorText}>{errorMessage}</Text>
-                </View>
-            ) : null}
-            {successMessage ? (
-                <View style={styles.successContainer}>
-                    <MaterialCommunityIcons name="check-circle" size={22} color="#4caf50" />
-                    <Text style={styles.successText}>{successMessage}</Text>
-                </View>
-            ) : null}
+            {errorMessage && (
+                <div style={styles.errorMessage}>{errorMessage}</div>
+            )}
+            {successMessage && (
+                <div style={styles.successMessage}>{successMessage}</div>
+            )}
 
             {/* Tabs */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.navTabsContainer}
-                contentContainerStyle={styles.navTabsContent}
-            >
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'visao-geral' && styles.activeTab]}
-                    onPress={() => setActiveTab('visao-geral')}
+            <div style={styles.tabs} data-responsive="tabs">
+                <button
+                    style={activeTab === 'visao-geral' ? styles.activeTab : styles.tab}
+                    data-responsive={activeTab === 'visao-geral' ? 'activeTab' : 'tab'}
+                    onClick={() => setActiveTab('visao-geral')}
                 >
-                    <MaterialCommunityIcons
-                        name="account-group"
-                        size={20}
-                        color={activeTab === 'visao-geral' ? "#ffffff" : "#7f8c8d"}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'visao-geral' && styles.activeTabText]}>
-                        Visão Geral
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'horarios' && styles.activeTab]}
-                    onPress={() => setActiveTab('horarios')}
+                    <FaUsers /> Visão Geral
+                </button>
+                <button
+                    style={activeTab === 'horarios' ? styles.activeTab : styles.tab}
+                    data-responsive={activeTab === 'horarios' ? 'activeTab' : 'tab'}
+                    onClick={() => setActiveTab('horarios')}
                 >
-                    <MaterialCommunityIcons
-                        name="clock-outline"
-                        size={20}
-                        color={activeTab === 'horarios' ? "#ffffff" : "#7f8c8d"}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'horarios' && styles.activeTabText]}>
-                        Horários
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'calendario' && styles.activeTab]}
-                    onPress={() => setActiveTab('calendario')}
+                    <FaClock /> Horários
+                </button>
+                <button
+                    style={activeTab === 'calendario' ? styles.activeTab : styles.tab}
+                    data-responsive={activeTab === 'calendario' ? 'activeTab' : 'tab'}
+                    onClick={() => setActiveTab('calendario')}
                 >
-                    <MaterialCommunityIcons
-                        name="calendar-month"
-                        size={20}
-                        color={activeTab === 'calendario' ? "#ffffff" : "#7f8c8d"}
-                    />
-                    <Text style={[styles.tabText, activeTab === 'calendario' && styles.activeTabText]}>
-                        Calendário
-                    </Text>
-                </TouchableOpacity>
-            </ScrollView>
+                    <FaHistory /> Calendário
+                </button>
+            </div>
 
             {/* Visão Geral - Nova Tab Principal */}
             {activeTab === 'visao-geral' && (
-                <View style={styles.content}>
+                <div style={styles.content} data-responsive="content">
                     {/* Estatísticas */}
-                    <View style={styles.statsGrid}>
-                        <View style={styles.statCard}>
-                            <View style={styles.statIcon}>
-                                <MaterialCommunityIcons name="account-group" size={24} color="#1976D2" />
-                            </View>
-                            <View style={styles.statContent}>
-                                <Text style={styles.statValue}>{totalUsers}</Text>
-                                <Text style={styles.statLabel}>Total de Utilizadores</Text>
-                            </View>
-                        </View>
+                    <div style={styles.statsGrid} data-responsive="statsGrid">
+                        <div style={styles.statCard} data-responsive="statCard">
+                            <div style={styles.statIcon} className="stat-icon-total">
+                                <FaUsers />
+                            </div>
+                            <div style={styles.statContent}>
+                                <div style={styles.statValue}>{totalUsers}</div>
+                                <div style={styles.statLabel}>Total de Utilizadores</div>
+                            </div>
+                        </div>
 
-                        <View style={styles.statCard}>
-                            <View style={[styles.statIcon, { backgroundColor: '#e8f5e9' }]}>
-                                <MaterialCommunityIcons name="check" size={24} color="#4caf50" />
-                            </View>
-                            <View style={styles.statContent}>
-                                <Text style={[styles.statValue, { color: '#4caf50' }]}>{usersComHorario}</Text>
-                                <Text style={styles.statLabel}>Com Horário Definido</Text>
-                            </View>
-                        </View>
+                        <div style={styles.statCard} data-responsive="statCard">
+                            <div style={{...styles.statIcon, backgroundColor: '#e8f5e9'}} className="stat-icon-com">
+                                <FaCheck style={{color: '#4caf50'}} />
+                            </div>
+                            <div style={styles.statContent}>
+                                <div style={{...styles.statValue, color: '#4caf50'}}>{usersComHorario}</div>
+                                <div style={styles.statLabel}>Com Horário Definido</div>
+                            </div>
+                        </div>
 
-                        <View style={styles.statCard}>
-                            <View style={[styles.statIcon, { backgroundColor: '#fff3e0' }]}>
-                                <MaterialCommunityIcons name="alert" size={24} color="#ff9800" />
-                            </View>
-                            <View style={styles.statContent}>
-                                <Text style={[styles.statValue, { color: '#ff9800' }]}>{usersSemHorario}</Text>
-                                <Text style={styles.statLabel}>Sem Horário Definido</Text>
-                            </View>
-                        </View>
-                    </View>
+                        <div style={styles.statCard} data-responsive="statCard">
+                            <div style={{...styles.statIcon, backgroundColor: '#fff3e0'}} className="stat-icon-sem">
+                                <FaExclamationTriangle style={{color: '#ff9800'}} />
+                            </div>
+                            <div style={styles.statContent}>
+                                <div style={{...styles.statValue, color: '#ff9800'}}>{usersSemHorario}</div>
+                                <div style={styles.statLabel}>Sem Horário Definido</div>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Ações Rápidas */}
-                    <View style={styles.actionBar}>
-                        <TouchableOpacity
+                    <div style={styles.actionBar}>
+                        <button
                             style={styles.btnPrimary}
-                            onPress={() => setShowPlanoModal(true)}
+                            onClick={() => setShowPlanoModal(true)}
                         >
-                            <MaterialCommunityIcons name="plus" size={20} color="#ffffff" />
-                            <Text style={styles.btnPrimaryText}>Atribuir Horário</Text>
-                        </TouchableOpacity>
-                    </View>
+                            <FaPlus /> Atribuir Horário
+                        </button>
+                    </div>
 
-                    {/* Lista de Utilizadores */}
+                    {/* Lista de Utilizadores com Status Visual */}
                     <div style={styles.usersListContainer}>
+                        <h3 style={styles.sectionTitle}>Utilizadores</h3>
+                        
+                        {/* Barra de Pesquisa e Filtros */}
                         <div style={styles.searchFilterContainer}>
                             <div style={styles.searchBox}>
                                 <input
                                     type="text"
-                                    placeholder="Pesquisar por nome ou email..."
-                                    style={styles.searchInput}
+                                    placeholder="Pesquisar por nome "
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={styles.searchInput}
                                 />
                             </div>
+                            
                             <div style={styles.filterButtons}>
                                 <button
-                                    style={{
-                                        ...styles.filterButton,
-                                        ...(filtroStatus === 'todos' ? styles.filterButtonActive : {})
-                                    }}
+                                    style={filtroStatus === 'todos' ? styles.filterButtonActive : styles.filterButton}
                                     onClick={() => setFiltroStatus('todos')}
                                 >
-                                    Todos ({planosAtivos.length})
+                                    Todos ({totalUsers})
                                 </button>
                                 <button
-                                    style={{
-                                        ...styles.filterButton,
-                                        ...(filtroStatus === 'com-horario' ? styles.filterButtonActive : {})
-                                    }}
+                                    style={filtroStatus === 'com-horario' ? styles.filterButtonActiveSuccess : styles.filterButton}
                                     onClick={() => setFiltroStatus('com-horario')}
                                 >
+                                    <FaCheck style={{marginRight: '5px'}} />
                                     Com Horário ({usersComHorario})
                                 </button>
                                 <button
-                                    style={{
-                                        ...styles.filterButton,
-                                        ...(filtroStatus === 'sem-horario' ? styles.filterButtonActive : {})
-                                    }}
+                                    style={filtroStatus === 'sem-horario' ? styles.filterButtonActiveWarning : styles.filterButton}
                                     onClick={() => setFiltroStatus('sem-horario')}
                                 >
+                                    <FaExclamationTriangle style={{marginRight: '5px'}} />
                                     Sem Horário ({usersSemHorario})
                                 </button>
                             </div>
                         </div>
 
-                        <div style={styles.usersList}>
-                            {planosFiltrados.length === 0 ? (
-                                <div style={styles.emptyState}>
-                                    <span style={{fontSize: '48px'}}>👥</span>
-                                    <p style={styles.emptyStateText}>Nenhum utilizador encontrado</p>
-                                </div>
-                            ) : (
-                                planosFiltrados.map(plano => (
-                                    <div key={plano.userId} style={styles.userCard}>
-                                        <div style={styles.userInfo}>
-                                            <div style={styles.userAvatar}>
-                                                <span style={{fontSize: '24px'}}>👤</span>
-                                            </div>
-                                            <div style={styles.userDetails}>
-                                                <h4 style={styles.userName}>{plano.userName}</h4>
-                                                <p style={styles.userEmail}>{plano.userEmail}</p>
-                                                {plano.hasPlano && plano.horarioDescricao && (
-                                                    <div style={styles.horarioBadge}>
-                                                        <span style={{fontSize: '12px', marginRight: '5px'}}>⏰</span>
-                                                        {plano.horarioDescricao}
-                                                    </div>
-                                                )}
-                                            </div>
+                        {/* Resultados da Pesquisa */}
+                        {planosFiltrados.length === 0 ? (
+                            <div style={styles.noResults}>
+                                <FaExclamationTriangle style={{fontSize: '48px', color: '#ff9800', marginBottom: '15px'}} />
+                                <p style={{fontSize: '16px', color: '#757575'}}>
+                                    Nenhum utilizador encontrado com os filtros selecionados.
+                                </p>
+                            </div>
+                        ) : (
+                            <div style={styles.resultadosInfo}>
+                                A mostrar <strong>{planosFiltrados.length}</strong> de <strong>{totalUsers}</strong> utilizadores
+                            </div>
+                        )}
+                        
+                        <div style={styles.usersCompactList}>
+                            {planosFiltrados.map(plano => (
+                                <div
+                                    key={plano.userId}
+                                    style={plano.hasPlano ? styles.userItemComHorario : styles.userItemSemHorario}
+                                    data-responsive="userItem"
+                                >
+                                    <div style={styles.userItemLeft}>
+                                        <div style={plano.hasPlano ? styles.statusIndicatorAtivo : styles.statusIndicatorInativo}>
+                                            {plano.hasPlano ? <FaCheck /> : <FaTimes />}
                                         </div>
-                                        <div style={styles.userActions}>
-                                            {plano.hasPlano ? (
+                                        <div style={styles.userItemInfo}>
+                                            <h4 style={styles.userName}>{plano.userName}</h4>
+                                            <p style={styles.userEmail}></p>
+                                            {plano.hasPlano && plano.plano?.Horario && (
                                                 <>
-                                                    <div style={styles.statusBadge}>
-                                                        <span style={{fontSize: '12px', marginRight: '5px'}}>✓</span>
-                                                        Com Horário
+                                                    <div style={styles.horarioTag}>
+                                                        <FaClock style={{fontSize: '12px', marginRight: '5px'}} />
+                                                        {plano.plano.Horario.descricao} ({plano.plano.Horario.horasSemanais}h/sem)
                                                     </div>
-                                                    <button
-                                                        style={styles.btnIcon}
-                                                        onClick={() => {
-                                                            setNovoPlano({
-                                                                user_id: plano.userId,
-                                                                horario_id: '',
-                                                                tipoPeriodo: 'indefinido',
-                                                                dataInicio: '',
-                                                                dataFim: '',
-                                                                diaEspecifico: '',
-                                                                mesEspecifico: '',
-                                                                anoEspecifico: '',
-                                                                observacoes: ''
-                                                            });
-                                                            setShowPlanoModal(true);
-                                                        }}
-                                                        title="Editar horário"
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div style={styles.statusBadgeWarning}>
-                                                        <span style={{fontSize: '12px', marginRight: '5px'}}>⚠</span>
-                                                        Sem Horário
-                                                    </div>
-                                                    <button
-                                                        style={styles.btnPrimary}
-                                                        onClick={() => {
-                                                            setNovoPlano({
-                                                                user_id: plano.userId,
-                                                                horario_id: '',
-                                                                tipoPeriodo: 'indefinido',
-                                                                dataInicio: '',
-                                                                dataFim: '',
-                                                                diaEspecifico: '',
-                                                                mesEspecifico: '',
-                                                                anoEspecifico: '',
-                                                                observacoes: ''
-                                                            });
-                                                            setShowPlanoModal(true);
-                                                        }}
-                                                    >
-                                                        Atribuir
-                                                    </button>
+                                                    {plano.plano.tipoPeriodo && plano.plano.tipoPeriodo !== 'permanente' && (
+                                                        <div style={{...styles.horarioTag, backgroundColor: '#fff3e0', color: '#f57c00', fontSize: '12px', marginTop: '5px'}}>
+                                                            {plano.plano.tipoPeriodo === 'dia' && `📅 Dia: ${new Date(plano.plano.diaEspecifico).toLocaleDateString('pt-PT')}`}
+                                                            {plano.plano.tipoPeriodo === 'mes' && `📅 Mês: ${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][plano.plano.mesEspecifico - 1]}`}
+                                                            {plano.plano.tipoPeriodo === 'ano' && `📅 Ano: ${plano.plano.anoEspecifico}`}
+                                                        </div>
+                                                    )}
                                                 </>
                                             )}
                                         </div>
                                     </div>
-                                ))
-                            )}
+
+                                    <div style={styles.userItemActions} data-responsive="userItemActions">
+                                        {plano.hasPlano ? (
+                                            <>
+                                              
+                                                <button
+                                                    style={styles.btnEditar}
+                                                    onClick={() => {
+                                                        setNovoPlano({
+                                                            user_id: plano.userId,
+                                                            horario_id: '',
+                                                            dataInicio: new Date().toISOString().split('T')[0],
+                                                            observacoes: ''
+                                                        });
+                                                        setShowPlanoModal(true);
+                                                    }}
+                                                >
+                                                    <FaEdit />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button
+                                                style={styles.btnAtribuir}
+                                                onClick={() => {
+                                                    setNovoPlano({
+                                                        user_id: plano.userId,
+                                                        horario_id: '',
+                                                        dataInicio: new Date().toISOString().split('T')[0],
+                                                        observacoes: ''
+                                                    });
+                                                    setShowPlanoModal(true);
+                                                }}
+                                            >
+                                                <FaPlus />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
-
-                </View>
+                </div>
             )}
 
             {/* Tab Horários */}
@@ -834,14 +1137,16 @@ const GestaoHorarios = () => {
                             style={styles.btnPrimary}
                             onClick={() => setShowModal(true)}
                         >
-                            ➕ Novo Horário
+                            <FaPlus /> Novo Horário
                         </button>
                     </div>
 
                     <div style={styles.grid}>
                         {horarios.map(horario => (
-                            <div
+                            <motion.div
                                 key={horario.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
                                 style={styles.card}
                             >
                                 <div style={styles.cardHeader}>
@@ -855,13 +1160,13 @@ const GestaoHorarios = () => {
                                                 setShowModal(true);
                                             }}
                                         >
-                                            ✏️
+                                            <FaEdit />
                                         </button>
                                         <button
                                             style={styles.btnIconDanger}
                                             onClick={() => handleEliminarHorario(horario.id)}
                                         >
-                                            🗑️
+                                            <FaTrash />
                                         </button>
                                     </div>
                                 </div>
@@ -920,7 +1225,7 @@ const GestaoHorarios = () => {
                                         ))}
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
                     </div>
                 </div>
@@ -1051,7 +1356,7 @@ const GestaoHorarios = () => {
                             </div>
 
                             {/* Grid de dias */}
-                            <div style={styles.calendarioGrid}>
+                            <div style={styles.calendarioGrid} data-responsive="calendarioGrid">
                                 {getDiasDoMes(calendarioMes, calendarioAno).map((dia, index) => {
                                     if (!dia) {
                                         return <div key={`empty-${index}`} style={styles.calendarioDiaVazio}></div>;
@@ -1072,6 +1377,7 @@ const GestaoHorarios = () => {
                                                 ...(ehHoje ? styles.calendarioDiaHoje : {}),
                                                 ...(temHorario ? styles.calendarioDiaComHorario : {})
                                             }}
+                                            data-responsive="calendarioDia"
                                             onClick={() => atribuirHorarioDia(dia)}
                                         >
                                             <div style={styles.calendarioDiaNumero}>{dia}</div>
@@ -1106,7 +1412,7 @@ const GestaoHorarios = () => {
                         </div>
                     ) : (
                         <div style={styles.calendarioPlaceholder}>
-                            <span style={{fontSize: '48px', marginBottom: '15px'}}>👥</span>
+                            <FaUsers style={{fontSize: '48px', color: '#ccc', marginBottom: '15px'}} />
                             <p>Selecione um utilizador para ver e gerir o calendário de horários</p>
                         </div>
                     )}
@@ -1116,7 +1422,7 @@ const GestaoHorarios = () => {
             {/* Modal Criar/Editar Horário */}
             {showModal && (
                 <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
+                    <div style={styles.modal} data-responsive="modal" onClick={e => e.stopPropagation()}>
                         <h2 style={styles.modalTitle}>
                             {selectedHorario ? 'Editar Horário' : 'Novo Horário'}
                         </h2>
@@ -1282,7 +1588,7 @@ const GestaoHorarios = () => {
             {/* Modal Atribuir Horário */}
             {showPlanoModal && (
                 <div style={styles.modalOverlay} onClick={() => setShowPlanoModal(false)}>
-                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
+                    <div style={styles.modal} data-responsive="modal" onClick={e => e.stopPropagation()}>
                         <h2 style={styles.modalTitle}>Atribuir Horário</h2>
                         <form onSubmit={handleAtribuirHorario}>
                             <div style={styles.formGroup}>
@@ -1444,226 +1750,177 @@ const GestaoHorarios = () => {
                     </div>
                 </div>
             )}
-        </ScrollView>
+        </div>
     );
 };
 
-const styles = StyleSheet.create({
+const styles = {
     container: {
-        flex: 1,
-        backgroundColor: '#e3f2fd',
-    },
-    scrollContentWrapper: {
-        flexGrow: 1,
-        paddingBottom: 40,
+        padding: '15px',
+        width: '100%',
+        fontFamily: "'Inter', 'Segoe UI', 'Roboto', sans-serif",
+        boxSizing: 'border-box',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%)',
+        overflowY: 'auto',
+        overflowX: 'hidden'
     },
     header: {
-        width: '100%',
-        paddingTop: 50,
-        paddingBottom: 50,
-        paddingHorizontal: 20,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 10,
-        elevation: 8,
+        marginBottom: '30px',
+        padding: '25px',
+        background: 'linear-gradient(135deg, #1976D2 0%, #1565C0 100%)',
+        borderRadius: '20px',
+        boxShadow: '0 8px 24px rgba(25, 118, 210, 0.25)'
     },
-    headerContent: {
-        alignItems: 'center',
-    },
-    headerTitle: {
-        fontSize: 28,
+    title: {
+        fontSize: '28px',
         fontWeight: '700',
-        color: '#ffffff',
-        marginTop: 12,
-        marginBottom: 6,
-        letterSpacing: 0.5,
-    },
-    headerSubtitle: {
-        fontSize: 15,
-        color: 'rgba(255, 255, 255, 0.95)',
-        fontWeight: '500',
-        textAlign: 'center',
-    },
-    errorContainer: {
-        flexDirection: 'row',
+        color: '#fff',
+        display: 'flex',
         alignItems: 'center',
-        backgroundColor: '#fee',
-        padding: 14,
-        borderRadius: 14,
-        marginTop: 20,
-        marginHorizontal: 20,
-        borderLeftWidth: 4,
-        borderLeftColor: '#ff6b6b',
+        gap: '15px',
+        margin: 0,
+        textShadow: '0 2px 4px rgba(0,0,0,0.1)'
     },
-    errorText: {
-        color: '#ff6b6b',
-        marginLeft: 10,
-        fontSize: 14,
-        fontWeight: '600',
-        flex: 1,
+    titleIcon: {
+        fontSize: '32px',
+        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
     },
-    successContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#e8f5e9',
-        padding: 14,
-        borderRadius: 14,
-        marginTop: 20,
-        marginHorizontal: 20,
-        borderLeftWidth: 4,
-        borderLeftColor: '#4caf50',
-    },
-    successText: {
-        color: '#4caf50',
-        marginLeft: 10,
-        fontSize: 14,
-        fontWeight: '600',
-        flex: 1,
-    },
-    navTabsContainer: {
-        marginTop: 20,
-        marginHorizontal: 20,
-    },
-    navTabsContent: {
-        paddingRight: 20,
+    tabs: {
+        display: 'flex',
+        gap: '8px',
+        marginBottom: '25px',
+        backgroundColor: '#fff',
+        padding: '8px',
+        borderRadius: '16px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        overflowX: 'auto',
+        flexWrap: 'nowrap'
     },
     tab: {
-        flexDirection: 'row',
+        padding: '12px 20px',
+        backgroundColor: 'transparent',
+        border: 'none',
+        borderRadius: '12px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500',
+        color: '#757575',
+        display: 'flex',
         alignItems: 'center',
-        backgroundColor: '#ffffff',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-        marginRight: 12,
-        shadowColor: '#1976D2',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        gap: '8px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        whiteSpace: 'nowrap',
+        flex: '0 0 auto'
     },
     activeTab: {
+        padding: '12px 20px',
         backgroundColor: '#1976D2',
-        shadowOpacity: 0.3,
-        elevation: 4,
-    },
-    tabText: {
-        fontSize: 14,
+        border: 'none',
+        borderRadius: '12px',
+        cursor: 'pointer',
+        fontSize: '14px',
         fontWeight: '600',
-        color: '#7f8c8d',
-        marginLeft: 8,
-        letterSpacing: 0.3,
-    },
-    activeTabText: {
-        color: '#ffffff',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+        transform: 'translateY(-2px)',
+        whiteSpace: 'nowrap',
+        flex: '0 0 auto'
     },
     content: {
-        marginTop: 20,
-        marginHorizontal: 20,
-        backgroundColor: '#ffffff',
-        borderRadius: 24,
-        padding: 20,
-        shadowColor: '#1976D2',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
+        backgroundColor: '#fff',
+        borderRadius: '20px',
+        padding: '25px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        marginBottom: '25px',
+        transition: 'all 0.3s ease'
     },
     statsGrid: {
-        marginBottom: 30,
+        display: 'grid',
+        gridTemplateColumns: '1fr',
+        gap: '20px',
+        marginBottom: '30px'
     },
-
     statCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 20,
-        flexDirection: 'row',
+        backgroundColor: '#fff',
+        borderRadius: '20px',
+        padding: '25px',
+        display: 'flex',
         alignItems: 'center',
-        marginBottom: 15,
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        gap: '20px',
+        border: 'none',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'pointer',
+        position: 'relative',
+        overflow: 'hidden'
     },
     statIcon: {
-        width: 60,
-        height: 60,
-        borderRadius: 12,
+        width: '70px',
+        height: '70px',
+        borderRadius: '18px',
         backgroundColor: '#e3f2fd',
+        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        fontSize: '28px',
+        color: '#1976D2',
+        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
+        transition: 'all 0.3s ease'
     },
     statContent: {
-        flex: 1,
+        flex: 1
     },
     statValue: {
-        fontSize: 32,
-        fontWeight: '700',
+        fontSize: '36px',
+        fontWeight: '800',
         color: '#1976D2',
-        marginBottom: 5,
+        marginBottom: '5px',
+        letterSpacing: '-0.5px'
     },
     statLabel: {
-        fontSize: 14,
+        fontSize: '13px',
         color: '#757575',
-        fontWeight: '500',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     sectionTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 20,
-    },
-    actionBar: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        fontSize: '22px',
+        fontWeight: '700',
+        color: '#1e293b',
+        marginBottom: '25px',
+        display: 'flex',
         alignItems: 'center',
-        marginBottom: 20,
-    },
-    btnPrimary: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1976D2',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        gap: 8,
-        shadowColor: '#1976D2',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    btnPrimaryText: {
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: '600',
+        gap: '10px'
     },
     usersListContainer: {
-        marginTop: 20,
+        marginTop: '25px'
     },
     searchFilterContainer: {
-        marginBottom: '20px',
+        marginBottom: '25px',
         display: 'flex',
         flexDirection: 'column',
         gap: '15px'
     },
     searchBox: {
-        width: '100%'
+        width: '100%',
+        position: 'relative'
     },
     searchInput: {
         width: '100%',
-        padding: '12px 16px',
-        fontSize: '14px',
-        border: '2px solid #e0e0e0',
-        borderRadius: '8px',
+        padding: '14px 20px 14px 45px',
+        fontSize: '15px',
+        border: '2px solid #e2e8f0',
+        borderRadius: '14px',
         outline: 'none',
-        transition: 'border-color 0.2s ease',
-        boxSizing: 'border-box'
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxSizing: 'border-box',
+        backgroundColor: '#fff',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
     },
     filterButtons: {
         display: 'flex',
@@ -1671,411 +1928,444 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap'
     },
     filterButton: {
-        padding: '10px 20px',
-        backgroundColor: '#fff',
-        color: '#757575',
-        border: '2px solid #e0e0e0',
-        borderRadius: '8px',
+        padding: '12px 20px',
+        backgroundColor: '#f8fafc',
+        color: '#64748b',
+        border: '2px solid #e2e8f0',
+        borderRadius: '12px',
         fontSize: '14px',
-        fontWeight: '500',
+        fontWeight: '600',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        gap: '6px'
     },
     filterButtonActive: {
-        padding: '10px 20px',
+        padding: '12px 20px',
         backgroundColor: '#1976D2',
         color: '#fff',
         border: '2px solid #1976D2',
-        borderRadius: '8px',
+        borderRadius: '12px',
         fontSize: '14px',
         fontWeight: '600',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        gap: '6px',
+        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+        transform: 'translateY(-2px)'
     },
     filterButtonActiveSuccess: {
-        padding: '10px 20px',
+        padding: '12px 20px',
         backgroundColor: '#4caf50',
         color: '#fff',
         border: '2px solid #4caf50',
-        borderRadius: '8px',
+        borderRadius: '12px',
         fontSize: '14px',
         fontWeight: '600',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        gap: '6px',
+        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+        transform: 'translateY(-2px)'
     },
     filterButtonActiveWarning: {
-        padding: '10px 20px',
+        padding: '12px 20px',
         backgroundColor: '#ff9800',
         color: '#fff',
         border: '2px solid #ff9800',
-        borderRadius: '8px',
+        borderRadius: '12px',
         fontSize: '14px',
         fontWeight: '600',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        gap: '6px',
+        boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
+        transform: 'translateY(-2px)'
     },
     noResults: {
         textAlign: 'center',
-        padding: '40px 20px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        marginBottom: '20px'
+        padding: '60px 30px',
+        backgroundColor: '#f8fafc',
+        borderRadius: '16px',
+        marginBottom: '20px',
+        border: '2px dashed #cbd5e1'
     },
     resultadosInfo: {
         fontSize: '14px',
-        color: '#757575',
-        marginBottom: '15px',
-        padding: '10px 15px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '6px',
-        borderLeft: '4px solid #1976D2'
+        color: '#64748b',
+        marginBottom: '20px',
+        padding: '14px 20px',
+        backgroundColor: '#f1f5f9',
+        borderRadius: '12px',
+        borderLeft: '4px solid #1976D2',
+        fontWeight: '500'
     },
     usersCompactList: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px'
-    },
-userItemSemHorario: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    padding: '14px',
-    borderRadius: '10px',
-    border: '2px solid #ff9800',
-    marginBottom: '12px',
-    gap: '12px'
-},
-
-userItemComHorario: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    padding: '14px',
-    borderRadius: '10px',
-    border: '2px solid #4caf50',
-    marginBottom: '12px',
-    gap: '12px'
-},
-
-
-
-// Desktop
-'@media (min-width: 700px)': {
-    userItemComHorario: {
-        flexDirection: 'row',
-        alignItems: 'center'
+        gap: '15px'
     },
     userItemSemHorario: {
-        flexDirection: 'row',
-        alignItems: 'center'
-    }
-}
-,
-userItemActions: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    gap: '8px'
-},
-
-'@media (min-width: 600px)': {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-start',
+        width: '100%',
+        padding: '20px',
+        borderRadius: '16px',
+        border: '2px solid #ff9800',
+        backgroundColor: '#fff',
+        marginBottom: '0',
+        gap: '15px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 4px 12px rgba(255, 152, 0, 0.1)',
+        cursor: 'pointer'
+    },
+    userItemComHorario: {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-start',
+        width: '100%',
+        padding: '20px',
+        borderRadius: '16px',
+        border: '2px solid #4caf50',
+        backgroundColor: '#fff',
+        marginBottom: '0',
+        gap: '15px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.1)',
+        cursor: 'pointer'
+    },
     userItemActions: {
+        display: 'flex',
         flexDirection: 'row',
-        width: 'auto'
-    }
-},
+        width: '100%',
+        gap: '10px',
+        flexWrap: 'wrap'
+    },
 
 
 
-userItemLeft: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '12px',
-    flexGrow: 1,
-    minWidth: 0   // <---- SUPER IMPORTANTE
-}
-,
-
+    userItemLeft: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: '15px',
+        width: '100%',
+        minWidth: 0
+    },
     statusIndicatorAtivo: {
-        width: '40px',
-        height: '40px',
+        width: '50px',
+        height: '50px',
         borderRadius: '50%',
         backgroundColor: '#4caf50',
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '18px',
-        flexShrink: 0
+        fontSize: '22px',
+        flexShrink: 0,
+        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+        transition: 'all 0.3s ease'
     },
     statusIndicatorInativo: {
-        width: '40px',
-        height: '40px',
+        width: '50px',
+        height: '50px',
         borderRadius: '50%',
         backgroundColor: '#ff9800',
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '18px',
-        flexShrink: 0
+        fontSize: '22px',
+        flexShrink: 0,
+        boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
+        transition: 'all 0.3s ease'
     },
     userItemInfo: {
-        flex: 1
+        flex: 1,
+        minWidth: 0
     },
     userName: {
-        fontSize: '16px',
-        fontWeight: '600',
-        color: '#333',
-        margin: '0 0 4px 0'
+        fontSize: '17px',
+        fontWeight: '700',
+        color: '#1e293b',
+        margin: '0 0 6px 0',
+        letterSpacing: '-0.2px'
     },
     userEmail: {
         fontSize: '14px',
-        color: '#757575',
-        margin: '0 0 8px 0'
+        color: '#64748b',
+        margin: '0 0 10px 0'
     },
     horarioTag: {
         display: 'inline-flex',
         alignItems: 'center',
-        padding: '4px 12px',
+        padding: '6px 14px',
         backgroundColor: '#e3f2fd',
         color: '#1976D2',
-        borderRadius: '12px',
+        borderRadius: '10px',
         fontSize: '13px',
-        fontWeight: '500'
+        fontWeight: '600',
+        boxShadow: '0 2px 6px rgba(25, 118, 210, 0.15)'
     },
-  userItemActions: {
-    flexShrink: 0,     // impede de encolher
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end'
-},
-
-
-'@media (min-width: 600px)': {
-    userItemActions: {
-        flexDirection: 'row',
-        width: 'auto'
-    }
-}
-,
     btnHistorico: {
-        padding: '8px 16px',
+        padding: '10px 18px',
         backgroundColor: '#fff',
         color: '#1976D2',
-        border: '1px solid #1976D2',
-        borderRadius: '6px',
+        border: '2px solid #1976D2',
+        borderRadius: '10px',
         fontSize: '14px',
-        fontWeight: '500',
+        fontWeight: '600',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         gap: '6px',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
     },
     btnEditar: {
-        padding: '8px 16px',
+        padding: '10px 18px',
         backgroundColor: '#4caf50',
         color: '#fff',
         border: 'none',
-        borderRadius: '6px',
+        borderRadius: '10px',
         fontSize: '14px',
-        fontWeight: '500',
+        fontWeight: '600',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: '6px',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.25)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        flex: '1',
+        minWidth: '120px'
     },
     btnAtribuir: {
-    padding: '8px 12px',
-    backgroundColor: '#ff9800',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    whiteSpace: 'nowrap',
-    maxWidth: '100%',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    flexShrink: 0
-}
-,
+        padding: '10px 18px',
+        backgroundColor: '#ff9800',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '10px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 4px 12px rgba(255, 152, 0, 0.25)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        flex: '1',
+        minWidth: '120px'
+    },
     actionBar: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '20px'
+        marginBottom: '25px',
+        flexWrap: 'wrap',
+        gap: '15px'
     },
     grid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: '20px'
     },
     card: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: '12px',
-        padding: '20px',
-        border: '1px solid #e0e0e0'
+        backgroundColor: '#fff',
+        borderRadius: '16px',
+        padding: '24px',
+        border: 'none',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        cursor: 'pointer'
     },
     cardHeader: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '15px'
+        marginBottom: '20px',
+        paddingBottom: '15px',
+        borderBottom: '2px solid #f1f5f9'
     },
     cardTitle: {
-        fontSize: '18px',
-        fontWeight: '600',
-        color: '#333',
-        margin: 0
+        fontSize: '19px',
+        fontWeight: '700',
+        color: '#1e293b',
+        margin: 0,
+        letterSpacing: '-0.3px'
     },
     cardActions: {
         display: 'flex',
-        gap: '8px'
+        gap: '10px'
     },
     cardBody: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px'
+        gap: '12px'
     },
     infoRow: {
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        padding: '8px 0'
     },
     label: {
         fontSize: '14px',
-        color: '#757575',
-        fontWeight: '500'
+        color: '#64748b',
+        fontWeight: '600'
     },
     value: {
         fontSize: '14px',
-        color: '#333',
-        fontWeight: '600'
+        color: '#1e293b',
+        fontWeight: '700'
     },
     diasSemana: {
         display: 'flex',
-        gap: '5px',
-        marginTop: '10px'
+        gap: '6px',
+        marginTop: '12px',
+        flexWrap: 'wrap'
     },
     diaBadge: {
-        padding: '4px 8px',
-        borderRadius: '4px',
+        padding: '6px 10px',
+        borderRadius: '8px',
         fontSize: '12px',
-        fontWeight: '500'
+        fontWeight: '600',
+        transition: 'all 0.2s ease'
     },
     diaAtivo: {
         backgroundColor: '#1976D2',
-        color: '#fff'
+        color: '#fff',
+        boxShadow: '0 2px 6px rgba(25, 118, 210, 0.3)'
     },
     diaInativo: {
-        backgroundColor: '#e0e0e0',
-        color: '#999'
+        backgroundColor: '#f1f5f9',
+        color: '#94a3b8'
     },
     historicoList: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '15px'
+        gap: '18px'
     },
     historicoCard: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        padding: '15px',
-        border: '1px solid #e0e0e0'
+        backgroundColor: '#fff',
+        borderRadius: '14px',
+        padding: '20px',
+        border: 'none',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+        transition: 'all 0.3s ease'
     },
     historicoHeader: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '10px'
+        marginBottom: '15px'
     },
     historicoBody: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px'
+        gap: '10px'
     },
     badgeAtivo: {
-        padding: '4px 12px',
-        borderRadius: '12px',
+        padding: '6px 14px',
+        borderRadius: '10px',
         fontSize: '12px',
-        fontWeight: '600',
+        fontWeight: '700',
         backgroundColor: '#4caf50',
-        color: '#fff'
+        color: '#fff',
+        boxShadow: '0 2px 6px rgba(76, 175, 80, 0.3)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     badgeInativo: {
-        padding: '4px 12px',
-        borderRadius: '12px',
+        padding: '6px 14px',
+        borderRadius: '10px',
         fontSize: '12px',
-        fontWeight: '600',
-        backgroundColor: '#999',
-        color: '#fff'
+        fontWeight: '700',
+        backgroundColor: '#94a3b8',
+        color: '#fff',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     observacoes: {
-        marginTop: '10px',
-        padding: '10px',
-        backgroundColor: '#fff',
-        borderRadius: '6px'
+        marginTop: '12px',
+        padding: '15px',
+        backgroundColor: '#f8fafc',
+        borderRadius: '10px',
+        borderLeft: '4px solid #1976D2'
     },
     btnPrimary: {
-        padding: '10px 20px',
+        padding: '12px 24px',
         backgroundColor: '#1976D2',
         color: '#fff',
         border: 'none',
-        borderRadius: '8px',
-        fontSize: '14px',
-        fontWeight: '600',
+        borderRadius: '12px',
+        fontSize: '15px',
+        fontWeight: '700',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        gap: '8px'
+        gap: '8px',
+        boxShadow: '0 4px 14px rgba(25, 118, 210, 0.35)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     btnSecondary: {
-        padding: '10px 20px',
-        backgroundColor: '#fff',
+        padding: '12px 24px',
+        backgroundColor: '#f8fafc',
         color: '#1976D2',
-        border: '1px solid #1976D2',
-        borderRadius: '8px',
-        fontSize: '14px',
-        fontWeight: '600',
+        border: '2px solid #e2e8f0',
+        borderRadius: '12px',
+        fontSize: '15px',
+        fontWeight: '700',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
-        gap: '8px'
+        gap: '8px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     btnIcon: {
-        padding: '8px',
+        padding: '10px',
         backgroundColor: '#1976D2',
         color: '#fff',
         border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer'
+        borderRadius: '10px',
+        cursor: 'pointer',
+        fontSize: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 10px rgba(25, 118, 210, 0.3)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
     },
     btnIconDanger: {
-        padding: '8px',
+        padding: '10px',
         backgroundColor: '#f44336',
         color: '#fff',
         border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer'
+        borderRadius: '10px',
+        cursor: 'pointer',
+        fontSize: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 10px rgba(244, 67, 54, 0.3)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
     },
     modalOverlay: {
         position: 'fixed',
@@ -2083,330 +2373,271 @@ userItemLeft: {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        backdropFilter: 'blur(4px)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 1000
+        zIndex: 1000,
+        padding: '20px',
+        animation: 'fadeIn 0.3s ease'
     },
     modal: {
         backgroundColor: '#fff',
-        borderRadius: '12px',
-        padding: '30px',
-        maxWidth: '600px',
-        width: '90%',
-        maxHeight: '85vh',
-        overflowY: 'auto'
+        borderRadius: '20px',
+        padding: '35px',
+        maxWidth: '650px',
+        width: '100%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        animation: 'slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
     },
     modalTitle: {
-        fontSize: '24px',
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: '20px'
+        fontSize: '26px',
+        fontWeight: '800',
+        color: '#1e293b',
+        marginBottom: '25px',
+        letterSpacing: '-0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
     },
     formGroup: {
-        marginBottom: '20px'
+        marginBottom: '22px'
     },
     formRow: {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '15px',
-        marginBottom: '20px'
+        gap: '18px',
+        marginBottom: '22px'
     },
     formLabel: {
         display: 'block',
         fontSize: '14px',
-        fontWeight: '500',
-        color: '#555',
-        marginBottom: '8px'
+        fontWeight: '700',
+        color: '#334155',
+        marginBottom: '10px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+        fontSize: '12px'
     },
     formInput: {
         width: '100%',
-        padding: '10px',
-        border: '1px solid #e0e0e0',
-        borderRadius: '6px',
-        fontSize: '14px'
+        padding: '14px 16px',
+        border: '2px solid #e2e8f0',
+        borderRadius: '12px',
+        fontSize: '15px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        backgroundColor: '#fff',
+        color: '#1e293b',
+        fontWeight: '500',
+        boxSizing: 'border-box'
     },
     formTextarea: {
         width: '100%',
-        padding: '10px',
-        border: '1px solid #e0e0e0',
-        borderRadius: '6px',
-        fontSize: '14px',
-        resize: 'vertical'
+        padding: '14px 16px',
+        border: '2px solid #e2e8f0',
+        borderRadius: '12px',
+        fontSize: '15px',
+        resize: 'vertical',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        backgroundColor: '#fff',
+        color: '#1e293b',
+        fontWeight: '500',
+        fontFamily: "'Inter', 'Segoe UI', 'Roboto', sans-serif",
+        boxSizing: 'border-box'
     },
     diasSemanaSelector: {
         display: 'flex',
-        gap: '8px',
+        gap: '10px',
         flexWrap: 'wrap'
     },
     diaButton: {
-        padding: '8px 16px',
-        backgroundColor: '#f0f0f0',
-        color: '#555',
-        border: '1px solid #e0e0e0',
-        borderRadius: '6px',
+        padding: '10px 18px',
+        backgroundColor: '#f1f5f9',
+        color: '#64748b',
+        border: '2px solid #e2e8f0',
+        borderRadius: '10px',
         cursor: 'pointer',
         fontSize: '14px',
-        fontWeight: '500'
+        fontWeight: '700',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
     },
     diaButtonAtivo: {
         backgroundColor: '#1976D2',
         color: '#fff',
-        borderColor: '#1976D2'
+        borderColor: '#1976D2',
+        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+        transform: 'translateY(-2px)'
     },
     modalActions: {
         display: 'flex',
         justifyContent: 'flex-end',
-        gap: '10px',
-        marginTop: '20px'
+        gap: '12px',
+        marginTop: '30px',
+        paddingTop: '25px',
+        borderTop: '2px solid #f1f5f9'
     },
     errorMessage: {
-        padding: '15px',
-        backgroundColor: '#ffebee',
-        color: '#c62828',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        border: '1px solid #ffcdd2'
+        padding: '18px 20px',
+        backgroundColor: '#fef2f2',
+        color: '#dc2626',
+        borderRadius: '14px',
+        marginBottom: '25px',
+        border: '2px solid #fecaca',
+        fontWeight: '600',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
     },
     successMessage: {
-        padding: '15px',
-        backgroundColor: '#e8f5e9',
-        color: '#2e7d32',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        border: '1px solid #c8e6c9'
+        padding: '18px 20px',
+        backgroundColor: '#f0fdf4',
+        color: '#16a34a',
+        borderRadius: '14px',
+        marginBottom: '25px',
+        border: '2px solid #bbf7d0',
+        fontWeight: '600',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
     },
 
     // Estilos do Calendário
     calendarioControls: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '20px',
+        gap: '25px',
         marginBottom: '30px'
     },
     calendarioNav: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: '15px'
+        gap: '15px',
+        flexWrap: 'wrap'
     },
     calendarioMesAno: {
-        fontSize: '20px',
-        fontWeight: '600',
+        fontSize: '22px',
+        fontWeight: '700',
         color: '#1976D2',
-        margin: 0
+        margin: 0,
+        letterSpacing: '-0.3px'
     },
     calendarioContainer: {
         backgroundColor: '#fff',
-        borderRadius: '12px',
-        padding: '20px',
-        border: '1px solid #e0e0e0'
+        borderRadius: '20px',
+        padding: '25px',
+        border: 'none',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
     },
     calendarioHeader: {
         display: 'grid',
         gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '10px',
-        marginBottom: '10px'
+        gap: '12px',
+        marginBottom: '15px'
     },
     calendarioDiaSemana: {
         textAlign: 'center',
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#1976D2',
         fontSize: '14px',
-        padding: '10px 0'
+        padding: '12px 0',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     calendarioGrid: {
         display: 'grid',
         gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '10px',
-        marginBottom: '20px'
+        gap: '12px',
+        marginBottom: '25px'
     },
     calendarioDiaVazio: {
-        minHeight: '80px'
+        minHeight: '90px'
     },
     calendarioDia: {
-        minHeight: '80px',
-        padding: '8px',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '8px',
+        minHeight: '90px',
+        padding: '10px',
+        backgroundColor: '#f8fafc',
+        borderRadius: '14px',
         cursor: 'pointer',
-        transition: 'all 0.2s ease',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         border: '2px solid transparent',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
     },
     calendarioDiaHoje: {
         backgroundColor: '#e3f2fd',
-        border: '2px solid #1976D2'
+        border: '2px solid #1976D2',
+        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)'
     },
     calendarioDiaComHorario: {
         backgroundColor: '#e8f5e9',
-        border: '2px solid #4caf50'
+        border: '2px solid #4caf50',
+        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)'
     },
     calendarioDiaNumero: {
-        fontSize: '14px',
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: '5px'
+        fontSize: '15px',
+        fontWeight: '700',
+        color: '#1e293b',
+        marginBottom: '6px'
     },
     calendarioDiaHorario: {
         fontSize: '11px',
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        gap: '2px'
+        gap: '3px'
     },
     calendarioHorarioNome: {
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#1976D2',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap'
     },
     calendarioHorarioHoras: {
-        color: '#757575',
-        fontSize: '10px'
+        color: '#64748b',
+        fontSize: '10px',
+        fontWeight: '600'
     },
     calendarioLegenda: {
         display: 'flex',
-        gap: '20px',
+        gap: '25px',
         justifyContent: 'center',
         flexWrap: 'wrap',
-        paddingTop: '20px',
-        borderTop: '1px solid #e0e0e0'
+        paddingTop: '25px',
+        borderTop: '2px solid #f1f5f9'
     },
     legendaItem: {
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '10px',
         fontSize: '14px',
-        color: '#555'
+        color: '#64748b',
+        fontWeight: '600'
     },
     legendaCor: {
-        width: '20px',
-        height: '20px',
-        borderRadius: '4px',
-        border: '1px solid #ddd'
+        width: '24px',
+        height: '24px',
+        borderRadius: '8px',
+        border: '2px solid #cbd5e1',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
     },
     calendarioPlaceholder: {
         textAlign: 'center',
-        padding: '60px 20px',
-        color: '#999',
+        padding: '80px 30px',
+        color: '#94a3b8',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    usersList: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
-    },
-    emptyState: {
-        textAlign: 'center',
-        padding: '40px 20px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '12px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    emptyStateText: {
-        fontSize: '16px',
-        color: '#757575',
-        marginTop: '10px',
-        fontWeight: '500'
-    },
-    userCard: {
-        display: 'flex',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: '16px',
-        borderRadius: '12px',
-        border: '2px solid #e0e0e0',
-        gap: '15px',
-        transition: 'all 0.2s ease'
-    },
-    userInfo: {
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: '15px',
-        flex: 1,
-        minWidth: 0
-    },
-    userAvatar: {
-        width: '50px',
-        height: '50px',
-        borderRadius: '50%',
-        backgroundColor: '#e3f2fd',
-        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        flexShrink: 0
-    },
-    userDetails: {
-        flex: 1,
-        minWidth: 0
-    },
-    horarioBadge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '4px 10px',
-        backgroundColor: '#e3f2fd',
-        color: '#1976D2',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '500',
-        marginTop: '5px'
-    },
-    userActions: {
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: '10px',
-        flexShrink: 0
-    },
-    statusBadge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '6px 12px',
-        backgroundColor: '#e8f5e9',
-        color: '#4caf50',
-        borderRadius: '12px',
-        fontSize: '13px',
-        fontWeight: '600',
-        whiteSpace: 'nowrap'
-    },
-    statusBadgeWarning: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '6px 12px',
-        backgroundColor: '#fff3e0',
-        color: '#ff9800',
-        borderRadius: '12px',
-        fontSize: '13px',
-        fontWeight: '600',
-        whiteSpace: 'nowrap'
-    },
-    btnIcon: {
-        padding: '8px 12px',
-        backgroundColor: '#fff',
-        color: '#1976D2',
-        border: '2px solid #1976D2',
-        borderRadius: '8px',
-        fontSize: '16px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'all 0.2s ease',
-        minWidth: '40px'
+        backgroundColor: '#f8fafc',
+        borderRadius: '16px',
+        border: '2px dashed #cbd5e1'
     }
-});
+};
 
 export default GestaoHorarios;
