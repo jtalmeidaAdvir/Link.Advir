@@ -8,7 +8,7 @@ const { Op } = require('sequelize');
 // Criar novo POS
 const criarPOS = async (req, res) => {
     try {
-        const { nome, codigo, email, password, empresa_id, obra_predefinida_id } = req.body;
+        const { nome, codigo, email, password, empresa_id, obra_predefinida_id, latitude, longitude } = req.body;
 
         // Validar dados obrigatórios
         if (!nome || !codigo || !email || !password || !empresa_id) {
@@ -44,7 +44,9 @@ const criarPOS = async (req, res) => {
             password: hashedPassword,
             empresa_id,
             obra_predefinida_id: obra_predefinida_id || null,
-            ativo: true
+            ativo: true,
+            latitude: latitude || null,
+            longitude: longitude || null
         });
 
         res.status(201).json({
@@ -56,7 +58,9 @@ const criarPOS = async (req, res) => {
                 email: novoPOS.email,
                 empresa_id: novoPOS.empresa_id,
                 obra_predefinida_id: novoPOS.obra_predefinida_id,
-                ativo: novoPOS.ativo
+                ativo: novoPOS.ativo,
+                latitude: novoPOS.latitude,
+                longitude: novoPOS.longitude
             }
         });
     } catch (error) {
@@ -115,7 +119,9 @@ const loginPOS = async (req, res) => {
             empresa_id: pos.empresa_id,
             empresa_areacliente: pos.Empresa.empresa,
             obra_predefinida_id: pos.obra_predefinida_id,
-            obra_predefinida_nome: pos.ObraPredefinida ? pos.ObraPredefinida.nome : null
+            obra_predefinida_nome: pos.ObraPredefinida ? pos.ObraPredefinida.nome : null,
+            latitude: pos.latitude,
+            longitude: pos.longitude
         });
     } catch (error) {
         console.error('Erro no login do POS:', error);
@@ -145,7 +151,7 @@ const listarPOS = async (req, res) => {
 const atualizarPOS = async (req, res) => {
     try {
         const { id } = req.params;
-        const { nome, codigo, email, password, empresa_id, obra_predefinida_id, ativo } = req.body;
+        const { nome, codigo, email, password, empresa_id, obra_predefinida_id, ativo, latitude, longitude } = req.body;
 
         const pos = await POS.findByPk(id);
         if (!pos) {
@@ -168,7 +174,9 @@ const atualizarPOS = async (req, res) => {
             password: hashedPassword,
             empresa_id: empresa_id || pos.empresa_id,
             obra_predefinida_id: obra_predefinida_id !== undefined ? obra_predefinida_id : pos.obra_predefinida_id,
-            ativo: ativo !== undefined ? ativo : pos.ativo
+            ativo: ativo !== undefined ? ativo : pos.ativo,
+            latitude: latitude !== undefined ? latitude : pos.latitude,
+            longitude: longitude !== undefined ? longitude : pos.longitude
         });
 
         res.json({
@@ -180,7 +188,9 @@ const atualizarPOS = async (req, res) => {
                 email: pos.email,
                 empresa_id: pos.empresa_id,
                 obra_predefinida_id: pos.obra_predefinida_id,
-                ativo: pos.ativo
+                ativo: pos.ativo,
+                latitude: pos.latitude,
+                longitude: pos.longitude
             }
         });
     } catch (error) {
