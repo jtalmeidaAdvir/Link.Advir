@@ -87,12 +87,20 @@ router.put("/relatorios-agendados/:id", async (req, res) => {
             return res.status(404).json({ error: "Relatório não encontrado" });
         }
 
-        await relatorio.update({
-            enabled:
-                updates.enabled !== undefined
-                    ? updates.enabled
-                    : relatorio.enabled,
-        });
+        // Preparar dados para atualização
+        const updateData = {};
+
+        if (updates.nome !== undefined) updateData.nome = updates.nome;
+        if (updates.tipo !== undefined) updateData.tipo = updates.tipo;
+        if (updates.emails !== undefined) updateData.emails = updates.emails;
+        if (updates.frequency !== undefined) updateData.frequency = updates.frequency;
+        if (updates.time !== undefined) updateData.time = updates.time;
+        if (updates.days !== undefined) updateData.days = JSON.stringify(updates.days);
+        if (updates.empresa_id !== undefined) updateData.empresa_id = updates.empresa_id || null;
+        if (updates.obra_id !== undefined) updateData.obra_id = updates.obra_id || null;
+        if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
+
+        await relatorio.update(updateData);
 
         res.json({ message: "Relatório atualizado com sucesso" });
     } catch (error) {

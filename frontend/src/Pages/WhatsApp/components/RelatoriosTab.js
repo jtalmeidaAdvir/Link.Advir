@@ -5,6 +5,8 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
     const [obras, setObras] = useState([]);
     const [empresas, setEmpresas] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [editandoRelatorio, setEditandoRelatorio] = useState(null);
+    const [obrasEdicao, setObrasEdicao] = useState([]);
 
     const [novoRelatorio, setNovoRelatorio] = useState({
         nome: "",
@@ -220,8 +222,392 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
         }
     };
 
+    const iniciarEdicao = async (relatorio) => {
+        // Garantir que days é um array válido
+        let daysArray = [];
+        if (relatorio.days) {
+            try {
+                daysArray = typeof relatorio.days === 'string'
+                    ? JSON.parse(relatorio.days)
+                    : Array.isArray(relatorio.days)
+                        ? relatorio.days
+                        : [];
+            } catch (e) {
+                daysArray = [];
+            }
+        }
+
+        setEditandoRelatorio({
+            ...relatorio,
+            days: daysArray,
+            empresa_id: relatorio.empresa_id || "",
+            obra_id: relatorio.obra_id || "",
+        });
+
+        // Carregar obras se houver empresa selecionada
+        if (relatorio.empresa_id) {
+            await carregarObrasPorEmpresaEdicao(relatorio.empresa_id);
+        }
+
+        // Scroll para o topo para mostrar o formulário de edição
+        setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+    };
+
+    const cancelarEdicao = () => {
+        setEditandoRelatorio(null);
+        setObrasEdicao([]);
+    };
+
+    const carregarObrasPorEmpresaEdicao = async (empresaId) => {
+        if (!empresaId) {
+            setObrasEdicao([]);
+            return;
+        }
+
+        try {
+            const token = secureStorage.getItem("loginToken");
+
+            const response = await fetch("https://backend.advir.pt/api/obra", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "x-empresa-id": empresaId,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erro ao carregar obras: ${response.status}`);
+            }
+
+            const data = await response.json();
+            setObrasEdicao(
+                data.filter(
+                    (o) =>
+                        o.estado === "Ativo" &&
+                        o.empresa_id.toString() === empresaId.toString(),
+                ),
+            );
+        } catch (error) {
+            console.error("Erro ao carregar obras:", error);
+            setObrasEdicao([]);
+        }
+    };
+
+    const handleEditarRelatorio = async (e) => {
+        e.preventDefault();
+
+        if (!editandoRelatorio.nome || !editandoRelatorio.emails) {
+            alert("Nome e destinatários de email são obrigatórios");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch(
+                `${API_BASE_URL}/relatorios-agendados/${editandoRelatorio.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        ...editandoRelatorio,
+                        obra_id: editandoRelatorio.obra_id || editandoRelatorio.empresa_id
+                    }),
+                },
+            );
+
+            if (response.ok) {
+                alert("Relatório atualizado com sucesso!");
+                setEditandoRelatorio(null);
+                setObrasEdicao([]);
+                carregarRelatorios();
+            } else {
+                const error = await response.json();
+                alert(`Erro: ${error.error || "Erro ao atualizar relatório"}`);
+            }
+        } catch (error) {
+            console.error("Erro ao atualizar relatório:", error);
+            alert("Erro ao atualizar relatório");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div style={styles.grid}>
+            {/* Formulário de Edição (se estiver editando) */}
+            {editandoRelatorio && (
+                <div style={{ ...styles.card, backgroundColor: "#fff3cd", borderColor: "#ffc107" }}>
+                    <h3 style={styles.cardTitle}>✏️ Editar Relatório</h3>
+                    <form onSubmit={handleEditarRelatorio}>
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Nome do Relatório *</label>
+                            <input
+                                type="text"
+                                style={styles.input}
+                                value={editandoRelatorio.nome}
+                                onChange={(e) =>
+                                    setEditandoRelatorio({
+                                        ...editandoRelatorio,
+                                        nome: e.target.value,
+                                    })
+                                }
+                                placeholder="Ex: Relatório Diário Obra X"
+                                required
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Tipo de Relatório *</label>
+                            <select
+                                style={styles.select}
+                                value={editandoRelatorio.tipo}
+                                onChange={(e) =>
+                                    setEditandoRelatorio({
+                                        ...editandoRelatorio,
+                                        tipo: e.target.value,
+                                    })
+                                }
+                            >
+                                <option value="registos_obra_dia">
+                                    Registos de Ponto por Obra (Dia)
+                                </option>
+                                <option value="resumo_mensal">
+                                    Resumo Mensal de Horas
+                                </option>
+                                <option value="mapa_registos">
+                                    Mapa de Registos Geral
+                                </option>
+                                <option value="obras_ativas">
+                                    Resumo de Obras Ativas
+                                </option>
+                                <option value="resumo_ausentes_dia">
+                                    Resumo de Ausentes (Dia)
+                                </option>
+                            </select>
+                        </div>
+
+                        {(editandoRelatorio.tipo === "registos_obra_dia" ||
+                            editandoRelatorio.tipo === "resumo_mensal" ||
+                            editandoRelatorio.tipo === "resumo_ausentes_dia") && (
+                                <>
+                                    <div style={styles.formGroup}>
+                                        <label style={styles.label}>Empresa (opcional)</label>
+                                        <select
+                                            style={styles.select}
+                                            value={editandoRelatorio.empresa_id}
+                                            onChange={(e) => {
+                                                const empresaId = e.target.value;
+                                                setEditandoRelatorio({
+                                                    ...editandoRelatorio,
+                                                    empresa_id: empresaId,
+                                                    obra_id: "",
+                                                });
+                                                carregarObrasPorEmpresaEdicao(empresaId);
+                                            }}
+                                        >
+                                            <option value="">Todas as empresas</option>
+                                            {Array.isArray(empresas) && empresas.map((empresa) => (
+                                                <option key={empresa.id} value={empresa.id}>
+                                                    {empresa.empresa}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div style={styles.formGroup}>
+                                        <label style={styles.label}>Obra (opcional)</label>
+                                        <select
+                                            style={styles.select}
+                                            value={editandoRelatorio.obra_id}
+                                            onChange={(e) =>
+                                                setEditandoRelatorio({
+                                                    ...editandoRelatorio,
+                                                    obra_id: e.target.value,
+                                                })
+                                            }
+                                            disabled={!editandoRelatorio.empresa_id && empresas.length > 0}
+                                        >
+                                            <option value="">
+                                                {editandoRelatorio.empresa_id
+                                                    ? "Todas as obras da empresa"
+                                                    : "Selecione uma empresa primeiro"}
+                                            </option>
+                                            {obrasEdicao.map((obra) => (
+                                                <option key={obra.id} value={obra.id}>
+                                                    {obra.codigo} - {obra.nome}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>
+                                Destinatários (Emails) *
+                            </label>
+                            <textarea
+                                style={styles.textarea}
+                                value={editandoRelatorio.emails}
+                                onChange={(e) =>
+                                    setEditandoRelatorio({
+                                        ...editandoRelatorio,
+                                        emails: e.target.value,
+                                    })
+                                }
+                                placeholder="email1@exemplo.com, email2@exemplo.com"
+                                rows="3"
+                                required
+                            />
+                            <small style={{ color: "#6c757d" }}>
+                                Separar múltiplos emails por vírgula
+                            </small>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Frequência</label>
+                            <select
+                                style={styles.select}
+                                value={editandoRelatorio.frequency}
+                                onChange={(e) =>
+                                    setEditandoRelatorio({
+                                        ...editandoRelatorio,
+                                        frequency: e.target.value,
+                                        days:
+                                            e.target.value === "daily"
+                                                ? [1, 2, 3, 4, 5]
+                                                : editandoRelatorio.days,
+                                    })
+                                }
+                            >
+                                <option value="daily">Diariamente</option>
+                                <option value="custom">Dias Específicos</option>
+                                <option value="weekly">Semanalmente</option>
+                                <option value="monthly">Mensalmente</option>
+                            </select>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Hora de Envio</label>
+                            <input
+                                type="time"
+                                style={styles.input}
+                                value={editandoRelatorio.time}
+                                onChange={(e) =>
+                                    setEditandoRelatorio({
+                                        ...editandoRelatorio,
+                                        time: e.target.value,
+                                    })
+                                }
+                            />
+                        </div>
+
+                        {(editandoRelatorio.frequency === "weekly" ||
+                            editandoRelatorio.frequency === "custom") && (
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Dias da Semana</label>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            flexWrap: "wrap",
+                                            gap: "10px",
+                                        }}
+                                    >
+                                        {[
+                                            "Segunda",
+                                            "Terça",
+                                            "Quarta",
+                                            "Quinta",
+                                            "Sexta",
+                                            "Sábado",
+                                            "Domingo",
+                                        ].map((day, index) => (
+                                            <label
+                                                key={index}
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    padding: "8px 12px",
+                                                    backgroundColor:
+                                                        editandoRelatorio.days.includes(
+                                                            index + 1,
+                                                        )
+                                                            ? "#007bff"
+                                                            : "#f8f9fa",
+                                                    color: editandoRelatorio.days.includes(
+                                                        index + 1,
+                                                    )
+                                                        ? "#fff"
+                                                        : "#495057",
+                                                    borderRadius: "6px",
+                                                    cursor: "pointer",
+                                                    fontSize: "0.9rem",
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    style={{ marginRight: "8px" }}
+                                                    checked={editandoRelatorio.days.includes(
+                                                        index + 1,
+                                                    )}
+                                                    onChange={(e) => {
+                                                        const days = [
+                                                            ...editandoRelatorio.days,
+                                                        ];
+                                                        if (e.target.checked) {
+                                                            days.push(index + 1);
+                                                        } else {
+                                                            const i = days.indexOf(
+                                                                index + 1,
+                                                            );
+                                                            if (i > -1)
+                                                                days.splice(i, 1);
+                                                        }
+                                                        setEditandoRelatorio({
+                                                            ...editandoRelatorio,
+                                                            days,
+                                                        });
+                                                    }}
+                                                />
+                                                {day}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                        <div style={{ display: "flex", gap: "10px" }}>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                style={{
+                                    ...styles.button,
+                                    ...styles.buttonSuccess,
+                                    flex: 1,
+                                    opacity: loading ? 0.6 : 1,
+                                }}
+                            >
+                                {loading ? "⏳ A guardar..." : "💾 Guardar Alterações"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelarEdicao}
+                                style={{
+                                    ...styles.button,
+                                    ...styles.buttonWarning,
+                                    flex: 1,
+                                }}
+                            >
+                                ❌ Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
             {/* Criar Relatório */}
             <div style={styles.card}>
                 <h3 style={styles.cardTitle}>📧 Agendar Relatório por Email</h3>
@@ -556,6 +942,18 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
                                         }}
                                     >
                                         ▶️ Executar
+                                    </button>
+                                    <button
+                                        onClick={() => iniciarEdicao(relatorio)}
+                                        style={{
+                                            ...styles.button,
+                                            backgroundColor: "#17a2b8",
+                                            color: "white",
+                                            padding: "6px 10px",
+                                            fontSize: "0.8rem",
+                                        }}
+                                    >
+                                        ✏️ Editar
                                     </button>
                                     <button
                                         onClick={() =>
