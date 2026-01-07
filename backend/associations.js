@@ -32,7 +32,7 @@ const ComunicadoLeitura = require('./models/comunicadoLeitura');
 // Importar novos modelos para o sistema de horários
 const Horario = require('./models/horario');
 const PlanoHorario = require('./models/planoHorario');
-const BolsaHorasAnual = require('./models/bolsaHorasAnual');
+const BolsaHorasAnual = require('./models/BolsaHorasAnual');
 
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
 // sem relações diretas com outras tabelas
