@@ -2,7 +2,7 @@
  * Serviço centralizado de API para gestão de registos de assiduidade
  */
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:3000/api';
+const BACKEND_URL = 'https://backend.advir.pt/api' || 'http://localhost:3000/api';
 const PRIMAVERA_URL = 'https://webapiprimavera.advir.pt';
 
 /**
