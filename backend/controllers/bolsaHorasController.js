@@ -1,4 +1,4 @@
-const BolsaHorasAnual = require('../models/bolsaHorasAnual');
+const BolsaHorasAnual = require('../models/BolsaHorasAnual');
 const User = require('../models/user');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db');
