@@ -10,13 +10,8 @@ const authMiddleware = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log('✅ AuthMiddleware: Token válido para user:', decoded.id || decoded.userId);
-        console.log('🔍 Decoded token payload:', {
-            id: decoded.id,
-            userId: decoded.userId,
-            userNome: decoded.userNome,
-            type: decoded.type
-        });
+        // Log comentado para reduzir spam no console
+        // console.log('✅ AuthMiddleware: Token válido para user:', decoded.id || decoded.userId);
 
         // Garantir que req.user tem o campo 'id' independentemente da estrutura do token
         req.user = {

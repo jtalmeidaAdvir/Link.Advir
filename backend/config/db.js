@@ -103,7 +103,7 @@ const sequelize = new Sequelize(dbName, dbUsername, dbPassword, {
     host: dbHost,
     dialect: 'mssql',
     port: dbPort,  // Certifica-te de que a porta é um número
-    logging: console.log,  // Para mostrar os logs no terminal
+    logging: false,  // Desabilitado para reduzir spam no console
 });
 
 // Verifica e cria a base de dados antes de usar o Sequelize

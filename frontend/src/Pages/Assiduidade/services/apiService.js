@@ -2,7 +2,7 @@
  * Serviço centralizado de API para gestão de registos de assiduidade
  */
 
-const BACKEND_URL = 'https://backend.advir.pt/api';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:3000/api';
 const PRIMAVERA_URL = 'https://webapiprimavera.advir.pt';
 
 /**
@@ -398,4 +398,94 @@ export const buscarEnderecoPorCoordenadas = async (lat, lon) => {
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
     );
     return await response.json();
+};
+
+// ========================================
+// BOLSA DE HORAS ANUAL
+// ========================================
+
+/**
+ * Obtém bolsa de horas de um utilizador para um ano específico
+ */
+export const obterBolsaHorasAnual = async (token, userId, ano) => {
+    return await apiCall(
+        `${BACKEND_URL}/bolsa-horas/${userId}/${ano}`,
+        {
+            method: 'GET',
+            headers: createAuthHeaders(token)
+        }
+    );
+};
+
+/**
+ * Obtém todas as bolsas de horas para um ano (todos os utilizadores de uma empresa)
+ */
+export const obterBolsasHorasPorAno = async (token, empresaId, ano) => {
+    return await apiCall(
+        `${BACKEND_URL}/bolsa-horas/empresa/${empresaId}/${ano}`,
+        {
+            method: 'GET',
+            headers: createAuthHeaders(token)
+        }
+    );
+};
+
+/**
+ * Define horas iniciais para um utilizador em um ano
+ */
+export const definirHorasIniciais = async (token, userId, ano, horasIniciais, observacoes = null) => {
+    return await apiCall(
+        `${BACKEND_URL}/bolsa-horas/${userId}/${ano}/iniciais`,
+        {
+            method: 'POST',
+            headers: createAuthHeaders(token),
+            body: JSON.stringify({
+                horas_iniciais: horasIniciais,
+                observacoes
+            })
+        }
+    );
+};
+
+/**
+ * Atualiza horas calculadas (chamado após recálculo)
+ */
+export const atualizarHorasCalculadas = async (token, userId, ano, horasCalculadas) => {
+    return await apiCall(
+        `${BACKEND_URL}/bolsa-horas/${userId}/${ano}/calculadas`,
+        {
+            method: 'PUT',
+            headers: createAuthHeaders(token),
+            body: JSON.stringify({
+                horas_calculadas: horasCalculadas
+            })
+        }
+    );
+};
+
+/**
+ * Atualiza múltiplas bolsas de horas (batch update)
+ */
+export const atualizarMultiplasBolsas = async (token, bolsas) => {
+    return await apiCall(
+        `${BACKEND_URL}/bolsa-horas/batch`,
+        {
+            method: 'PUT',
+            headers: createAuthHeaders(token),
+            body: JSON.stringify({ bolsas })
+        }
+    );
+};
+
+/**
+ * Obtém histórico de bolsas de horas de um utilizador
+ */
+export const obterHistoricoBolsas = async (token, userId) => {
+    return await apiCall(
+        `${BACKEND_URL}/bolsa-horas/historico/${userId}`,
+        {
+            method: 'GET',
+            headers: createAuthHeaders(token)
+        }
+    );
 };

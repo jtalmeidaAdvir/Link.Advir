@@ -14,6 +14,8 @@ import DaySelectionList from './components/DaySelectionList';
 import HorariosInput from './components/HorariosInput';
 import ObraSelector from './components/ObraSelector';
 import ActionBar from './components/ActionBar';
+import BolsaHorasAnualManager from './components/BolsaHorasAnualManager';
+import CardHorasIniciais from './components/CardHorasIniciais';
 
 // ✨ Hooks customizados
 import { useRegistosOptimized } from './hooks/useRegistosOptimized';
@@ -71,6 +73,8 @@ const RegistosPorUtilizador = () => {
     const [bolsaHoras, setBolsaHoras] = useState([]);
     const [loadingBolsa, setLoadingBolsa] = useState(false);
     const [horariosUtilizadores, setHorariosUtilizadores] = useState({});
+    const [anoAtualBolsa, setAnoAtualBolsa] = useState(new Date().getFullYear());
+    const [modoRecalculo, setModoRecalculo] = useState(false);
 
     // Cache para codFuncionario (OTIMIZAÇÃO)
     const [cacheCodFuncionario, setCacheCodFuncionario] = useState({});
@@ -488,6 +492,183 @@ const RegistosPorUtilizador = () => {
         }
     };
 
+    // Função para carregar bolsas guardadas da BD (sem recalcular)
+    const carregarBolsasGuardadas = async () => {
+        setLoadingBolsa(true);
+        try {
+            const empresaId = secureStorage.getItem('empresa_id');
+            const anoAtual = anoAtualBolsa || new Date().getFullYear();
+
+            // Carregar bolsas guardadas da BD
+            const response = await API.obterBolsasHorasPorAno(token, empresaId, anoAtual);
+
+            if (response.success && response.data.length > 0) {
+                // Carregar horários dos utilizadores
+                const horarios = await carregarHorariosUtilizadores();
+                setHorariosUtilizadores(horarios);
+
+                // Buscar todos os utilizadores
+                const users = await API.buscarUtilizadoresPorEmpresa(token, empresaId);
+
+                // Construir array de bolsas usando dados guardados
+                const bolsasCarregadas = [];
+
+                // Calcular detalhes dos últimos 30 dias para cada utilizador
+                for (const bolsa of response.data) {
+                    const user = users.find(u => u.id === bolsa.user_id);
+                    if (!user) continue;
+
+                    const horarioUser = horarios[user.id];
+                    const horasIniciais = parseFloat(bolsa.horas_iniciais) || 0;
+                    const horasCalculadas = parseFloat(bolsa.horas_calculadas) || 0;
+                    const totalHorasExtras = parseFloat(bolsa.total_horas_extras) || 0;
+                    const totalHorasEsperadas = parseFloat(bolsa.total_horas_esperadas) || 0;
+                    const totalHorasDescontadasFBH = parseFloat(bolsa.total_horas_descontadas_fbh) || 0;
+                    const diasTrabalhados = parseInt(bolsa.dias_trabalhados) || 0;
+
+                    // Buscar registos dos últimos 30 dias apenas (do ano selecionado)
+                    let detalhesUltimos30Dias = [];
+                    try {
+                        const dataHoje = new Date();
+                        const anoCorrente = dataHoje.getFullYear();
+
+                        // Definir data de referência baseado no ano selecionado
+                        let dataReferencia, dataInicio30Dias;
+
+                        if (anoAtual === anoCorrente) {
+                            // Ano atual: últimos 30 dias a partir de hoje
+                            dataReferencia = dataHoje;
+                            dataInicio30Dias = new Date(dataHoje);
+                            dataInicio30Dias.setDate(dataHoje.getDate() - 30);
+                        } else {
+                            // Ano passado: últimos 30 dias do ano (31 dez para trás)
+                            dataReferencia = new Date(anoAtual, 11, 31, 23, 59, 59); // 31 dez às 23:59:59
+                            dataInicio30Dias = new Date(anoAtual, 11, 1); // 1 dez 00:00:00
+                        }
+
+                        // Determinar mês inicial e final
+                        const mesInicio = dataInicio30Dias.getMonth() + 1;
+                        const mesFim = dataReferencia.getMonth() + 1;
+                        const anoInicio = dataInicio30Dias.getFullYear();
+                        const anoFim = dataReferencia.getFullYear();
+
+                        const todosRegistos = [];
+
+                        // Se mesmo ano, buscar meses entre mesInicio e mesFim
+                        if (anoInicio === anoFim) {
+                            for (let mes = mesInicio; mes <= mesFim; mes++) {
+                                try {
+                                    const registosMes = await API.buscarRegistosPonto(token, user.id, anoAtual, mes);
+                                    todosRegistos.push(...registosMes);
+                                } catch (error) {
+                                    // Silenciar erros de meses sem dados
+                                }
+                            }
+                        } else {
+                            // Anos diferentes, buscar dezembro do ano anterior e janeiro atual
+                            try {
+                                const registosDez = await API.buscarRegistosPonto(token, user.id, anoInicio, 12);
+                                todosRegistos.push(...registosDez);
+                            } catch (error) {}
+                            try {
+                                const registosJan = await API.buscarRegistosPonto(token, user.id, anoFim, 1);
+                                todosRegistos.push(...registosJan);
+                            } catch (error) {}
+                        }
+
+                        // Filtrar apenas últimos 30 dias (do ano selecionado) e agrupar por data
+                        const registosPorData = {};
+                        todosRegistos.forEach(reg => {
+                            const dataReg = new Date(reg.timestamp);
+                            // Filtrar por ano selecionado E últimos 30 dias
+                            if (dataReg.getFullYear() === anoAtual &&
+                                dataReg >= dataInicio30Dias &&
+                                dataReg <= dataReferencia) {
+                                const dataKey = `${dataReg.getFullYear()}-${String(dataReg.getMonth() + 1).padStart(2, '0')}-${String(dataReg.getDate()).padStart(2, '0')}`;
+                                if (!registosPorData[dataKey]) {
+                                    registosPorData[dataKey] = [];
+                                }
+                                registosPorData[dataKey].push(reg);
+                            }
+                        });
+
+                        // Calcular diferença para cada dia (simplificado)
+                        detalhesUltimos30Dias = Object.entries(registosPorData).map(([data, registos]) => {
+                            // Ordenar registos por timestamp
+                            const registosOrdenados = registos.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                            // Calcular horas trabalhadas (entrada/saída)
+                            let horasTrabalhadas = 0;
+                            for (let i = 0; i < registosOrdenados.length - 1; i += 2) {
+                                const entrada = new Date(registosOrdenados[i].timestamp);
+                                const saida = new Date(registosOrdenados[i + 1]?.timestamp);
+                                if (saida) {
+                                    const diffMs = saida - entrada;
+                                    horasTrabalhadas += diffMs / (1000 * 60 * 60); // Converter para horas
+                                }
+                            }
+
+                            // Assumir 8h esperadas (simplificado - idealmente buscar do horário)
+                            const horasEsperadas = horarioUser?.horasPorDia || 8;
+                            const diferenca = horasTrabalhadas - horasEsperadas;
+
+                            return {
+                                data,
+                                horasTrabalhadas,
+                                diferenca
+                            };
+                        }).sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 30);
+
+                    } catch (error) {
+                        console.warn(`⚠️ Erro ao buscar detalhes dos últimos 30 dias para ${user.nome}:`, error);
+                    }
+
+                    // DEBUG: Log para verificar valores carregados
+                    if (user.nome === 'José Vale' || user.nome?.includes('João Santos')) {
+                        console.log(`🔍 [DEBUG CARREGAR] ${user.nome} (Ano: ${anoAtual}):`, {
+                            horasIniciais,
+                            totalHorasExtras,
+                            totalHorasDescontadasFBH,
+                            horasCalculadas,
+                            diasTrabalhados,
+                            calculo: `${horasIniciais} + ${totalHorasExtras} - ${totalHorasDescontadasFBH} = ${horasCalculadas}`
+                        });
+                    }
+
+                    bolsasCarregadas.push({
+                        utilizador: user,
+                        horario: horarioUser || { descricao: 'Horário Padrão', horasPorDia: 8 },
+                        horasPorDia: horarioUser?.horasPorDia || 8,
+                        totalHorasTrabalhadas: totalHorasExtras,
+                        totalHorasEsperadas: totalHorasEsperadas,
+                        totalHorasDescontadasFBH: totalHorasDescontadasFBH,
+                        saldoBolsa: horasCalculadas,
+                        diasTrabalhados: diasTrabalhados,
+                        dataInicio: null,
+                        detalhes: detalhesUltimos30Dias,
+                        horasIniciais,
+                        bolsaGuardadaBD: true,
+                        ultimaAtualizacaoBD: bolsa.ultima_atualizacao
+                    });
+                }
+
+                // Ordenar por saldo (do maior para o menor)
+                bolsasCarregadas.sort((a, b) => b.saldoBolsa - a.saldoBolsa);
+                setBolsaHoras(bolsasCarregadas);
+                console.log(`✅ Carregadas ${bolsasCarregadas.length} bolsas guardadas para o ano ${anoAtual}`);
+            } else {
+                // Sem dados guardados - mostrar vazio
+                setBolsaHoras([]);
+                console.log(`ℹ️ Sem bolsas guardadas para o ano ${anoAtual}`);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar bolsas guardadas:', error);
+            setBolsaHoras([]);
+        } finally {
+            setLoadingBolsa(false);
+        }
+    };
+
     // Função para calcular bolsa de horas GLOBAL (todos os registos desde o início)
     const calcularBolsaHoras = async () => {
         setLoadingBolsa(true);
@@ -495,6 +676,24 @@ const RegistosPorUtilizador = () => {
             const empresaId = secureStorage.getItem('empresa_id');
 
             // Carregar horários dos utilizadores
+            const anoAtual = anoAtualBolsa || new Date().getFullYear();
+
+            // Carregar bolsas guardadas da BD
+            let bolsasGuardadas = {};
+            try {
+                const response = await API.obterBolsasHorasPorAno(token, empresaId, anoAtual);
+                if (response.success) {
+                    response.data.forEach(bolsa => {
+                        bolsasGuardadas[bolsa.user_id] = {
+                            horas_iniciais: parseFloat(bolsa.horas_iniciais) || 0,
+                            horas_calculadas: parseFloat(bolsa.horas_calculadas) || 0,
+                            ultima_atualizacao: bolsa.ultima_atualizacao
+                        };
+                    });
+                }
+            } catch (error) {
+                console.warn('⚠️ [BOLSA] Erro ao carregar bolsas guardadas:', error);
+            }
             const horarios = await carregarHorariosUtilizadores();
             setHorariosUtilizadores(horarios);
 
@@ -517,30 +716,37 @@ const RegistosPorUtilizador = () => {
                 const dataInicioHorario = horarioUser?.dataInicio ? new Date(horarioUser.dataInicio) : new Date('2020-01-01');
                 const dataAtual = new Date();
 
+                // DEBUG: Log horário completo
+                if (user.nome === 'José Vale' || user.nome?.includes('João Santos')) {
+                    console.log(`🔍 [DEBUG HORÁRIO] ${user.nome}:`, {
+                        descricao: horarioUser.descricao,
+                        horasPorDia: horarioUser.horasPorDia,
+                        tempoArredondamento: horarioUser.tempoArredondamento,
+                        horarioCompleto: horarioUser
+                    });
+                }
 
-                // Buscar TODOS os registos do utilizador desde o início do horário
-                // Dividir em períodos mensais (a API usa ano=YYYY&mes=MM)
+
+                // Buscar APENAS registos do ano selecionado
                 const todosRegistos = [];
-                const anoInicio = dataInicioHorario.getFullYear();
-                const mesInicio = dataInicioHorario.getMonth() + 1; // 1-12
-                const anoFim = dataAtual.getFullYear();
-                const mesFim = dataAtual.getMonth() + 1; // 1-12
+                const anoSelecionado = anoAtualBolsa || new Date().getFullYear();
 
+                // Se o ano selecionado for o ano atual, buscar até o mês atual
+                // Senão, buscar todos os 12 meses do ano
+                const dataAnoAtual = new Date();
+                const ultMes = (anoSelecionado === dataAnoAtual.getFullYear())
+                    ? dataAnoAtual.getMonth() + 1
+                    : 12;
 
-                // Iterar por cada mês desde o início até agora
-                for (let ano = anoInicio; ano <= anoFim; ano++) {
-                    const primMes = (ano === anoInicio) ? mesInicio : 1;
-                    const ultMes = (ano === anoFim) ? mesFim : 12;
+                // Iterar por cada mês do ano selecionado
+                for (let mes = 1; mes <= ultMes; mes++) {
+                    const mesStr = String(mes).padStart(2, '0');
 
-                    for (let mes = primMes; mes <= ultMes; mes++) {
-                        const mesStr = String(mes).padStart(2, '0');
-
-                        try {
-                            const registosMes = await API.buscarRegistosPonto(token, user.id, ano, mes);
-                            todosRegistos.push(...registosMes);
-                        } catch (error) {
-                            console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - ${ano}/${mesStr}: ${error.message}`);
-                        }
+                    try {
+                        const registosMes = await API.buscarRegistosPonto(token, user.id, anoSelecionado, mes);
+                        todosRegistos.push(...registosMes);
+                    } catch (error) {
+                        console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - ${anoSelecionado}/${mesStr}: ${error.message}`);
                     }
                 }
 
@@ -565,13 +771,13 @@ const RegistosPorUtilizador = () => {
                 if (todosRegistos.length > 0) {
                 }
 
-                // Agrupar registos por data
+                // Agrupar registos por data (APENAS do ano selecionado)
                 const registosPorData = {};
                 todosRegistos.forEach(reg => {
                     const dataReg = new Date(reg.timestamp);
 
-                    // Filtrar apenas registos após o início do horário
-                    if (dataReg >= dataInicioHorario && dataReg <= dataAtual) {
+                    // Filtrar APENAS registos do ano selecionado
+                    if (dataReg.getFullYear() === anoSelecionado) {
                         const dataKey = `${dataReg.getFullYear()}-${String(dataReg.getMonth() + 1).padStart(2, '0')}-${String(dataReg.getDate()).padStart(2, '0')}`;
 
                         if (!registosPorData[dataKey]) {
@@ -660,7 +866,20 @@ const RegistosPorUtilizador = () => {
                             }
 
                         } else {
-                            console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - SEM tempoArredondamento definido! Usando horas reais.`);
+                            // SEM tempoArredondamento: calcular diferença simples (horas trabalhadas - horas esperadas)
+                            const diferencaHoras = horasDia - horasPorDia;
+                            horasParaBolsa = diferencaHoras > 0 ? diferencaHoras : 0; // Só contar se positivo
+                            console.warn(`⚠️ [BOLSA] ${user.nome || user.username} - SEM tempoArredondamento! Diferença: ${horasDia.toFixed(2)}h - ${horasPorDia}h = ${horasParaBolsa.toFixed(2)}h extras`);
+                        }
+
+                        // DEBUG: Log detalhado por dia
+                        if (user.nome === 'José Vale' || user.nome?.includes('João Santos')) {
+                            console.log(`🔍 [DEBUG DIA] ${user.nome} - ${dataKey}:`, {
+                                horasDia: horasDia.toFixed(2),
+                                tempoArredondamento: horarioUser?.tempoArredondamento,
+                                horasParaBolsa: horasParaBolsa.toFixed(2),
+                                totalAcumulado: (totalHorasTrabalhadas + horasParaBolsa).toFixed(2)
+                            });
                         }
 
                         // horasParaBolsa já contém apenas as horas extras (0, 1, 2, etc.)
@@ -770,8 +989,23 @@ const RegistosPorUtilizador = () => {
 
                 // totalHorasTrabalhadas já contém APENAS as horas extras acumuladas
                 // Descontar as horas das faltas FBH
-                const saldoBolsa = totalHorasTrabalhadas - totalHorasDescontadasFBH;
+                const bolsaGuardada = bolsasGuardadas[user.id] || { horas_iniciais: 0, horas_calculadas: 0 };
+                const horasIniciais = parseFloat(bolsaGuardada.horas_iniciais) || 0;
+                const saldoBolsa = horasIniciais + totalHorasTrabalhadas - totalHorasDescontadasFBH;
 
+                // DEBUG: Log para verificar cálculo
+                if (user.nome === 'José Vale' || user.nome?.includes('João Santos')) {
+                    console.log(`🔍 [DEBUG RECALCULAR] ${user.nome} (Ano: ${anoAtual}):`, {
+                        horasIniciais,
+                        totalHorasTrabalhadas,
+                        totalHorasEsperadas,
+                        totalHorasDescontadasFBH,
+                        saldoBolsa,
+                        diasTrabalhados: totalDiasTrabalhados,
+                        calculo: `${horasIniciais} + ${totalHorasTrabalhadas} - ${totalHorasDescontadasFBH} = ${saldoBolsa}`,
+                        detalhes: diasTrabalhadosDetalhes.slice(0, 5)
+                    });
+                }
 
                 // Adicionar todos os utilizadores, mesmo com saldo zero
                 bolsaCalculada.push({
@@ -784,7 +1018,10 @@ const RegistosPorUtilizador = () => {
                     saldoBolsa,
                     diasTrabalhados: totalDiasTrabalhados,
                     dataInicio: dataInicioHorario,
-                    detalhes: diasTrabalhadosDetalhes.sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 30)
+                    detalhes: diasTrabalhadosDetalhes.sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 30),
+                    horasIniciais,
+                    bolsaGuardadaBD: !!bolsaGuardada.horas_calculadas,
+                    ultimaAtualizacaoBD: bolsaGuardada.ultima_atualizacao
                 });
             }
 
@@ -793,6 +1030,29 @@ const RegistosPorUtilizador = () => {
 
             setBolsaHoras(bolsaCalculada);
 
+            // Se modo recálculo está ativo, guardar valores na BD
+            if (modoRecalculo) {
+                try {
+                    const bolsasParaAtualizar = bolsaCalculada.map(b => ({
+                        userId: b.utilizador.id,
+                        ano: anoAtual,
+                        horas_calculadas: b.saldoBolsa,
+                        total_horas_extras: b.totalHorasTrabalhadas,
+                        total_horas_esperadas: b.totalHorasEsperadas,
+                        total_horas_descontadas_fbh: b.totalHorasDescontadasFBH,
+                        dias_trabalhados: b.diasTrabalhados
+                    }));
+
+                    await API.atualizarMultiplasBolsas(token, bolsasParaAtualizar);
+                    console.log('✅ Bolsas de horas atualizadas na BD');
+                    setModoRecalculo(false);
+                    alert('✅ Bolsa de horas recalculada e guardada com sucesso!');
+                } catch (error) {
+                    console.error('Erro ao atualizar bolsas na BD:', error);
+                    alert('❌ Erro ao guardar bolsas de horas na base de dados');
+                }
+            }
+
         } catch (err) {
             console.error('❌ [BOLSA] Erro ao calcular bolsa de horas:', err);
             alert('Erro ao calcular bolsa de horas: ' + err.message);
@@ -800,6 +1060,13 @@ const RegistosPorUtilizador = () => {
             setLoadingBolsa(false);
         }
     };
+
+    // Carregar bolsas guardadas quando o ano muda
+    useEffect(() => {
+        if (viewMode === 'bolsa') {
+            carregarBolsasGuardadas();
+        }
+    }, [anoAtualBolsa]);
 
     useEffect(() => {
         if (utilizadorSelecionado) {
@@ -5256,6 +5523,18 @@ const RegistosPorUtilizador = () => {
                     <p style={{ fontSize: '0.9rem', color: '#718096', marginBottom: '20px', marginTop: '-10px' }}>
                         Saldo calculado desde o início do horário de cada colaborador até hoje
                     </p>
+                    {/* Componente de Gestão de Bolsa Anual */}
+                    <BolsaHorasAnualManager
+                        anoSelecionado={anoAtualBolsa}
+                        onAnoChange={(ano) => setAnoAtualBolsa(ano)}
+                        utilizadores={utilizadores}
+                        horarios={horariosUtilizadores}
+                        onRecalcular={() => {
+                            setModoRecalculo(true);
+                            calcularBolsaHoras();
+                        }}
+                        loadingRecalculo={loadingBolsa}
+                    />
 
                     {loadingBolsa && (
                         <div style={styles.loadingCard}>
@@ -5327,6 +5606,30 @@ const RegistosPorUtilizador = () => {
                                                 </p>
                                                
                                             </div>
+
+                                            {/* Card de Horas Iniciais */}
+                                            {(() => {
+                                                const bolsaData = typeof window !== 'undefined' && window.BolsaHorasData
+                                                    ? window.BolsaHorasData.bolsasGuardadas[bolsa.utilizador.id]
+                                                    : null;
+
+                                                return (
+                                                    <CardHorasIniciais
+                                                        userId={bolsa.utilizador.id}
+                                                        ano={anoAtualBolsa}
+                                                        horasIniciais={bolsaData?.horas_iniciais || 0}
+                                                        existeRegisto={bolsaData?.existe_registo || false}
+                                                        ultimaAtualizacao={bolsaData?.ultima_atualizacao}
+                                                        onSave={() => {
+                                                            // Recarregar bolsas após guardar
+                                                            if (typeof window !== 'undefined' && window.BolsaHorasData?.recarregar) {
+                                                                window.BolsaHorasData.recarregar();
+                                                            }
+                                                        }}
+                                                    />
+                                                );
+                                            })()}
+
                                             <div style={styles.bolsaSaldo}>
                                                 <div style={{
                                                     ...styles.bolsaSaldoValor,
