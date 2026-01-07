@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 
+
 const BolsaHorasAnual = sequelize.define('BolsaHorasAnual', {
     id: {
         type: DataTypes.INTEGER,
