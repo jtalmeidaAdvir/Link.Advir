@@ -526,8 +526,15 @@ const RegistosPorUtilizador = () => {
                     const totalHorasDescontadasFBH = parseFloat(bolsa.total_horas_descontadas_fbh) || 0;
                     const diasTrabalhados = parseInt(bolsa.dias_trabalhados) || 0;
 
-                    // Buscar registos dos últimos 30 dias apenas (do ano selecionado)
+                    // IMPORTANTE: Quando carrega da BD, NÃO recalcular detalhes
+                    // Os detalhes recalculados podem dar valores diferentes devido a arredondamentos
+                    // Apenas mostrar os valores totais que foram guardados
                     let detalhesUltimos30Dias = [];
+
+                    // DESATIVADO: Não recalcular últimos 30 dias ao carregar da BD
+                    const RECALCULAR_DETALHES = false;
+
+                    if (RECALCULAR_DETALHES) {
                     try {
                         const dataHoje = new Date();
                         const anoCorrente = dataHoje.getFullYear();
@@ -622,18 +629,18 @@ const RegistosPorUtilizador = () => {
                     } catch (error) {
                         console.warn(`⚠️ Erro ao buscar detalhes dos últimos 30 dias para ${user.nome}:`, error);
                     }
+                    } // Fim do if (RECALCULAR_DETALHES)
 
                     // DEBUG: Log para verificar valores carregados
-                    if (user.nome === 'José Vale' || user.nome?.includes('João Santos')) {
-                        console.log(`🔍 [DEBUG CARREGAR] ${user.nome} (Ano: ${anoAtual}):`, {
-                            horasIniciais,
-                            totalHorasExtras,
-                            totalHorasDescontadasFBH,
-                            horasCalculadas,
-                            diasTrabalhados,
-                            calculo: `${horasIniciais} + ${totalHorasExtras} - ${totalHorasDescontadasFBH} = ${horasCalculadas}`
-                        });
-                    }
+                    console.log(`🔍 [DEBUG CARREGAR BD] ${user.nome} (Ano: ${anoAtual}):`, {
+                        'Horas Iniciais (BD)': horasIniciais,
+                        'Horas Extras (BD)': totalHorasExtras,
+                        'Horas Descontadas (BD)': totalHorasDescontadasFBH,
+                        'Saldo Final (BD)': horasCalculadas,
+                        'Dias Trabalhados (BD)': diasTrabalhados,
+                        'Cálculo': `${horasIniciais} + ${totalHorasExtras} - ${totalHorasDescontadasFBH} = ${horasCalculadas}`,
+                        'Detalhes Recalculados': detalhesUltimos30Dias.length + ' dias'
+                    });
 
                     bolsasCarregadas.push({
                         utilizador: user,
@@ -3671,7 +3678,7 @@ const RegistosPorUtilizador = () => {
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
                 utilizadorDetalhado={utilizadorDetalhado}
-                onBolsaHorasClick={calcularBolsaHoras}
+                onBolsaHorasClick={carregarBolsasGuardadas}
                 styles={styles}
             />
 
