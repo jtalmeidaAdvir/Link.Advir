@@ -4,19 +4,15 @@ import { startTokenValidation, stopTokenValidation } from './utils/authUtils';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import i18n from './Pages/i18n'; // Import do i18n
 // Import for Privacy Settings
-import PrivacySettings from './Pages/GDPR/PrivacySettings';
 import { secureStorage } from './utils/secureStorage';
 // Função para simular secureStorage no browser
 
-import backgroundImage from '../images/ImagemFundo.png';
 
 
 const Home = () => {
     const { t } = useTranslation();
 
-    const BACKEND_BASE_URL = 'https://backend.advir.pt'; // URL base do backend
 
     const [isDrawerOpen, setDrawerOpen] = useState(false);
     const [activeMenu, setActiveMenu] = useState(t('Home.menu.products')); // Estado para o menu ativo
@@ -51,11 +47,7 @@ const Home = () => {
 
         // Configurar renovação automática quando o app ganha foco
         const handleAppFocus = () => {
-            console.log('App ganhou foco, verificando tokens...');
-            // Assuming refreshTokensOnAppFocus is a function in authUtils or defined elsewhere
-            // that handles the token refresh logic. For now, we'll just log.
-            // If you have a specific function for this, import and call it here.
-            // Example: refreshTokensOnAppFocus(); 
+      
         };
 
         // Listener para quando a janela/tab ganha foco
@@ -99,7 +91,6 @@ const Home = () => {
         if (!showForm) {
             // Se está a abrir o formulário, carregar dados se necessário
             if (dataLists.contactos.length === 0 || dataLists.prioridades.length === 0) {
-                console.log('Carregando dados do formulário...');
                 await fetchFormData();
             }
         }
@@ -187,7 +178,6 @@ const mapearPrioridade = (prioridadeId) => {
       comoReproduzir: null
     };
 
-    console.log('Enviando o pedido com payload:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/CriarPedido`, {
       method: 'POST',
@@ -199,7 +189,6 @@ const mapearPrioridade = (prioridadeId) => {
       body: JSON.stringify(payload),
     });
 
-    console.log('Status da resposta:', response.status);
 
     // tenta ler corpo em qualquer caso (alguns backends mandam JSON no erro)
     let bodyText = '';
@@ -231,11 +220,9 @@ const mapearPrioridade = (prioridadeId) => {
     }
 
     // 2xx — sucesso normal
-    console.log('Resposta (sucesso):', bodyJson ?? bodyText);
     finalizeSuccess();
 
   } catch (error) {
-    console.error('Erro ao enviar o pedido:', error);
     setErrorMessage(error.message || 'Erro desconhecido ao criar pedido');
   }
 };
@@ -284,10 +271,10 @@ const mapearPrioridade = (prioridadeId) => {
     const handleMenuClick = (menu, ref) => {
         setActiveMenu(menu);
 
-        // Rolar suavemente até a seção associada
-        if (ref && ref.current) {
+         //Rolar suavemente até a seção associada
+        /*if (ref && ref.current) {
             ref.current.scrollIntoView({ behavior: 'smooth' });
-        }
+        }*/
     };
 
 
@@ -301,28 +288,6 @@ const mapearPrioridade = (prioridadeId) => {
     };
 
 
-    const faqItems = [
-        {
-            question: t('Home.faq.questions.q1'),
-            answer: t('Home.faq.questions.a1'),
-        },
-        {
-            question: t('Home.faq.questions.q2'),
-            answer: t('Home.faq.questions.a2'),
-        },
-        {
-            question: t('Home.faq.questions.q3'),
-            answer: t('Home.faq.questions.a3'),
-        },
-        {
-            question: t('Home.faq.questions.q4') || "Definição dos anos de suspensão no regime IRS Jovem",
-            answer: t('Home.faq.questions.a4') || "De acordo com as alterações ao regime fiscal IRS Jovem para 2025, a isenção referente a este regime não se aplica nos anos em que não sejam auferidos rendimentos das categorias A e B.",
-        },
-        {
-            question: t('Home.faq.questions.q5') || "Como posso criar um novo pedido de assistência?",
-            answer: t('Home.faq.questions.a5') || "Navegue até à secção 'Pedidos', clique no botão 'Novo Pedido' e preencha o formulário com os detalhes necessários.",
-        },
-    ];
 
     const handleToggle = (index) => {
         setExpandedIndex(expandedIndex === index ? null : index); // Alterna entre expandido e fechado
@@ -344,7 +309,6 @@ const mapearPrioridade = (prioridadeId) => {
                     processo,
                     pedidos
                         .filter((pedido) => {
-                            console.log("Pedido DataHoraInicio:", pedido.DataHoraInicio); // Verificar formato da data
                             return (
                                 (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
                                 (selectedYear === '' || new Date(pedido.DataHoraInicio).getFullYear() === selectedYear) &&
@@ -388,7 +352,7 @@ const mapearPrioridade = (prioridadeId) => {
         { title: t('Home.menu.orders'), icon: <FaPhone size={22} />, ref: ordersRef },
         { title: t('Home.menu.products'), icon: <FaBoxOpen size={22} />, ref: productsRef },
         { title: t('Notícias'), icon: <FaQuestionCircle size={22} />, ref: noticiasRef },
-        { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={22} />, ref: faqRef },
+        //{ title: t('Home.menu.faq'), icon: <FaQuestionCircle size={22} />, ref: faqRef },
         //{ title: t('Definições de Privacidade'), icon: <span></span>, ref: privacyRef },
     ];
 
@@ -397,7 +361,6 @@ const mapearPrioridade = (prioridadeId) => {
     useEffect(() => {
         if (pedidosInfo?.DataSet?.Table) {
             const grouped = pedidosInfo.DataSet.Table.reduce((acc, pedido) => {
-                console.log("Antes da conversão - DataHoraInicio:", pedido.DataHoraInicio); // Confirma o formato original
 
                 const processo = pedido.Processo;
                 if (!acc[processo]) {
@@ -414,7 +377,6 @@ const mapearPrioridade = (prioridadeId) => {
                     const dateA = new Date(a.DataHoraInicio);
                     const dateB = new Date(b.DataHoraInicio);
 
-                    console.log(`Comparando ${dateA} com ${dateB}`); // Confirma que está a comparar corretamente
 
                     return dateB - dateA; // Ordem decrescente (mais recente primeiro)
                 });
@@ -455,7 +417,6 @@ const mapearPrioridade = (prioridadeId) => {
             setNoticias(data.data || []);
         } catch (error) {
             setNoticiasError(error.message);
-            console.error('Erro ao buscar notícias:', error);
         } finally {
             setNoticiasLoading(false);
         }
@@ -467,15 +428,12 @@ const mapearPrioridade = (prioridadeId) => {
         const fetchPedidosInfo = async () => {
             if (!isMounted) return;
 
-            console.log("Iniciando carregamento de pedidos...");
-            console.log("Tokens da Advir prontos?", advirTokensReady);
 
             setPedidosLoading(true);
             setLoading(true);
 
             // Aguardar até que os tokens da Advir estejam prontos
             if (!advirTokensReady) {
-                console.log("Aguardando tokens da Advir...");
                 // Verificar a cada 100ms se os tokens ficaram prontos
                 const checkInterval = setInterval(() => {
                     if (advirTokensReady) {
@@ -490,7 +448,6 @@ const mapearPrioridade = (prioridadeId) => {
                 setTimeout(() => {
                     clearInterval(checkInterval);
                     if (isMounted && !advirTokensReady) {
-                        console.error('Timeout aguardando tokens da Advir');
                         setPedidosLoading(false);
                         setLoading(false);
                     }
@@ -506,10 +463,8 @@ const mapearPrioridade = (prioridadeId) => {
 
                 if (!isMounted) return;
 
-                console.log("Tokens obtidos:", { token: !!token, urlempresa: !!urlempresa, id: !!id });
 
                 if (!id || !token || !urlempresa) {
-                    console.error('Faltam credenciais para carregar pedidos');
                     throw new Error(t('error') + 'Token or URL missing.');
                 }
 
@@ -523,18 +478,15 @@ const mapearPrioridade = (prioridadeId) => {
                 if (!isMounted) return;
 
                 if (!response.ok) {
-                    console.error('Erro na resposta:', response.status, response.statusText);
                     throw new Error(t('error') + response.statusText);
                 }
 
                 const data = await response.json();
-                console.log("Dados de pedidos carregados com sucesso!");
 
                 if (isMounted) {
                     setPedidosInfo(data);
                 }
             } catch (error) {
-                console.error('Erro ao carregar pedidos:', error);
                 // Silenciar erros - mostrar apenas loading state
                 if (isMounted) {
                     setPedidosInfo(null);
@@ -543,7 +495,6 @@ const mapearPrioridade = (prioridadeId) => {
                 if (isMounted) {
                     setPedidosLoading(false);
                     setLoading(false);
-                    console.log("Finalizado carregamento de pedidos.");
                 }
             }
         };
@@ -561,7 +512,6 @@ const mapearPrioridade = (prioridadeId) => {
     useEffect(() => {
         const entrarNaEmpresaAdvir = async () => {
             try {
-                console.log('Iniciando carregamento de tokens da Advir...');
                 const loginToken = secureStorage.getItem('loginToken');
                 if (!loginToken) {
                     throw new Error('Token de login não encontrado.');
@@ -614,10 +564,8 @@ const mapearPrioridade = (prioridadeId) => {
 
                 const tokenData = await tokenResponse.json();
                 secureStorage.setItem('painelAdminTokenAdvir', tokenData.token);
-                console.log('Login automático na empresa Advir concluído - tokens prontos!');
                 setAdvirTokensReady(true);
             } catch (error) {
-                console.error('Erro ao entrar automaticamente na empresa Advir:', error.message);
                 setAdvirTokensReady(false);
             }
         };
@@ -665,7 +613,6 @@ const mapearPrioridade = (prioridadeId) => {
             const clienteID = await secureStorage.getItem('empresa_areacliente');
 
             if (!clienteID || !token || !urlempresa) {
-                console.error('Token, URL ou ID de cliente estão ausentes.');
                 setErrorMessage('Dados de autenticação não encontrados. Tente fazer login novamente.');
                 return;
             }
@@ -679,7 +626,6 @@ const mapearPrioridade = (prioridadeId) => {
             if (contactosResponse.ok) {
                 const contactosData = await contactosResponse.json();
                 setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet?.Table || [] }));
-                console.log('Contactos carregados:', contactosData.DataSet?.Table?.length || 0);
             }
 
             // Fetch prioridades
@@ -691,13 +637,11 @@ const mapearPrioridade = (prioridadeId) => {
             if (prioridadesResponse.ok) {
                 const prioridadesData = await prioridadesResponse.json();
                 setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet?.Table || [] }));
-                console.log('Prioridades carregadas:', prioridadesData.DataSet?.Table?.length || 0);
             }
 
             // Preencher cliente no formulário
             setFormData((prev) => ({ ...prev, cliente: clienteID }));
         } catch (error) {
-            console.error('Erro ao buscar dados do formulário:', error);
         }
     };
 
@@ -708,8 +652,6 @@ const mapearPrioridade = (prioridadeId) => {
         const fetchData = async () => {
             if (!isMounted) return;
 
-            console.log("Iniciando fetch de dados iniciais e contrato.");
-            console.log("Tokens da Advir prontos?", advirTokensReady);
 
             setContratoLoading(true);
             setLoading(true);
@@ -717,7 +659,6 @@ const mapearPrioridade = (prioridadeId) => {
 
             // Aguardar até que os tokens da Advir estejam prontos
             if (!advirTokensReady) {
-                console.log("Aguardando tokens da Advir para contrato...");
                 const checkInterval = setInterval(() => {
                     if (advirTokensReady) {
                         clearInterval(checkInterval);
@@ -730,7 +671,6 @@ const mapearPrioridade = (prioridadeId) => {
                 setTimeout(() => {
                     clearInterval(checkInterval);
                     if (isMounted && !advirTokensReady) {
-                        console.error('Timeout aguardando tokens da Advir');
                         setContratoLoading(false);
                         setLoading(false);
                     }
@@ -746,14 +686,9 @@ const mapearPrioridade = (prioridadeId) => {
 
                 if (!isMounted) return;
 
-                console.log('Dados obtidos do storage:', {
-                    token: token ? 'Presente' : 'Ausente',
-                    urlempresa,
-                    clienteID
-                });
+                
 
                 if (!clienteID || !token || !urlempresa) {
-                    console.error('Token, URL ou ID de cliente estão ausentes.');
                     if (isMounted) {
                         setErrorMessage('Dados de autenticação não encontrados. Tente fazer login novamente.');
                     }
@@ -772,7 +707,6 @@ const mapearPrioridade = (prioridadeId) => {
                 }
 
                 const contratoData = await contratoResponse.json();
-                console.log('Contrato carregado com sucesso!');
 
                 if (!isMounted) return;
 
@@ -792,7 +726,6 @@ const mapearPrioridade = (prioridadeId) => {
                 }
 
             } catch (error) {
-                console.error('Erro ao buscar dados:', error);
                 if (isMounted) {
                     setErrorMessage(error.message);
                 }
@@ -800,7 +733,6 @@ const mapearPrioridade = (prioridadeId) => {
                 if (isMounted) {
                     setContratoLoading(false);
                     setLoading(false);
-                    console.log("Finalizado fetch de dados iniciais e contrato.");
                 }
             }
         };
@@ -837,7 +769,6 @@ const mapearPrioridade = (prioridadeId) => {
     }, [activeMenu, t]);
 
     const navigate = (route) => {
-        console.log(`Navigating to: ${route}`);
         // Implementar a navegação aqui (e.g., usando window.location.href)
     };
 
@@ -984,252 +915,303 @@ const mapearPrioridade = (prioridadeId) => {
 
     return (
         <div style={{
-            height: '100vh',
+            minHeight: '100vh',
             overflowY: 'auto',
             fontFamily: 'Poppins, sans-serif',
-            backgroundImage: `url(${backgroundImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            backgroundAttachment: 'fixed',
-            position: 'relative'
+            position: 'relative',
+            background: 'linear-gradient(to bottom, rgba(227, 242, 253, 0.8), rgba(187, 222, 251, 0.8), rgba(144, 202, 249, 0.8))'
         }}>
             <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
             <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(255, 255, 255, 0.4)',
-                zIndex: 0
-            }}></div>
-            <div style={{
                 position: 'relative',
                 zIndex: 1,
-                height: '100%'
+                minHeight: '100vh'
             }}>
 
-                {/* StickyNavbar */}
-                <nav className="navbar navbar-light fixed-top" style={{
-                    backgroundColor: 'rgba(25, 118, 210, 0.95)',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                    padding: '15px 0',
-                }}>
-                    <div className="container">
-                        <button className="btn" onClick={toggleDrawer} style={{
-                            border: 'none',
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                            padding: '8px',
-                            borderRadius: '8px',
-                            transition: 'all 0.2s ease'
-                        }}>
-                            <FaBars size={24} style={{ color: '#FFFFFF' }} />
-                        </button>
-                        <span className="navbar-brand mb-0 h1" style={{
-                            color: '#FFFFFF',
-                            fontWeight: '700',
-                            fontSize: '24px',
-                            letterSpacing: '0.5px',
-                            textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
-                        }}>Advir Plan</span>
-                        <div style={{ width: '42px' }}></div> {/* Spacer for balance */}
-                    </div>
-                </nav>
-
-                {/* Drawer Navigation */}
-                <div className={`drawer ${isDrawerOpen ? 'open' : ''}`} style={{
-                    width: isDrawerOpen ? '280px' : '0',
-                    height: '100%',
-                    backgroundColor: '#FFFFFF',
-                    position: 'fixed',
-                    top: '0',
-                    left: '0',
-                    overflowX: 'hidden',
-                    transition: '0.3s ease-in-out',
-                    zIndex: '9999',
-                    boxShadow: isDrawerOpen ? '0 5px 25px rgba(0, 0, 0, 0.25)' : 'none',
-                    padding: isDrawerOpen ? '20px 0' : '0',
-                    borderTopRightRadius: '10px',
-                    borderBottomRightRadius: '10px'
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '0 20px 20px',
-                        borderBottom: '1px solid #eaeaea'
-                    }}>
-                        <span style={{
-                            color: '#1792FE',
-                            fontWeight: '700',
-                            fontSize: '22px'
-                        }}>Advir Plan</span>
-                        <button
-                            onClick={toggleDrawer}
-                            style={{
-                                color: '#1792FE',
-                                fontSize: '24px',
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '5px'
-                            }}
-                        >
-                            &times;
-                        </button>
-                    </div>
-                    <div className="drawer-content" style={{ padding: '20px 10px', marginTop: '10px' }}>
-                        {menus.map((menu, index) => {
-                            // Render all menu items the same way
-                            return (
-                                <a
-                                    key={index}
-                                    href="#"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        handleMenuClick(menu.title, menu.ref);
-                                        toggleDrawer();
-                                    }}
-                                    style={{
-                                        color: activeMenu === menu.title ? '#1792FE' : '#505050',
-                                        textDecoration: 'none',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        padding: '15px 20px',
-                                        borderRadius: '8px',
-                                        margin: '5px 10px',
-                                        backgroundColor: activeMenu === menu.title ? '#f0f7ff' : 'transparent',
-                                        transition: 'all 0.2s ease',
-                                        fontWeight: activeMenu === menu.title ? '600' : '400'
-                                    }}
-                                >
-                                    <span style={{ marginRight: '15px' }}>{menu.icon}</span>
-                                    {menu.title}
-                                </a>
-                            );
-                        })}
-                        <div style={{ borderTop: '1px solid #eaeaea', margin: '15px 10px', paddingTop: '15px' }}>
-                            <a href="#about" style={{
-                                color: '#505050',
-                                textDecoration: 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '15px 20px',
-                                borderRadius: '8px',
-                                margin: '5px 10px',
-                                transition: 'all 0.2s ease'
-                            }}>
-                                <span style={{ marginRight: '15px' }}>📋</span>
-                                Sobre Nós
-                            </a>
-                            <a href="#services" style={{
-                                color: '#505050',
-                                textDecoration: 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '15px 20px',
-                                borderRadius: '8px',
-                                margin: '5px 10px',
-                                transition: 'all 0.2s ease'
-                            }}>
-                                <span style={{ marginRight: '15px' }}>🛠️</span>
-                                Serviços
-                            </a>
-                        </div>
-                    </div>
-                </div>
+           
+            
 
                 {/* Main Content */}
 
-                <section className="text-center" style={{
-                    padding: '80px 20px 50px',
-                    backgroundColor: 'rgba(212, 228, 255, 0.85)',
-                    minHeight: '100vh',
-                    fontFamily: 'Poppins, sans-serif',
-                    backgroundImage: `url(${backgroundImage})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundAttachment: 'fixed',
-                    backdropFilter: 'blur(5px)'
-                }}>
-                    {/* Rest of your content inside the section element */}
+                <motion.section
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8 }}
+                    className="text-center"
+                    style={{
+                        padding: '100px 20px 60px',
+                        minHeight: '100vh',
+                        fontFamily: 'Poppins, sans-serif',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}>
+                    {/* Advanced Floating background elements with mesh gradient effect */}
+                    <motion.div
+                        animate={{
+                            x: [0, 100, 0],
+                            y: [0, -50, 0],
+                            scale: [1, 1.3, 1],
+                            opacity: [0.15, 0.3, 0.15]
+                        }}
+                        transition={{
+                            duration: 20,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                        style={{
+                            position: 'absolute',
+                            top: '5%',
+                            right: '8%',
+                            width: '500px',
+                            height: '500px',
+                            borderRadius: '50%',
+                            background: 'radial-gradient(circle, rgba(25, 118, 210, 0.25) 0%, rgba(66, 165, 245, 0.15) 40%, transparent 70%)',
+                            filter: 'blur(60px)',
+                            zIndex: 0,
+                            pointerEvents: 'none'
+                        }}
+                    />
+                    <motion.div
+                        animate={{
+                            x: [0, -80, 0],
+                            y: [0, 60, 0],
+                            scale: [1, 1.4, 1],
+                            opacity: [0.12, 0.25, 0.12]
+                        }}
+                        transition={{
+                            duration: 25,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                        style={{
+                            position: 'absolute',
+                            bottom: '10%',
+                            left: '3%',
+                            width: '600px',
+                            height: '600px',
+                            borderRadius: '50%',
+                            background: 'radial-gradient(circle, rgba(66, 165, 245, 0.2) 0%, rgba(25, 118, 210, 0.1) 40%, transparent 70%)',
+                            filter: 'blur(70px)',
+                            zIndex: 0,
+                            pointerEvents: 'none'
+                        }}
+                    />
+                    <motion.div
+                        animate={{
+                            x: [0, 50, -50, 0],
+                            y: [0, -30, 30, 0],
+                            rotate: [0, 360],
+                            scale: [1, 1.2, 0.9, 1]
+                        }}
+                        transition={{
+                            duration: 30,
+                            repeat: Infinity,
+                            ease: "linear"
+                        }}
+                        style={{
+                            position: 'absolute',
+                            top: '40%',
+                            right: '20%',
+                            width: '400px',
+                            height: '400px',
+                            borderRadius: '30%',
+                            background: 'radial-gradient(circle, rgba(25, 118, 210, 0.08) 0%, transparent 60%)',
+                            filter: 'blur(50px)',
+                            zIndex: 0,
+                            pointerEvents: 'none'
+                        }}
+                    />
+
+                    {/* Hero Title Section */}
+                    <motion.div
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 1, delay: 0.2 }}
+                        style={{
+                            position: 'relative',
+                            zIndex: 1,
+                            marginBottom: '80px'
+                        }}
+                    >
+                        <motion.h1
+                            animate={{
+                                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                            }}
+                            transition={{
+                                duration: 5,
+                                repeat: Infinity,
+                                ease: "linear"
+                            }}
+                            style={{
+                                fontSize: 'clamp(48px, 8vw, 96px)',
+                                fontWeight: '900',
+                                background: 'linear-gradient(90deg, #1976D2 0%, #42A5F5 25%, #1E88E5 50%, #42A5F5 75%, #1976D2 100%)',
+                                backgroundSize: '200% 100%',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                marginBottom: '20px',
+                                letterSpacing: '-2px',
+                                textShadow: '0 0 80px rgba(25, 118, 210, 0.3)'
+                            }}
+                        >
+                            AdvirLink
+                        </motion.h1>
+                        
+                    </motion.div>
 
                     <div style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        flexWrap: 'wrap',
-                        gap: '20px',
-                        marginBottom: '50px',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                        gap: '35px',
+                        maxWidth: '1400px',
+                        margin: '0 auto',
+                        padding: '0 20px',
+                        marginBottom: '80px',
+                        position: 'relative',
+                        zIndex: 1
                     }}>
                         {menus.map((menu, index) => {
-                            // Render all menu items the same way
                             return (
-                                <div
+                                <motion.div
                                     key={index}
+                                    initial={{ opacity: 0, y: 60, rotateX: -15, scale: 0.8 }}
+                                    animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+                                    transition={{
+                                        duration: 0.7,
+                                        delay: index * 0.12,
+                                        type: "spring",
+                                        stiffness: 80
+                                    }}
+                                    whileHover={{
+                                        scale: 1.05,
+                                        y: -15,
+                                        rotateY: 5,
+                                        boxShadow: activeMenu === menu.title
+                                            ? '0 25px 50px rgba(25, 118, 210, 0.5), 0 10px 25px rgba(25, 118, 210, 0.4), inset 0 0 60px rgba(255, 255, 255, 0.1)'
+                                            : '0 20px 40px rgba(25, 118, 210, 0.25), 0 10px 20px rgba(0, 0, 0, 0.15)',
+                                        transition: { duration: 0.4, ease: "easeOut" }
+                                    }}
+                                    whileTap={{ scale: 0.97, rotateY: -2 }}
                                     onClick={() => handleMenuClick(menu.title, menu.ref)}
                                     style={{
-                                        width: '200px',
-                                        height: '140px',
-                                        backgroundColor: activeMenu === menu.title ? '#1976D2' : '#ffffff',
-                                        borderRadius: '20px',
+                                        minHeight: '200px',
+                                        background: activeMenu === menu.title
+                                            ? 'linear-gradient(135deg, #1976D2 0%, #42A5F5 50%, #1E88E5 100%)'
+                                            : 'rgba(255, 255, 255, 0.8)',
+                                        backdropFilter: 'blur(20px)',
+                                        WebkitBackdropFilter: 'blur(20px)',
+                                        borderRadius: '28px',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         justifyContent: 'center',
                                         alignItems: 'center',
+                                        gap: '16px',
+                                        padding: '32px 24px',
                                         color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
                                         cursor: 'pointer',
                                         boxShadow: activeMenu === menu.title
-                                            ? '0 10px 20px rgba(25, 118, 210, 0.4)'
-                                            : '0 6px 15px rgba(0, 0, 0, 0.08)',
+                                            ? '0 20px 40px rgba(25, 118, 210, 0.45), 0 8px 20px rgba(25, 118, 210, 0.35), inset 0 0 40px rgba(255, 255, 255, 0.1)'
+                                            : '0 10px 30px rgba(0, 0, 0, 0.08), inset 0 0 20px rgba(255, 255, 255, 0.5)',
                                         textAlign: 'center',
-                                        transition: 'all 0.3s ease',
-                                        border: activeMenu === menu.title ? 'none' : '1px solid #e0eaf6',
+                                        border: activeMenu === menu.title
+                                            ? '2px solid rgba(255, 255, 255, 0.4)'
+                                            : '2px solid rgba(25, 118, 210, 0.15)',
                                         position: 'relative',
-                                        overflow: 'hidden'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(-5px)';
-                                        e.currentTarget.style.boxShadow = activeMenu === menu.title
-                                            ? '0 15px 30px rgba(25, 118, 210, 0.5)'
-                                            : '0 10px 25px rgba(0, 0, 0, 0.1)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = activeMenu === menu.title
-                                            ? '0 10px 20px rgba(25, 118, 210, 0.4)'
-                                            : '0 6px 15px rgba(0, 0, 0, 0.08)';
+                                        overflow: 'hidden',
+                                        transformStyle: 'preserve-3d',
+                                        perspective: '1000px'
                                     }}
                                 >
-                                    {/* Background effect */}
-                                    {activeMenu === menu.title && (
-                                        <div style={{
+                                    {/* Animated Background Circles */}
+                                    <motion.div
+                                        animate={{
+                                            scale: [1, 1.2, 1],
+                                            opacity: [0.3, 0.5, 0.3],
+                                            rotate: [0, 180, 360]
+                                        }}
+                                        transition={{
+                                            duration: 3,
+                                            repeat: Infinity,
+                                            ease: "easeInOut"
+                                        }}
+                                        style={{
                                             position: 'absolute',
-                                            top: '-20px',
-                                            right: '-20px',
+                                            top: '-30px',
+                                            right: '-30px',
+                                            width: '120px',
+                                            height: '120px',
+                                            borderRadius: '50%',
+                                            backgroundColor: activeMenu === menu.title
+                                                ? 'rgba(255, 255, 255, 0.15)'
+                                                : 'rgba(25, 118, 210, 0.1)',
+                                            zIndex: 0
+                                        }}
+                                    />
+                                    <motion.div
+                                        animate={{
+                                            scale: [1, 1.3, 1],
+                                            rotate: [360, 180, 0]
+                                        }}
+                                        transition={{
+                                            duration: 4,
+                                            repeat: Infinity,
+                                            ease: "easeInOut"
+                                        }}
+                                        style={{
+                                            position: 'absolute',
+                                            bottom: '-40px',
+                                            left: '-40px',
                                             width: '100px',
                                             height: '100px',
                                             borderRadius: '50%',
-                                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                            backgroundColor: activeMenu === menu.title
+                                                ? 'rgba(255, 255, 255, 0.1)'
+                                                : 'rgba(25, 118, 210, 0.08)',
                                             zIndex: 0
-                                        }} />
-                                    )}
-                                    <div style={{
-                                        fontSize: '36px',
-                                        marginBottom: '15px',
-                                        color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
-                                        zIndex: 1
-                                    }}>
+                                        }}
+                                    />
+
+                                    <motion.div
+                                        whileHover={{ scale: 1.2, rotate: 10 }}
+                                        style={{
+                                            fontSize: '48px',
+                                            marginBottom: '15px',
+                                            color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
+                                            zIndex: 1,
+                                            filter: activeMenu === menu.title
+                                                ? 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))'
+                                                : 'drop-shadow(0 2px 4px rgba(25, 118, 210, 0.3))'
+                                        }}>
                                         {menu.icon}
-                                    </div>
+                                    </motion.div>
                                     <span style={{
                                         fontSize: '18px',
-                                        fontWeight: '600',
-                                        zIndex: 1
+                                        fontWeight: '700',
+                                        zIndex: 1,
+                                        letterSpacing: '0.5px',
+                                        textShadow: activeMenu === menu.title
+                                            ? '0 2px 4px rgba(0, 0, 0, 0.2)'
+                                            : 'none'
                                     }}>{menu.title}</span>
-                                </div>
+
+                                    {/* Shine effect on hover */}
+                                    <motion.div
+                                        initial={{ x: '-100%' }}
+                                        whileHover={{ x: '200%' }}
+                                        transition={{ duration: 0.6 }}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '50%',
+                                            height: '100%',
+                                            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)',
+                                            transform: 'skewX(-20deg)',
+                                            zIndex: 2,
+                                            pointerEvents: 'none'
+                                        }}
+                                    />
+                                </motion.div>
                             );
                         })}
                     </div>
@@ -1238,14 +1220,47 @@ const mapearPrioridade = (prioridadeId) => {
                         {activeMenu === t('Home.menu.contract') && (
                             <>
                                 {loading || contratoLoading ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '20px' }}>
-                                        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
-                                            <span className="visually-hidden">{t('loading')}</span>
-                                        </div>
-                                        <p style={{ color: '#1976D2', fontSize: '16px', fontWeight: '500' }}>
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            height: '300px',
+                                            gap: '20px'
+                                        }}>
+                                        <motion.div
+                                            animate={{
+                                                scale: [1, 1.2, 1],
+                                                rotate: [0, 360]
+                                            }}
+                                            transition={{
+                                                duration: 2,
+                                                repeat: Infinity,
+                                                ease: "easeInOut"
+                                            }}
+                                            style={{
+                                                width: '60px',
+                                                height: '60px',
+                                                border: '4px solid rgba(25, 118, 210, 0.2)',
+                                                borderTop: '4px solid #1976D2',
+                                                borderRadius: '50%'
+                                            }}
+                                        />
+                                        <motion.p
+                                            animate={{ opacity: [0.5, 1, 0.5] }}
+                                            transition={{ duration: 1.5, repeat: Infinity }}
+                                            style={{
+                                                color: '#1976D2',
+                                                fontSize: '18px',
+                                                fontWeight: '600',
+                                                letterSpacing: '0.5px'
+                                            }}>
                                             {t('A carregar informações do contrato...')}
-                                        </p>
-                                    </div>
+                                        </motion.p>
+                                    </motion.div>
                                 ) : errorMessage ? (
                                     <div style={{
                                         maxWidth: '800px',
@@ -1275,141 +1290,352 @@ const mapearPrioridade = (prioridadeId) => {
                                                 boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
                                             }}
                                         >
-                                            {/* Cabeçalho */}
-                                            <div style={{
-                                                backgroundColor: '#1976D2',
-                                                padding: '25px 30px',
-                                                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                                            }}>
+                                            {/* Cabeçalho Moderno com Gradiente */}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.2 }}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                    padding: '35px 30px',
+                                                    position: 'relative',
+                                                    overflow: 'hidden'
+                                                }}>
+                                                <motion.div
+                                                    animate={{
+                                                        scale: [1, 1.2, 1],
+                                                        rotate: [0, 180, 360]
+                                                    }}
+                                                    transition={{
+                                                        duration: 20,
+                                                        repeat: Infinity,
+                                                        ease: "linear"
+                                                    }}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '-50px',
+                                                        right: '-50px',
+                                                        width: '200px',
+                                                        height: '200px',
+                                                        borderRadius: '50%',
+                                                        background: 'rgba(255, 255, 255, 0.1)',
+                                                        filter: 'blur(20px)'
+                                                    }}
+                                                />
                                                 <h2 style={{
-                                                    fontWeight: 700,
+                                                    fontWeight: 800,
                                                     color: '#FFFFFF',
                                                     margin: 0,
-                                                    fontSize: '28px',
-                                                    textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
+                                                    fontSize: '32px',
+                                                    letterSpacing: '0.5px',
+                                                    textShadow: '2px 2px 8px rgba(0, 0, 0, 0.2)',
+                                                    position: 'relative',
+                                                    zIndex: 1
                                                 }}>
                                                     {t('Home.contratoinfo.title')} {c.Codigo}
                                                 </h2>
-                                            </div>
+                                            </motion.div>
 
-                                            <div style={{ padding: '30px' }}>
-                                                {/* Detalhes */}
-                                                <div style={{
-                                                    backgroundColor: '#f8f9fa',
-                                                    borderRadius: '12px',
-                                                    padding: '20px',
-                                                    borderLeft: '4px solid #1976D2',
-                                                    marginBottom: '20px'
-                                                }}>
-                                                    <p><strong>{t('Home.contratoinfo.codigo')}:</strong> {c.Codigo}</p>
-                                                    <p><strong>{t('Home.contratoinfo.descricao')}:</strong> {c.Descricao}</p>
-                                                </div>
+                                            <div style={{ padding: '35px' }}>
+                                                {/* Detalhes com design limpo */}
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: 0.3 }}
+                                                    style={{
+                                                        backgroundColor: '#ffffff',
+                                                        borderRadius: '16px',
+                                                        padding: '25px',
+                                                        border: '2px solid #f0f7ff',
+                                                        marginBottom: '25px',
+                                                        boxShadow: '0 4px 15px rgba(25, 118, 210, 0.08)'
+                                                    }}>
+                                                    <div style={{ marginBottom: '15px' }}>
+                                                        <span style={{
+                                                            fontSize: '13px',
+                                                            color: '#757575',
+                                                            textTransform: 'uppercase',
+                                                            fontWeight: '600',
+                                                            letterSpacing: '1px'
+                                                        }}>{t('Home.contratoinfo.codigo')}</span>
+                                                        <p style={{
+                                                            fontSize: '20px',
+                                                            fontWeight: '700',
+                                                            color: '#1976D2',
+                                                            margin: '8px 0 0 0'
+                                                        }}>{c.Codigo}</p>
+                                                    </div>
+                                                    <div style={{
+                                                        height: '1px',
+                                                        background: 'linear-gradient(90deg, rgba(25, 118, 210, 0.3) 0%, transparent 100%)',
+                                                        margin: '15px 0'
+                                                    }}/>
+                                                    <div>
+                                                        <span style={{
+                                                            fontSize: '13px',
+                                                            color: '#757575',
+                                                            textTransform: 'uppercase',
+                                                            fontWeight: '600',
+                                                            letterSpacing: '1px'
+                                                        }}>{t('Home.contratoinfo.descricao')}</span>
+                                                        <p style={{
+                                                            fontSize: '16px',
+                                                            fontWeight: '500',
+                                                            color: '#333',
+                                                            margin: '8px 0 0 0',
+                                                            lineHeight: '1.6'
+                                                        }}>{c.Descricao}</p>
+                                                    </div>
+                                                </motion.div>
 
                                                 {/* Horas e progresso (se não for PRJ) */}
                                                 {c.TipoDoc !== 'PRJ' && (
                                                     <>
-                                                        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                                                        <div style={{
+                                                            display: 'grid',
+                                                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                                            gap: '20px',
+                                                            marginBottom: '25px'
+                                                        }}>
                                                             {/* Horas Contrato */}
-                                                            <div style={{
-                                                                flex: 1,
-                                                                backgroundColor: 'white',
-                                                                borderRadius: '12px',
-                                                                padding: '25px 20px',
-                                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                                textAlign: 'center'
-                                                            }}>
-                                                                <div style={{
-                                                                    width: '50px',
-                                                                    height: '50px',
-                                                                    margin: '0 auto 15px',
-                                                                    borderRadius: '50%',
-                                                                    backgroundColor: '#e3f2fd',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontSize: '24px'
-                                                                }}>⏱️</div>
-                                                                <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horascontrato')}</p>
-                                                                <p style={{ fontSize: '24px', fontWeight: '700', color: '#1976D2', margin: 0 }}>{c.HorasTotais} h</p>
-                                                            </div>
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: 20 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                transition={{ delay: 0.4 }}
+                                                                whileHover={{ y: -5, boxShadow: '0 8px 20px rgba(25, 118, 210, 0.15)' }}
+                                                                style={{
+                                                                    backgroundColor: '#ffffff',
+                                                                    borderRadius: '20px',
+                                                                    padding: '30px 20px',
+                                                                    border: '2px solid #e3f2fd',
+                                                                    textAlign: 'center',
+                                                                    transition: 'all 0.3s ease',
+                                                                    position: 'relative',
+                                                                    overflow: 'hidden'
+                                                                }}>
+                                                                <motion.div
+                                                                    animate={{ scale: [1, 1.1, 1] }}
+                                                                    transition={{ duration: 2, repeat: Infinity }}
+                                                                    style={{
+                                                                        width: '60px',
+                                                                        height: '60px',
+                                                                        margin: '0 auto 15px',
+                                                                        borderRadius: '50%',
+                                                                        background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        fontSize: '28px',
+                                                                        boxShadow: '0 4px 15px rgba(25, 118, 210, 0.2)'
+                                                                    }}>⏱️</motion.div>
+                                                                <p style={{
+                                                                    margin: '0 0 10px',
+                                                                    color: '#757575',
+                                                                    fontSize: '12px',
+                                                                    textTransform: 'uppercase',
+                                                                    fontWeight: '600',
+                                                                    letterSpacing: '1px'
+                                                                }}>{t('Home.contratoinfo.horascontrato')}</p>
+                                                                <p style={{
+                                                                    fontSize: '32px',
+                                                                    fontWeight: '800',
+                                                                    background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                                    WebkitBackgroundClip: 'text',
+                                                                    WebkitTextFillColor: 'transparent',
+                                                                    margin: 0
+                                                                }}>{c.HorasTotais} h</p>
+                                                            </motion.div>
 
                                                             {/* Horas Gastas */}
-                                                            <div style={{
-                                                                flex: 1,
-                                                                backgroundColor: 'white',
-                                                                borderRadius: '12px',
-                                                                padding: '25px 20px',
-                                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                                textAlign: 'center'
-                                                            }}>
-                                                                <div style={{
-                                                                    width: '50px',
-                                                                    height: '50px',
-                                                                    margin: '0 auto 15px',
-                                                                    borderRadius: '50%',
-                                                                    backgroundColor: '#ffe0e0',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontSize: '24px'
-                                                                }}>⌛</div>
-                                                                <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasgastas')}</p>
-                                                                <p style={{ fontSize: '24px', fontWeight: '700', color: '#f44336', margin: 0 }}>{c.HorasGastas} h</p>
-                                                            </div>
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: 20 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                transition={{ delay: 0.5 }}
+                                                                whileHover={{ y: -5, boxShadow: '0 8px 20px rgba(244, 67, 54, 0.15)' }}
+                                                                style={{
+                                                                    backgroundColor: '#ffffff',
+                                                                    borderRadius: '20px',
+                                                                    padding: '30px 20px',
+                                                                    border: '2px solid #ffebee',
+                                                                    textAlign: 'center',
+                                                                    transition: 'all 0.3s ease',
+                                                                    position: 'relative',
+                                                                    overflow: 'hidden'
+                                                                }}>
+                                                                <motion.div
+                                                                    animate={{ rotate: [0, 10, -10, 0] }}
+                                                                    transition={{ duration: 3, repeat: Infinity }}
+                                                                    style={{
+                                                                        width: '60px',
+                                                                        height: '60px',
+                                                                        margin: '0 auto 15px',
+                                                                        borderRadius: '50%',
+                                                                        background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        fontSize: '28px',
+                                                                        boxShadow: '0 4px 15px rgba(244, 67, 54, 0.2)'
+                                                                    }}>⌛</motion.div>
+                                                                <p style={{
+                                                                    margin: '0 0 10px',
+                                                                    color: '#757575',
+                                                                    fontSize: '12px',
+                                                                    textTransform: 'uppercase',
+                                                                    fontWeight: '600',
+                                                                    letterSpacing: '1px'
+                                                                }}>{t('Home.contratoinfo.horasgastas')}</p>
+                                                                <p style={{
+                                                                    fontSize: '32px',
+                                                                    fontWeight: '800',
+                                                                    background: 'linear-gradient(135deg, #f44336 0%, #e57373 100%)',
+                                                                    WebkitBackgroundClip: 'text',
+                                                                    WebkitTextFillColor: 'transparent',
+                                                                    margin: 0
+                                                                }}>{c.HorasGastas} h</p>
+                                                            </motion.div>
 
                                                             {/* Horas Disponíveis */}
-                                                            <div style={{
-                                                                flex: 1,
-                                                                backgroundColor: 'white',
-                                                                borderRadius: '12px',
-                                                                padding: '25px 20px',
-                                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                                textAlign: 'center'
-                                                            }}>
-                                                                <div style={{
-                                                                    width: '50px',
-                                                                    height: '50px',
-                                                                    margin: '0 auto 15px',
-                                                                    borderRadius: '50%',
-                                                                    backgroundColor: '#e8f5e9',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontSize: '24px'
-                                                                }}>✅</div>
-                                                                <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasdisponiveis')}</p>
-                                                                <p style={{ fontSize: '24px', fontWeight: '700', color: '#4caf50', margin: 0 }}>
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: 20 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                transition={{ delay: 0.6 }}
+                                                                whileHover={{ y: -5, boxShadow: '0 8px 20px rgba(76, 175, 80, 0.15)' }}
+                                                                style={{
+                                                                    backgroundColor: '#ffffff',
+                                                                    borderRadius: '20px',
+                                                                    padding: '30px 20px',
+                                                                    border: '2px solid #e8f5e9',
+                                                                    textAlign: 'center',
+                                                                    transition: 'all 0.3s ease',
+                                                                    position: 'relative',
+                                                                    overflow: 'hidden'
+                                                                }}>
+                                                                <motion.div
+                                                                    animate={{ scale: [1, 1.2, 1] }}
+                                                                    transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                                                                    style={{
+                                                                        width: '60px',
+                                                                        height: '60px',
+                                                                        margin: '0 auto 15px',
+                                                                        borderRadius: '50%',
+                                                                        background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        fontSize: '28px',
+                                                                        boxShadow: '0 4px 15px rgba(76, 175, 80, 0.2)'
+                                                                    }}>✅</motion.div>
+                                                                <p style={{
+                                                                    margin: '0 0 10px',
+                                                                    color: '#757575',
+                                                                    fontSize: '12px',
+                                                                    textTransform: 'uppercase',
+                                                                    fontWeight: '600',
+                                                                    letterSpacing: '1px'
+                                                                }}>{t('Home.contratoinfo.horasdisponiveis')}</p>
+                                                                <p style={{
+                                                                    fontSize: '32px',
+                                                                    fontWeight: '800',
+                                                                    background: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)',
+                                                                    WebkitBackgroundClip: 'text',
+                                                                    WebkitTextFillColor: 'transparent',
+                                                                    margin: 0
+                                                                }}>
                                                                     {(c.HorasTotais - c.HorasGastas).toFixed(2)} h
                                                                 </p>
-                                                            </div>
+                                                            </motion.div>
                                                         </div>
 
-                                                        {/* Barra de Progresso */}
-                                                        <div style={{
-                                                            backgroundColor: 'white',
-                                                            borderRadius: '12px',
-                                                            padding: '20px',
-                                                            boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-                                                        }}>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                                                <p style={{ margin: 0, fontWeight: '500' }}>{t('Progresso do Contrato')}</p>
-                                                                <p style={{ margin: 0, fontWeight: '600' }}>
+                                                        {/* Barra de Progresso Moderna */}
+                                                        <motion.div
+                                                            initial={{ opacity: 0, scale: 0.95 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            transition={{ delay: 0.7 }}
+                                                            style={{
+                                                                backgroundColor: '#ffffff',
+                                                                borderRadius: '20px',
+                                                                padding: '30px',
+                                                                border: '2px solid #f0f7ff',
+                                                                boxShadow: '0 4px 20px rgba(25, 118, 210, 0.08)'
+                                                            }}>
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                justifyContent: 'space-between',
+                                                                alignItems: 'center',
+                                                                marginBottom: '20px'
+                                                            }}>
+                                                                <div>
+                                                                    <p style={{
+                                                                        margin: '0 0 5px 0',
+                                                                        fontSize: '12px',
+                                                                        color: '#757575',
+                                                                        textTransform: 'uppercase',
+                                                                        fontWeight: '600',
+                                                                        letterSpacing: '1px'
+                                                                    }}>{t('Progresso do Contrato')}</p>
+                                                                    <p style={{
+                                                                        margin: 0,
+                                                                        fontSize: '14px',
+                                                                        color: '#999',
+                                                                        fontWeight: '500'
+                                                                    }}>
+                                                                        {c.HorasGastas}h de {c.HorasTotais}h utilizadas
+                                                                    </p>
+                                                                </div>
+                                                                <motion.div
+                                                                    animate={{ scale: [1, 1.1, 1] }}
+                                                                    transition={{ duration: 2, repeat: Infinity }}
+                                                                    style={{
+                                                                        fontSize: '36px',
+                                                                        fontWeight: '900',
+                                                                        background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                                        WebkitBackgroundClip: 'text',
+                                                                        WebkitTextFillColor: 'transparent'
+                                                                    }}>
                                                                     {Math.round((c.HorasGastas / c.HorasTotais) * 100)}%
-                                                                </p>
+                                                                </motion.div>
                                                             </div>
                                                             <div style={{
-                                                                height: '10px',
-                                                                backgroundColor: '#e0e0e0',
-                                                                borderRadius: '5px',
-                                                                overflow: 'hidden'
+                                                                height: '16px',
+                                                                backgroundColor: '#f0f7ff',
+                                                                borderRadius: '20px',
+                                                                overflow: 'hidden',
+                                                                position: 'relative',
+                                                                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)'
                                                             }}>
-                                                                <div style={{
-                                                                    height: '100%',
-                                                                    width: `${(c.HorasGastas / c.HorasTotais) * 100}%`,
-                                                                    backgroundColor: '#1976D2'
-                                                                }} />
+                                                                <motion.div
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${(c.HorasGastas / c.HorasTotais) * 100}%` }}
+                                                                    transition={{ duration: 1.5, ease: "easeOut", delay: 0.8 }}
+                                                                    style={{
+                                                                        height: '100%',
+                                                                        background: 'linear-gradient(90deg, #1976D2 0%, #42A5F5 100%)',
+                                                                        borderRadius: '20px',
+                                                                        position: 'relative',
+                                                                        boxShadow: '0 2px 8px rgba(25, 118, 210, 0.4)'
+                                                                    }}>
+                                                                    <motion.div
+                                                                        animate={{
+                                                                            x: ['-100%', '200%']
+                                                                        }}
+                                                                        transition={{
+                                                                            duration: 2,
+                                                                            repeat: Infinity,
+                                                                            ease: "easeInOut"
+                                                                        }}
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            top: 0,
+                                                                            left: 0,
+                                                                            width: '50%',
+                                                                            height: '100%',
+                                                                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)'
+                                                                        }}
+                                                                    />
+                                                                </motion.div>
                                                             </div>
-                                                        </div>
+                                                        </motion.div>
                                                     </>
                                                 )}
 
@@ -1444,86 +1670,192 @@ const mapearPrioridade = (prioridadeId) => {
                         {activeMenu === t('Home.menu.orders') && (
                             <>
                                 {(pedidosLoading || loading) && !pedidosInfo ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '20px' }}>
-                                        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
-                                            <span className="visually-hidden">{t('loading')}</span>
-                                        </div>
-                                        <p style={{ color: '#1976D2', fontSize: '16px', fontWeight: '500' }}>
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            height: '300px',
+                                            gap: '20px'
+                                        }}>
+                                        <motion.div
+                                            animate={{
+                                                scale: [1, 1.2, 1],
+                                                rotate: [0, 360]
+                                            }}
+                                            transition={{
+                                                duration: 2,
+                                                repeat: Infinity,
+                                                ease: "easeInOut"
+                                            }}
+                                            style={{
+                                                width: '60px',
+                                                height: '60px',
+                                                border: '4px solid rgba(25, 118, 210, 0.2)',
+                                                borderTop: '4px solid #1976D2',
+                                                borderRadius: '50%'
+                                            }}
+                                        />
+                                        <motion.p
+                                            animate={{ opacity: [0.5, 1, 0.5] }}
+                                            transition={{ duration: 1.5, repeat: Infinity }}
+                                            style={{
+                                                color: '#1976D2',
+                                                fontSize: '18px',
+                                                fontWeight: '600',
+                                                letterSpacing: '0.5px'
+                                            }}>
                                             {t('A carregar pedidos...')}
-                                        </p>
-                                    </div>
+                                        </motion.p>
+                                    </motion.div>
                                 ) : pedidosInfo ? (
                                     <>
-                                        <div style={{
-                                            maxWidth: '950px',
-                                            margin: '0 auto 30px',
-                                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                            borderRadius: '16px',
-                                            padding: '25px',
-                                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
-                                        }}>
-                                            <div style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                marginBottom: '20px'
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.6 }}
+                                            style={{
+                                                maxWidth: '1100px',
+                                                margin: '0 auto 30px',
+                                                backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                                                borderRadius: '24px',
+                                                padding: '0',
+                                                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.08)',
+                                                overflow: 'hidden',
+                                                border: '1px solid rgba(25, 118, 210, 0.1)'
                                             }}>
-                                                <h2 style={{
-                                                    fontWeight: '700',
-                                                    color: '#1976D2',
-                                                    margin: 0,
-                                                    fontSize: '28px'
+                                            {/* Header com gradiente moderno */}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.2 }}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                    padding: '35px 35px',
+                                                    position: 'relative',
+                                                    overflow: 'hidden'
                                                 }}>
-                                                    <span style={{ backgroundColor: '#1976D2', padding: '5px 10px', borderRadius: '5px', color: 'white' }}>{t('Pedidos de Assistência')}</span>
-                                                </h2>
-                                                <button
-                                                    onClick={toggleForm}
-                                                    style={{
-                                                        padding: '12px 20px',
-                                                        backgroundColor: '#1976D2',
-                                                        color: '#FFFFFF',
-                                                        borderRadius: '12px',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        fontSize: '15px',
-                                                        fontWeight: '600',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '8px',
-                                                        transition: 'all 0.2s ease',
-                                                        boxShadow: '0 4px 6px rgba(25, 118, 210, 0.2)'
+                                                {/* Animated background circles */}
+                                                <motion.div
+                                                    animate={{
+                                                        scale: [1, 1.3, 1],
+                                                        x: [-50, 50, -50]
                                                     }}
-                                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
-                                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
-                                                >
-                                                    <span>+</span>
-                                                    {t('Novo Pedido')}
-                                                </button>
+                                                    transition={{
+                                                        duration: 15,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut"
+                                                    }}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '-30px',
+                                                        right: '-30px',
+                                                        width: '180px',
+                                                        height: '180px',
+                                                        background: 'rgba(255, 255, 255, 0.15)',
+                                                        borderRadius: '50%',
+                                                        filter: 'blur(40px)'
+                                                    }}
+                                                />
+                                                <div style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    position: 'relative',
+                                                    zIndex: 1,
+                                                    flexWrap: 'wrap',
+                                                    gap: '15px'
+                                                }}>
+                                                    <h2 style={{
+                                                        fontWeight: '800',
+                                                        color: '#FFFFFF',
+                                                        margin: 0,
+                                                        fontSize: '32px',
+                                                        textShadow: '2px 2px 8px rgba(0, 0, 0, 0.2)',
+                                                        letterSpacing: '-0.5px'
+                                                    }}>
+                                                        {t('Pedidos de Assistência')}
+                                                    </h2>
+                                                    <motion.button
+                                                        whileHover={{
+                                                            scale: 1.05,
+                                                            boxShadow: '0 12px 30px rgba(255, 255, 255, 0.3)',
+                                                            y: -2
+                                                        }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={toggleForm}
+                                                        style={{
+                                                            padding: '16px 28px',
+                                                            background: 'rgba(255, 255, 255, 0.95)',
+                                                            color: '#1976D2',
+                                                            borderRadius: '16px',
+                                                            border: '2px solid rgba(255, 255, 255, 0.5)',
+                                                            cursor: 'pointer',
+                                                            fontSize: '16px',
+                                                            fontWeight: '700',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '10px',
+                                                            transition: 'all 0.3s ease',
+                                                            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)',
+                                                            letterSpacing: '0.5px',
+                                                            backdropFilter: 'blur(10px)'
+                                                        }}
+                                                    >
+                                                        <motion.span
+                                                            animate={{ rotate: [0, 90, 0] }}
+                                                            transition={{ duration: 2, repeat: Infinity }}
+                                                            style={{ fontSize: '20px', fontWeight: 'bold' }}
+                                                        >
+                                                            +
+                                                        </motion.span>
+                                                        {t('Novo Pedido')}
+                                                    </motion.button>
+                                                </div>
+                                            </motion.div>
+
+                                            {/* Content Area */}
+                                            <div style={{ padding: '35px' }}>
 
                                                 {/* Form for creating new requests */}
                                                 {showForm && (
-                                                    <div style={{
-                                                        position: 'fixed',
-                                                        top: 0,
-                                                        left: 0,
-                                                        right: 0,
-                                                        bottom: 0,
-                                                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                                        display: 'flex',
-                                                        justifyContent: 'center',
-                                                        alignItems: 'center',
-                                                        zIndex: 1000,
-                                                    }}>
-                                                        <div style={{
-                                                            backgroundColor: 'white',
-                                                            borderRadius: '16px',
-                                                            width: '90%',
-                                                            maxWidth: '600px',
-                                                            maxHeight: '90vh',
-                                                            overflowY: 'auto',
-                                                            padding: '25px',
-                                                            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+                                                    <motion.div
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                        style={{
+                                                            position: 'fixed',
+                                                            top: 0,
+                                                            left: 0,
+                                                            right: 0,
+                                                            bottom: 0,
+                                                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                            backdropFilter: 'blur(8px)',
+                                                            display: 'flex',
+                                                            justifyContent: 'center',
+                                                            alignItems: 'center',
+                                                            zIndex: 10000,
                                                         }}>
+                                                        <motion.div
+                                                            initial={{ scale: 0.8, y: 50, opacity: 0 }}
+                                                            animate={{ scale: 1, y: 0, opacity: 1 }}
+                                                            exit={{ scale: 0.8, y: 50, opacity: 0 }}
+                                                            transition={{ type: "spring", duration: 0.5 }}
+                                                            style={{
+                                                                backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                                                                backdropFilter: 'blur(20px)',
+                                                                borderRadius: '24px',
+                                                                width: '90%',
+                                                                maxWidth: '600px',
+                                                                maxHeight: '90vh',
+                                                                overflowY: 'auto',
+                                                                padding: '30px',
+                                                                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                                                                border: '1px solid rgba(25, 118, 210, 0.2)'
+                                                            }}>
                                                             <div style={{
                                                                 display: 'flex',
                                                                 justifyContent: 'space-between',
@@ -1708,24 +2040,29 @@ const mapearPrioridade = (prioridadeId) => {
                                                                     </button>
                                                                 </div>
                                                             </form>
-                                                        </div>
-                                                    </div>
+                                                        </motion.div>
+                                                    </motion.div>
                                                 )}
-                                            </div>
 
                                             {/* Barra de Pesquisa */}
-                                            <div style={{
-                                                display: 'flex',
-                                                gap: '15px',
-                                                alignItems: 'center',
-                                                marginBottom: '25px',
-                                                flexWrap: 'wrap'
-                                            }}>
-                                                <div style={{
-                                                    flex: 1,
-                                                    position: 'relative',
-                                                    minWidth: '250px'
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.2 }}
+                                                style={{
+                                                    display: 'flex',
+                                                    gap: '15px',
+                                                    alignItems: 'center',
+                                                    marginBottom: '25px',
+                                                    flexWrap: 'wrap'
                                                 }}>
+                                                <motion.div
+                                                    whileFocus={{ scale: 1.02 }}
+                                                    style={{
+                                                        flex: 1,
+                                                        position: 'relative',
+                                                        minWidth: '250px'
+                                                    }}>
                                                     <input
                                                         type="text"
                                                         value={searchTerm}
@@ -1733,27 +2070,37 @@ const mapearPrioridade = (prioridadeId) => {
                                                         placeholder={t('Pesquisar pedidos...')}
                                                         style={{
                                                             width: '100%',
-                                                            padding: '14px 14px 14px 40px',
-                                                            borderRadius: '12px',
-                                                            border: '1px solid #e0e0e0',
-                                                            backgroundColor: '#f8f9fa',
+                                                            padding: '14px 14px 14px 45px',
+                                                            borderRadius: '16px',
+                                                            border: '2px solid #e0e0e0',
+                                                            backgroundColor: '#ffffff',
                                                             fontSize: '15px',
-                                                            transition: 'all 0.2s ease'
+                                                            transition: 'all 0.3s ease',
+                                                            outline: 'none'
                                                         }}
-                                                        onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px rgba(25, 118, 210, 0.2)'}
-                                                        onBlur={(e) => e.target.style.boxShadow = 'none'}
+                                                        onFocus={(e) => {
+                                                            e.target.style.borderColor = '#1976D2';
+                                                            e.target.style.boxShadow = '0 4px 20px rgba(25, 118, 210, 0.2)';
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            e.target.style.borderColor = '#e0e0e0';
+                                                            e.target.style.boxShadow = 'none';
+                                                        }}
                                                     />
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        left: '14px',
-                                                        top: '50%',
-                                                        transform: 'translateY(-50%)',
-                                                        color: '#757575',
-                                                        fontSize: '16px'
-                                                    }}>
+                                                    <motion.div
+                                                        animate={{ rotate: [0, 20, 0] }}
+                                                        transition={{ duration: 2, repeat: Infinity }}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            left: '16px',
+                                                            top: '50%',
+                                                            transform: 'translateY(-50%)',
+                                                            color: '#1976D2',
+                                                            fontSize: '18px'
+                                                        }}>
                                                         🔍
-                                                    </div>
-                                                </div>
+                                                    </motion.div>
+                                                </motion.div>
 
                                                 {/* Filtro de Ano */}
                                                 <div style={{
@@ -1790,53 +2137,74 @@ const mapearPrioridade = (prioridadeId) => {
                                                             ))}
                                                     </select>
                                                 </div>
-                                            </div>
+                                            </motion.div>
 
-                                            {/* Estado Filters */}
-                                            <div style={{
-                                                display: 'flex',
-                                                flexWrap: 'wrap',
-                                                gap: '10px',
-                                                marginBottom: '25px'
-                                            }}>
-                                                <button
+                                            {/* Filtros de Estado Modernos */}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.3 }}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexWrap: 'wrap',
+                                                    gap: '12px',
+                                                    marginBottom: '30px'
+                                                }}>
+                                                <motion.button
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
                                                     onClick={() => setSelectedEstado('')}
                                                     style={{
-                                                        padding: '10px 18px',
-                                                        borderRadius: '30px',
-                                                        border: 'none',
-                                                        backgroundColor: selectedEstado === '' ? '#1976D2' : '#f0f7ff',
+                                                        padding: '12px 24px',
+                                                        borderRadius: '50px',
+                                                        border: selectedEstado === '' ? 'none' : '2px solid #e3f2fd',
+                                                        background: selectedEstado === ''
+                                                            ? 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)'
+                                                            : '#ffffff',
                                                         color: selectedEstado === '' ? '#FFFFFF' : '#1976D2',
-                                                        boxShadow: selectedEstado === '' ? '0 4px 8px rgba(25, 118, 210, 0.2)' : 'none',
+                                                        boxShadow: selectedEstado === ''
+                                                            ? '0 6px 20px rgba(25, 118, 210, 0.35)'
+                                                            : '0 2px 8px rgba(0, 0, 0, 0.05)',
                                                         cursor: 'pointer',
-                                                        fontWeight: '500',
+                                                        fontWeight: '600',
                                                         fontSize: '14px',
-                                                        transition: 'all 0.2s ease'
+                                                        transition: 'all 0.3s ease',
+                                                        letterSpacing: '0.5px'
                                                     }}
                                                 >
                                                     {t('Todos')}
-                                                </button>
+                                                </motion.button>
                                                 {estadosDisponiveis.map((estado, index) => (
-                                                    <button
+                                                    <motion.button
                                                         key={index}
+                                                        initial={{ opacity: 0, scale: 0.8 }}
+                                                        animate={{ opacity: 1, scale: 1 }}
+                                                        transition={{ delay: 0.1 * (index + 1) }}
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
                                                         onClick={() => setSelectedEstado(estado)}
                                                         style={{
-                                                            padding: '10px 18px',
-                                                            borderRadius: '30px',
-                                                            border: 'none',
-                                                            backgroundColor: selectedEstado === estado ? '#1976D2' : '#f0f7ff',
+                                                            padding: '12px 24px',
+                                                            borderRadius: '50px',
+                                                            border: selectedEstado === estado ? 'none' : '2px solid #e3f2fd',
+                                                            background: selectedEstado === estado
+                                                                ? 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)'
+                                                                : '#ffffff',
                                                             color: selectedEstado === estado ? '#FFFFFF' : '#1976D2',
-                                                            boxShadow: selectedEstado === estado ? '0 4px 8px rgba(25, 118, 210, 0.2)' : 'none',
+                                                            boxShadow: selectedEstado === estado
+                                                                ? '0 6px 20px rgba(25, 118, 210, 0.35)'
+                                                                : '0 2px 8px rgba(0, 0, 0, 0.05)',
                                                             cursor: 'pointer',
-                                                            fontWeight: '500',
+                                                            fontWeight: '600',
                                                             fontSize: '14px',
-                                                            transition: 'all 0.2s ease'
+                                                            transition: 'all 0.3s ease',
+                                                            letterSpacing: '0.5px'
                                                         }}
                                                     >
                                                         {estado}
-                                                    </button>
+                                                    </motion.button>
                                                 ))}
-                                            </div>
+                                            </motion.div>
 
                                             {/* Pedidos List */}
                                             {paginatedPedidos.length > 0 ? (
@@ -1895,16 +2263,22 @@ const mapearPrioridade = (prioridadeId) => {
                                                                         .map((pedido, i) => {
                                                                             const isExpanded = expandedInterv[`${processo}-${i}`];
                                                                             return (
-                                                                                <div
+                                                                                <motion.div
                                                                                     key={i}
+                                                                                    initial={{ opacity: 0, x: -20 }}
+                                                                                    animate={{ opacity: 1, x: 0 }}
+                                                                                    transition={{ delay: i * 0.05 }}
+                                                                                    whileHover={{ x: 5, boxShadow: '0 8px 25px rgba(25, 118, 210, 0.15)' }}
                                                                                     style={{
                                                                                         margin: '10px',
-                                                                                        padding: '15px',
+                                                                                        padding: '20px',
                                                                                         backgroundColor: '#FFFFFF',
-                                                                                        borderRadius: '10px',
-                                                                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                                                                                        borderRadius: '16px',
+                                                                                        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)',
                                                                                         transition: 'all 0.3s ease',
-                                                                                        border: '1px solid #f0f0f0'
+                                                                                        border: '2px solid #f0f7ff',
+                                                                                        position: 'relative',
+                                                                                        overflow: 'hidden'
                                                                                     }}
                                                                                 >
                                                                                     <div style={{
@@ -2016,30 +2390,37 @@ const mapearPrioridade = (prioridadeId) => {
                                                                                             )}
                                                                                         </div>
 
-                                                                                        <button
+                                                                                        <motion.button
+                                                                                            whileHover={{ scale: 1.1, rotate: isExpanded ? 180 : 0 }}
+                                                                                            whileTap={{ scale: 0.9 }}
                                                                                             onClick={() => toggleExpand(processo, i)}
                                                                                             style={{
-                                                                                                backgroundColor: isExpanded ? '#f0f7ff' : '#e3f2fd',
-                                                                                                color: '#1976D2',
+                                                                                                background: isExpanded
+                                                                                                    ? 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)'
+                                                                                                    : 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+                                                                                                color: isExpanded ? '#FFFFFF' : '#1976D2',
                                                                                                 border: 'none',
-                                                                                                width: '32px',
-                                                                                                height: '32px',
-                                                                                                borderRadius: '50%',
+                                                                                                width: '40px',
+                                                                                                height: '40px',
+                                                                                                borderRadius: '12px',
                                                                                                 display: 'flex',
                                                                                                 alignItems: 'center',
                                                                                                 justifyContent: 'center',
                                                                                                 cursor: 'pointer',
-                                                                                                fontSize: '18px',
+                                                                                                fontSize: '20px',
                                                                                                 fontWeight: 'bold',
                                                                                                 marginLeft: '15px',
-                                                                                                transition: 'all 0.2s ease'
+                                                                                                transition: 'all 0.3s ease',
+                                                                                                boxShadow: isExpanded
+                                                                                                    ? '0 4px 15px rgba(25, 118, 210, 0.3)'
+                                                                                                    : '0 2px 8px rgba(0, 0, 0, 0.1)'
                                                                                             }}
                                                                                             aria-label={isExpanded ? t('Ver Menos') : t('Ver Mais')}
                                                                                         >
-                                                                                            {isExpanded ? '-' : '+'}
-                                                                                        </button>
+                                                                                            {isExpanded ? '−' : '+'}
+                                                                                        </motion.button>
                                                                                     </div>
-                                                                                </div>
+                                                                                </motion.div>
                                                                             );
                                                                         })}
                                                                 </div>
@@ -2140,6 +2521,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                 </div>
                                             )}
                                         </div>
+                                        </motion.div>
                                     </>
                                 ) : (
                                     <div style={{
@@ -2170,28 +2552,59 @@ const mapearPrioridade = (prioridadeId) => {
                                 style={{
                                     maxWidth: '950px',
                                     margin: '0 auto',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                    borderRadius: '16px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                                    borderRadius: '24px',
                                     overflow: 'hidden',
-                                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
-                                    width: window.innerWidth <= 768 ? '95%' : 'auto'
+                                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.1)',
+                                    width: window.innerWidth <= 768 ? '95%' : 'auto',
+                                    border: '1px solid rgba(25, 118, 210, 0.1)'
                                 }}
                             >
-                                <div style={{
-                                    backgroundColor: '#1976D2',
-                                    padding: '25px 30px',
-                                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                                }}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.6, delay: 0.2 }}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                        padding: '35px 30px',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                                    <motion.div
+                                        animate={{
+                                            scale: [1, 1.3, 1],
+                                            x: [-50, 50, -50]
+                                        }}
+                                        transition={{
+                                            duration: 15,
+                                            repeat: Infinity,
+                                            ease: "easeInOut"
+                                        }}
+                                        style={{
+                                            position: 'absolute',
+                                            top: '-30px',
+                                            right: '-30px',
+                                            width: '180px',
+                                            height: '180px',
+                                            background: 'rgba(255, 255, 255, 0.15)',
+                                            borderRadius: '50%',
+                                            filter: 'blur(40px)'
+                                        }}
+                                    />
                                     <h2 style={{
-                                        fontWeight: '700',
+                                        fontWeight: '800',
                                         color: '#FFFFFF',
                                         margin: 0,
-                                        fontSize: '28px',
-                                        textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
+                                        fontSize: '32px',
+                                        textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)',
+                                        position: 'relative',
+                                        zIndex: 1,
+                                        letterSpacing: '-0.5px'
                                     }}>
-                                        {t('Notícias Relevantes')}
+                                         {t('Notícias')}
                                     </h2>
-                                </div>
+                                </motion.div>
 
                                 <div style={{
                                     padding: window.innerWidth <= 768 ? '20px 16px' : '30px'
@@ -2217,83 +2630,112 @@ const mapearPrioridade = (prioridadeId) => {
                                         <div style={{
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            gap: '16px'
+                                            gap: '18px'
                                         }}>
                                             {noticias.map((noticia, index) => (
                                                 <motion.div
                                                     key={index}
-                                                    initial={{ opacity: 0, x: -12 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ duration: 0.25, delay: index * 0.05 }}
+                                                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                                                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                                                    transition={{
+                                                        duration: 0.5,
+                                                        delay: index * 0.08,
+                                                        type: "spring",
+                                                        stiffness: 100
+                                                    }}
+                                                    whileHover={{
+                                                        scale: 1.02,
+                                                        y: -5,
+                                                        boxShadow: '0 12px 30px rgba(25, 118, 210, 0.2)'
+                                                    }}
+                                                    whileTap={{ scale: 0.98 }}
                                                     onClick={() => window.open(noticia.link, '_blank')}
                                                     style={{
                                                         display: 'flex',
                                                         flexDirection: 'column',
                                                         gap: '16px',
-                                                        padding: '20px',
-                                                        backgroundColor: '#ffffff',
-                                                        borderRadius: '12px',
-                                                        border: '1px solid #e9ecef',
+                                                        padding: '24px',
+                                                        background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)',
+                                                        borderRadius: '16px',
+                                                        border: '2px solid rgba(25, 118, 210, 0.1)',
                                                         cursor: 'pointer',
-                                                        boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-                                                        transition: 'all .2s ease'
-                                                    }}
-                                                    onMouseEnter={(e) => {
-                                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)';
-                                                        e.currentTarget.style.backgroundColor = '#fafdff';
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                        e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.05)';
-                                                        e.currentTarget.style.backgroundColor = '#ffffff';
+                                                        boxShadow: '0 4px 15px rgba(0,0,0,0.06)',
+                                                        position: 'relative',
+                                                        overflow: 'hidden'
                                                     }}
                                                 >
+                                                    {/* Shine effect on hover */}
+                                                    <motion.div
+                                                        initial={{ x: '-100%' }}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            left: 0,
+                                                            right: 0,
+                                                            bottom: 0,
+                                                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)',
+                                                            pointerEvents: 'none',
+                                                            opacity: 0
+                                                        }}
+                                                    />
+
                                                     {/* Conteúdo */}
                                                     <div style={{
                                                         display: 'flex',
                                                         flexDirection: 'column',
-                                                        gap: '8px',
+                                                        gap: '12px',
                                                         minHeight: '0',
-                                                        width: '100%'
+                                                        width: '100%',
+                                                        position: 'relative',
+                                                        zIndex: 1
                                                     }}>
                                                         <div style={{
                                                             display: 'flex',
                                                             justifyContent: 'space-between',
-                                                            gap: '8px',
+                                                            alignItems: 'center',
+                                                            gap: '12px',
                                                             flexWrap: window.innerWidth <= 768 ? 'wrap' : 'nowrap'
                                                         }}>
                                                             <span style={{
-                                                                backgroundColor: '#1976D2',
+                                                                background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
                                                                 color: '#fff',
-                                                                padding: '4px 10px',
-                                                                borderRadius: '999px',
-                                                                fontSize: '12px',
-                                                                fontWeight: 600,
+                                                                padding: '6px 14px',
+                                                                borderRadius: '8px',
+                                                                fontSize: '13px',
+                                                                fontWeight: 700,
                                                                 whiteSpace: 'nowrap',
                                                                 maxWidth: window.innerWidth <= 768 ? '100%' : '50%',
                                                                 overflow: 'hidden',
-                                                                textOverflow: 'ellipsis'
+                                                                textOverflow: 'ellipsis',
+                                                                boxShadow: '0 2px 8px rgba(25, 118, 210, 0.25)'
                                                             }}>
-                                                                {noticia.source}
+                                                                🔖 {noticia.source}
                                                             </span>
                                                             <span style={{
-                                                                fontSize: '12px',
-                                                                color: '#667085',
+                                                                fontSize: '13px',
+                                                                color: '#64748b',
+                                                                fontWeight: '600',
                                                                 whiteSpace: 'nowrap',
-                                                                marginTop: window.innerWidth <= 768 ? '4px' : '0'
+                                                                marginTop: window.innerWidth <= 768 ? '4px' : '0',
+                                                                backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                                                padding: '4px 10px',
+                                                                borderRadius: '6px'
                                                             }}>
-                                                                {new Date(noticia.date).toLocaleDateString('pt-PT')}
+                                                                📅 {new Date(noticia.date).toLocaleDateString('pt-PT')}
                                                             </span>
                                                         </div>
 
                                                         <h3 style={{
-                                                            fontSize: window.innerWidth <= 768 ? '16px' : '17px',
-                                                            fontWeight: 700,
-                                                            color: '#0f3d74',
-                                                            margin: '2px 0 0',
-                                                            lineHeight: 1.35,
-                                                            wordBreak: 'break-word'
+                                                            fontSize: window.innerWidth <= 768 ? '17px' : '19px',
+                                                            fontWeight: 800,
+                                                            background: 'linear-gradient(135deg, #0f3d74 0%, #1976D2 100%)',
+                                                            WebkitBackgroundClip: 'text',
+                                                            WebkitTextFillColor: 'transparent',
+                                                            backgroundClip: 'text',
+                                                            margin: '4px 0 0',
+                                                            lineHeight: 1.4,
+                                                            wordBreak: 'break-word',
+                                                            letterSpacing: '-0.3px'
                                                         }}>
                                                             {noticia.title}
                                                         </h3>
@@ -2302,32 +2744,46 @@ const mapearPrioridade = (prioridadeId) => {
                                                             <p style={{
                                                                 margin: '4px 0 0',
                                                                 color: '#475569',
-                                                                fontSize: window.innerWidth <= 768 ? '13px' : '14px',
-                                                                lineHeight: 1.5,
+                                                                fontSize: window.innerWidth <= 768 ? '14px' : '15px',
+                                                                lineHeight: 1.6,
                                                                 wordBreak: 'break-word',
                                                                 overflow: 'hidden',
                                                                 display: '-webkit-box',
                                                                 WebkitLineClamp: window.innerWidth <= 768 ? 3 : 2,
-                                                                WebkitBoxOrient: 'vertical'
+                                                                WebkitBoxOrient: 'vertical',
+                                                                fontWeight: '500'
                                                             }}>
                                                                 {noticia.description}
                                                             </p>
                                                         ) : null}
 
-                                                        <div style={{
-                                                            marginTop: 'auto',
-                                                            display: 'flex',
-                                                            justifyContent: 'flex-end',
-                                                            alignItems: 'center',
-                                                            gap: '6px',
-                                                            color: '#1976D2',
-                                                            fontWeight: 600,
-                                                            fontSize: window.innerWidth <= 768 ? '13px' : '14px',
-                                                            paddingTop: '8px'
-                                                        }}>
+                                                        <motion.div
+                                                            whileHover={{ x: 5 }}
+                                                            style={{
+                                                                marginTop: 'auto',
+                                                                display: 'flex',
+                                                                justifyContent: 'flex-end',
+                                                                alignItems: 'center',
+                                                                gap: '8px',
+                                                                color: '#1976D2',
+                                                                fontWeight: 700,
+                                                                fontSize: window.innerWidth <= 768 ? '14px' : '15px',
+                                                                paddingTop: '8px'
+                                                            }}
+                                                        >
                                                             <span>Ler mais</span>
-                                                            <span>→</span>
-                                                        </div>
+                                                            <motion.span
+                                                                animate={{ x: [0, 5, 0] }}
+                                                                transition={{
+                                                                    duration: 1.5,
+                                                                    repeat: Infinity,
+                                                                    ease: "easeInOut"
+                                                                }}
+                                                                style={{ fontSize: '18px' }}
+                                                            >
+                                                                →
+                                                            </motion.span>
+                                                        </motion.div>
                                                     </div>
                                                 </motion.div>
                                             ))}
@@ -2352,29 +2808,59 @@ const mapearPrioridade = (prioridadeId) => {
                                     )}
 
 
-                                    <div style={{
-                                        marginTop: '30px',
-                                        textAlign: 'center'
-                                    }}>
-                                        <button
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.6, delay: 0.4 }}
+                                        style={{
+                                            marginTop: '35px',
+                                            textAlign: 'center',
+                                            padding: '25px',
+                                            background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(66, 165, 245, 0.05) 100%)',
+                                            borderRadius: '16px',
+                                            border: '2px solid rgba(25, 118, 210, 0.1)'
+                                        }}
+                                    >
+                                        <motion.button
+                                            whileHover={{
+                                                scale: 1.05,
+                                                boxShadow: '0 8px 25px rgba(25, 118, 210, 0.35)'
+                                            }}
+                                            whileTap={{ scale: 0.95 }}
                                             onClick={fetchNoticias}
                                             style={{
-                                                padding: '12px 24px',
-                                                backgroundColor: '#1976D2',
+                                                padding: '14px 32px',
+                                                background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
                                                 color: 'white',
                                                 border: 'none',
-                                                borderRadius: '8px',
-                                                fontWeight: '600',
+                                                borderRadius: '12px',
+                                                fontWeight: '700',
+                                                fontSize: '16px',
                                                 cursor: 'pointer',
-                                                transition: 'all 0.2s ease',
-                                                boxShadow: '0 4px 6px rgba(25, 118, 210, 0.2)'
+                                                boxShadow: '0 6px 20px rgba(25, 118, 210, 0.3)',
+                                                position: 'relative',
+                                                overflow: 'hidden'
                                             }}
-                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
-                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
                                         >
+                                            <motion.div
+                                                animate={{
+                                                    rotate: [0, 360]
+                                                }}
+                                                transition={{
+                                                    duration: 2,
+                                                    repeat: Infinity,
+                                                    ease: "linear"
+                                                }}
+                                                style={{
+                                                    display: 'inline-block',
+                                                    marginRight: '8px'
+                                                }}
+                                            >
+                                                🔄
+                                            </motion.div>
                                             {t('Atualizar Notícias')}
-                                        </button>
-                                    </div>
+                                        </motion.button>
+                                    </motion.div>
                                 </div>
                             </motion.div>
                         )}
@@ -2389,27 +2875,58 @@ const mapearPrioridade = (prioridadeId) => {
                                 style={{
                                     maxWidth: '950px',
                                     margin: '0 auto',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                    borderRadius: '16px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                                    borderRadius: '24px',
                                     overflow: 'hidden',
-                                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+                                    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.1)',
+                                    border: '1px solid rgba(25, 118, 210, 0.1)'
                                 }}
                             >
-                                <div style={{
-                                    backgroundColor: '#1976D2',
-                                    padding: '25px 30px',
-                                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                                }}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: -20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.6, delay: 0.2 }}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                        padding: '35px 30px',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                                    <motion.div
+                                        animate={{
+                                            scale: [1, 1.2, 1],
+                                            rotate: [0, 90, 180, 270, 360]
+                                        }}
+                                        transition={{
+                                            duration: 25,
+                                            repeat: Infinity,
+                                            ease: "linear"
+                                        }}
+                                        style={{
+                                            position: 'absolute',
+                                            top: '-40px',
+                                            left: '-40px',
+                                            width: '200px',
+                                            height: '200px',
+                                            background: 'rgba(255, 255, 255, 0.1)',
+                                            borderRadius: '30%',
+                                            filter: 'blur(40px)'
+                                        }}
+                                    />
                                     <h2 style={{
-                                        fontWeight: '700',
+                                        fontWeight: '800',
                                         color: '#FFFFFF',
                                         margin: 0,
-                                        fontSize: '28px',
-                                        textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
+                                        fontSize: '32px',
+                                        textShadow: '2px 2px 4px rgba(0, 0, 0, 0.1)',
+                                        position: 'relative',
+                                        zIndex: 1,
+                                        letterSpacing: '-0.5px'
                                     }}>
-                                        {t('Home.menu.products')}
+                                         {t('Home.menu.products')}
                                     </h2>
-                                </div>
+                                </motion.div>
 
                                 <div style={{ padding: '40px 30px' }}>
                                     <div style={{
@@ -2420,41 +2937,78 @@ const mapearPrioridade = (prioridadeId) => {
                                     }}>
                                         {/* Produto Primavera */}
                                         <motion.div
-                                            whileHover={{
-                                                y: -10,
-                                                boxShadow: '0 15px 30px rgba(0, 0, 0, 0.1)'
+                                            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            transition={{
+                                                duration: 0.6,
+                                                delay: 0.1,
+                                                type: "spring",
+                                                stiffness: 100
                                             }}
-                                            transition={{ duration: 0.3 }}
+                                            whileHover={{
+                                                y: -12,
+                                                scale: 1.03,
+                                                boxShadow: '0 20px 40px rgba(25, 118, 210, 0.25)'
+                                            }}
                                             style={{
-                                                backgroundColor: 'white',
-                                                borderRadius: '16px',
+                                                background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)',
+                                                borderRadius: '20px',
                                                 overflow: 'hidden',
-                                                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.08)',
+                                                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.08)',
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                height: '100%'
+                                                height: '100%',
+                                                border: '2px solid rgba(25, 118, 210, 0.1)',
+                                                position: 'relative'
                                             }}
                                         >
-                                            <div style={{
-                                                padding: '30px 20px',
-                                                backgroundColor: '#f7faff',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                height: '180px'
-                                            }}>
+                                            <motion.div
+                                                whileHover={{ scale: 1.05 }}
+                                                transition={{ duration: 0.3 }}
+                                                style={{
+                                                    padding: '35px 20px',
+                                                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    height: '200px',
+                                                    position: 'relative',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                <motion.div
+                                                    animate={{
+                                                        scale: [1, 1.3, 1],
+                                                        opacity: [0.3, 0.6, 0.3]
+                                                    }}
+                                                    transition={{
+                                                        duration: 4,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut"
+                                                    }}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        width: '150px',
+                                                        height: '150px',
+                                                        background: 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%)',
+                                                        borderRadius: '50%'
+                                                    }}
+                                                />
                                                 <img
                                                     src="https://pt.primaverabss.com/temas/primavera/img/cegid-logo-footer.svg"
                                                     alt="Primavera"
                                                     style={{
-                                                        maxWidth: '160px',
-                                                        maxHeight: '120px',
-                                                        objectFit: 'contain'
+                                                        maxWidth: '170px',
+                                                        maxHeight: '130px',
+                                                        objectFit: 'contain',
+                                                        position: 'relative',
+                                                        zIndex: 1,
+                                                        filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
                                                     }}
                                                 />
-                                            </div>
+                                            </motion.div>
                                             <div style={{
-                                                padding: '25px 20px',
+                                                padding: '28px 24px',
                                                 textAlign: 'center',
                                                 flex: 1,
                                                 display: 'flex',
@@ -2462,85 +3016,126 @@ const mapearPrioridade = (prioridadeId) => {
                                                 justifyContent: 'space-between'
                                             }}>
                                                 <h3 style={{
-                                                    fontSize: '22px',
-                                                    fontWeight: '600',
-                                                    margin: '0 0 15px 0',
-                                                    color: '#1976D2'
+                                                    fontSize: '24px',
+                                                    fontWeight: '800',
+                                                    margin: '0 0 16px 0',
+                                                    background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                    WebkitBackgroundClip: 'text',
+                                                    WebkitTextFillColor: 'transparent',
+                                                    letterSpacing: '-0.5px'
                                                 }}>
                                                     Primavera
                                                 </h3>
                                                 <p style={{
                                                     fontSize: '15px',
-                                                    color: '#666',
-                                                    margin: '0 0 20px 0',
-                                                    lineHeight: '1.5'
+                                                    color: '#546e7a',
+                                                    margin: '0 0 24px 0',
+                                                    lineHeight: '1.6',
+                                                    fontWeight: '500'
                                                 }}>
                                                     Software de gestão empresarial completo para empresas de todos os tamanhos.
                                                 </p>
-                                                <a
+                                                <motion.a
+                                                    whileHover={{
+                                                        scale: 1.05,
+                                                        boxShadow: '0 6px 20px rgba(25, 118, 210, 0.3)'
+                                                    }}
+                                                    whileTap={{ scale: 0.95 }}
                                                     href="https://www.primaverabss.com/pt/"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-block',
-                                                        padding: '12px 24px',
-                                                        backgroundColor: '#e3f2fd',
-                                                        color: '#1976D2',
-                                                        borderRadius: '30px',
-                                                        fontWeight: '600',
+                                                        padding: '14px 28px',
+                                                        background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                        color: 'white',
+                                                        borderRadius: '12px',
+                                                        fontWeight: '700',
                                                         textDecoration: 'none',
-                                                        transition: 'all 0.2s ease',
-                                                        fontSize: '14px'
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#bbdefb';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                                        fontSize: '15px',
+                                                        boxShadow: '0 4px 15px rgba(25, 118, 210, 0.25)'
                                                     }}
                                                 >
-                                                    Saber mais
-                                                </a>
+                                                    🔗 Saber mais
+                                                </motion.a>
                                             </div>
                                         </motion.div>
 
                                         {/* Produto AdvirLink */}
                                         <motion.div
-                                            whileHover={{
-                                                y: -10,
-                                                boxShadow: '0 15px 30px rgba(0, 0, 0, 0.1)'
+                                            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            transition={{
+                                                duration: 0.6,
+                                                delay: 0.2,
+                                                type: "spring",
+                                                stiffness: 100
                                             }}
-                                            transition={{ duration: 0.3 }}
+                                            whileHover={{
+                                                y: -12,
+                                                scale: 1.03,
+                                                boxShadow: '0 20px 40px rgba(25, 118, 210, 0.25)'
+                                            }}
                                             style={{
-                                                backgroundColor: 'white',
-                                                borderRadius: '16px',
+                                                background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)',
+                                                borderRadius: '20px',
                                                 overflow: 'hidden',
-                                                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.08)',
+                                                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.08)',
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                height: '100%'
+                                                height: '100%',
+                                                border: '2px solid rgba(25, 118, 210, 0.1)',
+                                                position: 'relative'
                                             }}
                                         >
-                                            <div style={{
-                                                padding: '30px 20px',
-                                                backgroundColor: '#f7faff',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                height: '180px'
-                                            }}>
+                                            <motion.div
+                                                whileHover={{ scale: 1.05 }}
+                                                transition={{ duration: 0.3 }}
+                                                style={{
+                                                    padding: '35px 20px',
+                                                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    height: '200px',
+                                                    position: 'relative',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                <motion.div
+                                                    animate={{
+                                                        scale: [1, 1.3, 1],
+                                                        opacity: [0.3, 0.6, 0.3]
+                                                    }}
+                                                    transition={{
+                                                        duration: 4,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut",
+                                                        delay: 0.5
+                                                    }}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        width: '150px',
+                                                        height: '150px',
+                                                        background: 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%)',
+                                                        borderRadius: '50%'
+                                                    }}
+                                                />
                                                 <img
                                                     src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png"
                                                     alt="AdvirLink"
                                                     style={{
-                                                        maxWidth: '160px',
-                                                        maxHeight: '120px',
-                                                        objectFit: 'contain'
+                                                        maxWidth: '170px',
+                                                        maxHeight: '130px',
+                                                        objectFit: 'contain',
+                                                        position: 'relative',
+                                                        zIndex: 1,
+                                                        filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
                                                     }}
                                                 />
-                                            </div>
+                                            </motion.div>
                                             <div style={{
-                                                padding: '25px 20px',
+                                                padding: '28px 24px',
                                                 textAlign: 'center',
                                                 flex: 1,
                                                 display: 'flex',
@@ -2548,85 +3143,126 @@ const mapearPrioridade = (prioridadeId) => {
                                                 justifyContent: 'space-between'
                                             }}>
                                                 <h3 style={{
-                                                    fontSize: '22px',
-                                                    fontWeight: '600',
-                                                    margin: '0 0 15px 0',
-                                                    color: '#1976D2'
+                                                    fontSize: '24px',
+                                                    fontWeight: '800',
+                                                    margin: '0 0 16px 0',
+                                                    background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                    WebkitBackgroundClip: 'text',
+                                                    WebkitTextFillColor: 'transparent',
+                                                    letterSpacing: '-0.5px'
                                                 }}>
                                                     AdvirLink
                                                 </h3>
                                                 <p style={{
                                                     fontSize: '15px',
-                                                    color: '#666',
-                                                    margin: '0 0 20px 0',
-                                                    lineHeight: '1.5'
+                                                    color: '#546e7a',
+                                                    margin: '0 0 24px 0',
+                                                    lineHeight: '1.6',
+                                                    fontWeight: '500'
                                                 }}>
                                                     Plataforma de gestão e integração de dados empresariais desenvolvida pela Advir.
                                                 </p>
-                                                <a
+                                                <motion.a
+                                                    whileHover={{
+                                                        scale: 1.05,
+                                                        boxShadow: '0 6px 20px rgba(25, 118, 210, 0.3)'
+                                                    }}
+                                                    whileTap={{ scale: 0.95 }}
                                                     href="https://link.advir.pt"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-block',
-                                                        padding: '12px 24px',
-                                                        backgroundColor: '#e3f2fd',
-                                                        color: '#1976D2',
-                                                        borderRadius: '30px',
-                                                        fontWeight: '600',
+                                                        padding: '14px 28px',
+                                                        background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                        color: 'white',
+                                                        borderRadius: '12px',
+                                                        fontWeight: '700',
                                                         textDecoration: 'none',
-                                                        transition: 'all 0.2s ease',
-                                                        fontSize: '14px'
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#bbdefb';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                                        fontSize: '15px',
+                                                        boxShadow: '0 4px 15px rgba(25, 118, 210, 0.25)'
                                                     }}
                                                 >
-                                                    Saber mais
-                                                </a>
+                                                    🔗 Saber mais
+                                                </motion.a>
                                             </div>
                                         </motion.div>
 
                                         {/* Produto Syslog */}
                                         <motion.div
-                                            whileHover={{
-                                                y: -10,
-                                                boxShadow: '0 15px 30px rgba(0, 0, 0, 0.1)'
+                                            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            transition={{
+                                                duration: 0.6,
+                                                delay: 0.3,
+                                                type: "spring",
+                                                stiffness: 100
                                             }}
-                                            transition={{ duration: 0.3 }}
+                                            whileHover={{
+                                                y: -12,
+                                                scale: 1.03,
+                                                boxShadow: '0 20px 40px rgba(25, 118, 210, 0.25)'
+                                            }}
                                             style={{
-                                                backgroundColor: 'white',
-                                                borderRadius: '16px',
+                                                background: 'linear-gradient(135deg, #ffffff 0%, #f8fbff 100%)',
+                                                borderRadius: '20px',
                                                 overflow: 'hidden',
-                                                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.08)',
+                                                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.08)',
                                                 display: 'flex',
                                                 flexDirection: 'column',
-                                                height: '100%'
+                                                height: '100%',
+                                                border: '2px solid rgba(25, 118, 210, 0.1)',
+                                                position: 'relative'
                                             }}
                                         >
-                                            <div style={{
-                                                padding: '30px 20px',
-                                                backgroundColor: '#f7faff',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                height: '180px'
-                                            }}>
+                                            <motion.div
+                                                whileHover={{ scale: 1.05 }}
+                                                transition={{ duration: 0.3 }}
+                                                style={{
+                                                    padding: '35px 20px',
+                                                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    height: '200px',
+                                                    position: 'relative',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                <motion.div
+                                                    animate={{
+                                                        scale: [1, 1.3, 1],
+                                                        opacity: [0.3, 0.6, 0.3]
+                                                    }}
+                                                    transition={{
+                                                        duration: 4,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut",
+                                                        delay: 1
+                                                    }}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        width: '150px',
+                                                        height: '150px',
+                                                        background: 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%)',
+                                                        borderRadius: '50%'
+                                                    }}
+                                                />
                                                 <img
                                                     src="https://www.syslogmobile.com/wp-content/themes/syslog/images/logo-syslog.png"
                                                     alt="Syslog"
                                                     style={{
-                                                        maxWidth: '160px',
-                                                        maxHeight: '120px',
-                                                        objectFit: 'contain'
+                                                        maxWidth: '170px',
+                                                        maxHeight: '130px',
+                                                        objectFit: 'contain',
+                                                        position: 'relative',
+                                                        zIndex: 1,
+                                                        filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
                                                     }}
                                                 />
-                                            </div>
+                                            </motion.div>
                                             <div style={{
-                                                padding: '25px 20px',
+                                                padding: '28px 24px',
                                                 textAlign: 'center',
                                                 flex: 1,
                                                 display: 'flex',
@@ -2634,45 +3270,48 @@ const mapearPrioridade = (prioridadeId) => {
                                                 justifyContent: 'space-between'
                                             }}>
                                                 <h3 style={{
-                                                    fontSize: '22px',
-                                                    fontWeight: '600',
-                                                    margin: '0 0 15px 0',
-                                                    color: '#1976D2'
+                                                    fontSize: '24px',
+                                                    fontWeight: '800',
+                                                    margin: '0 0 16px 0',
+                                                    background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                    WebkitBackgroundClip: 'text',
+                                                    WebkitTextFillColor: 'transparent',
+                                                    letterSpacing: '-0.5px'
                                                 }}>
                                                     Syslog
                                                 </h3>
                                                 <p style={{
                                                     fontSize: '15px',
-                                                    color: '#666',
-                                                    margin: '0 0 20px 0',
-                                                    lineHeight: '1.5'
+                                                    color: '#546e7a',
+                                                    margin: '0 0 24px 0',
+                                                    lineHeight: '1.6',
+                                                    fontWeight: '500'
                                                 }}>
                                                     Soluções de logística e gestão de transportes para otimizar operações.
                                                 </p>
-                                                <a
+                                                <motion.a
+                                                    whileHover={{
+                                                        scale: 1.05,
+                                                        boxShadow: '0 6px 20px rgba(25, 118, 210, 0.3)'
+                                                    }}
+                                                    whileTap={{ scale: 0.95 }}
                                                     href="https://www.syslogmobile.com/"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         display: 'inline-block',
-                                                        padding: '12px 24px',
-                                                        backgroundColor: '#e3f2fd',
-                                                        color: '#1976D2',
-                                                        borderRadius: '30px',
-                                                        fontWeight: '600',
+                                                        padding: '14px 28px',
+                                                        background: 'linear-gradient(135deg, #1976D2 0%, #42A5F5 100%)',
+                                                        color: 'white',
+                                                        borderRadius: '12px',
+                                                        fontWeight: '700',
                                                         textDecoration: 'none',
-                                                        transition: 'all 0.2s ease',
-                                                        fontSize: '14px'
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#bbdefb';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                                        fontSize: '15px',
+                                                        boxShadow: '0 4px 15px rgba(25, 118, 210, 0.25)'
                                                     }}
                                                 >
-                                                    Saber mais
-                                                </a>
+                                                    🔗 Saber mais
+                                                </motion.a>
                                             </div>
                                         </motion.div>
                                     </div>
@@ -2681,226 +3320,10 @@ const mapearPrioridade = (prioridadeId) => {
                         )}
                     </div>
 
-                    <div ref={faqRef}>
-                        {activeMenu === t('Home.menu.faq') && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5 }}
-                                style={{
-                                    maxWidth: '850px',
-                                    margin: '0 auto',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                    borderRadius: '16px',
-                                    overflow: 'hidden',
-                                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
-                                }}
-                            >
-                                <div style={{
-                                    backgroundColor: '#1976D2',
-                                    padding: '25px 30px',
-                                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                                }}>
-                                    <h2 style={{
-                                        fontWeight: '700',
-                                        color: '#FFFFFF',
-                                        margin: 0,
-                                        fontSize: '28px',
-                                        textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
-                                    }}>
-                                        {t('Home.faq.title')}
-                                    </h2>
-                                </div>
-
-                                <div style={{ padding: '30px' }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '15px'
-                                    }}>
-                                        {faqItems.map((item, index) => (
-                                            <motion.div
-                                                key={index}
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ duration: 0.3, delay: index * 0.05 }}
-                                                style={{
-                                                    borderRadius: '12px',
-                                                    border: '1px solid',
-                                                    borderColor: expandedIndex === index ? '#1976D2' : '#e0e0e0',
-                                                    overflow: 'hidden',
-                                                    backgroundColor: '#ffffff',
-                                                    boxShadow: expandedIndex === index
-                                                        ? '0 4px 15px rgba(25, 118, 210, 0.15)'
-                                                        : '0 2px 8px rgba(0, 0, 0, 0.05)',
-                                                    transition: 'all 0.3s ease'
-                                                }}
-                                            >
-                                                <div
-                                                    onClick={() => handleToggle(index)}
-                                                    style={{
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center',
-                                                        padding: '18px 20px',
-                                                        backgroundColor: expandedIndex === index ? '#f0f7ff' : '#FFFFFF',
-                                                        transition: 'all 0.2s ease'
-                                                    }}
-                                                    onMouseEnter={(e) => {
-                                                        if (expandedIndex !== index) {
-                                                            e.currentTarget.style.backgroundColor = '#f8f9fa';
-                                                        }
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        if (expandedIndex !== index) {
-                                                            e.currentTarget.style.backgroundColor = '#FFFFFF';
-                                                        }
-                                                    }}
-                                                >
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '15px'
-                                                    }}>
-                                                        <div style={{
-                                                            width: '32px',
-                                                            height: '32px',
-                                                            borderRadius: '50%',
-                                                            backgroundColor: expandedIndex === index ? '#1976D2' : '#f0f7ff',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            color: expandedIndex === index ? 'white' : '#1976D2',
-                                                            fontWeight: 'bold',
-                                                            fontSize: '16px',
-                                                            transition: 'all 0.2s ease'
-                                                        }}>
-                                                            {expandedIndex === index ? '-' : '?'}
-                                                        </div>
-                                                        <h3 style={{
-                                                            margin: 0,
-                                                            fontWeight: '600',
-                                                            fontSize: '16px',
-                                                            color: expandedIndex === index ? '#1976D2' : '#333333'
-                                                        }}>
-                                                            {item.question}
-                                                        </h3>
-                                                    </div>
-                                                    <div style={{
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        transition: 'transform 0.3s ease'
-                                                    }}>
-                                                        <span style={{
-                                                            color: expandedIndex === index ? '#1976D2' : '#757575',
-                                                            fontSize: '20px',
-                                                            transform: expandedIndex === index ? 'rotate(180deg)' : 'rotate(0deg)',
-                                                            display: 'block',
-                                                            transition: 'transform 0.3s ease'
-                                                        }}>
-                                                            ▼
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {expandedIndex === index && (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, height: 0 }}
-                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                        transition={{ duration: 0.3 }}
-                                                        style={{
-                                                            padding: '5px 20px 20px 70px',
-                                                            borderTop: '1px solid #f0f0f0',
-                                                            position: 'relative'
-                                                        }}
-                                                    >
-                                                        <div style={{
-                                                            position: 'absolute',
-                                                            left: '20px',
-                                                            top: '5px',
-                                                            bottom: '20px',
-                                                            width: '2px',
-                                                            backgroundColor: '#e3f2fd'
-                                                        }}></div>
-                                                        <p style={{
-                                                            margin: 0,
-                                                            lineHeight: '1.6',
-                                                            color: '#555555',
-                                                            fontSize: '15px'
-                                                        }}>
-                                                            {item.answer}
-                                                        </p>
-                                                    </motion.div>
-                                                )}
-                                            </motion.div>
-                                        ))}
-                                    </div>
-
-                                    <div style={{
-                                        marginTop: '30px',
-                                        textAlign: 'center',
-                                        padding: '20px',
-                                        backgroundColor: '#f0f7ff',
-                                        borderRadius: '12px',
-                                        border: '1px solid #e3f2fd'
-                                    }}>
-                                        <p style={{
-                                            margin: '0 0 15px 0',
-                                            fontSize: '16px',
-                                            fontWeight: '500',
-                                            color: '#1976D2'
-                                        }}>
-                                            {t('Não encontrou a resposta que procura?')}
-                                        </p>
-                                        <button style={{
-                                            padding: '12px 24px',
-                                            backgroundColor: '#1976D2',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontWeight: '600',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s ease',
-                                            boxShadow: '0 4px 6px rgba(25, 118, 210, 0.2)'
-                                        }}
-                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
-                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
-                                            onClick={() => handleMenuClick(t('Home.menu.orders'), ordersRef)}
-                                        >
-                                            {t('Criar um novo pedido')}
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </div>
+                   
                     
-                    {/* Privacy Settings Section 
-                    <div ref={privacyRef}>
-                        {activeMenu === t('Definições de Privacidade') && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5 }}
-                                style={{ maxWidth: '950px', margin: '0 auto', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)' }}
-                            >
-                                <div style={{ backgroundColor: '#1976D2', padding: '25px 30px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                                    <h2 style={{ fontWeight: '700', color: '#FFFFFF', margin: 0, fontSize: '28px', textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)' }}>
-                                        {t('Definições de Privacidade')}
-                                    </h2>
-                                </div>
-                                <div style={{ padding: '30px' }}>
-                                    <PrivacySettings /> 
-                                </div>
-                            </motion.div>
-                        )}
-                    </div>
-                    */}
-                </section>
+                    
+                </motion.section>
 
 
 
