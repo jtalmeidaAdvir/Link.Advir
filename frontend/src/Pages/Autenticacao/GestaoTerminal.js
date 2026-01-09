@@ -149,20 +149,20 @@ const GestaoPOS = () => {
         }
     };
 
-    const handleEdit = (pos) => {
-        setEditingPOS(pos);
-        setFormData({
-            nome: pos.nome,
-            codigo: pos.codigo,
-            email: pos.email,
-            password: '',
-            obra_predefinida_id: pos.obra_predefinida_id,
-            ativo: pos.ativo,
-            latitude: pos.latitude || '',
-            longitude: pos.longitude || ''
-        });
-        setShowModal(true);
-    };
+const handleEdit = (pos) => {
+    setEditingPOS(pos);
+    setFormData({
+        nome: pos.nome,
+        codigo: pos.codigo,
+        email: pos.email,
+        password: '',
+        obra_predefinida_id: pos.obra_predefinida_id,
+        ativo: pos.ativo,
+        latitude: pos.latitude ? String(pos.latitude) : '',
+        longitude: pos.longitude ? String(pos.longitude) : ''
+    });
+    setShowModal(true);
+};
 
     const handleDelete = async (id, nome) => {
         if (!window.confirm(`Tem certeza que deseja eliminar o terminal "${nome}"?`)) return;
