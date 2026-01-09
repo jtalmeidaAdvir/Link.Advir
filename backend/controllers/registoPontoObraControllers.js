@@ -266,14 +266,36 @@ const registarPontoEquipa = async (req, res) => {
 
 const listarRegistosHojeEquipa = async (req, res) => {
   try {
-    const { membros } = req.query;
+    const { membros, data } = req.query;
+
+    console.log('🔍 [Backend] Parâmetros recebidos:', { membros, data });
 
     if (!membros) return res.status(400).json({ message: 'IDs de membros em falta.' });
 
     const ids = membros.split(',').map(id => parseInt(id));
-    const hoje = new Date();
-    const dataInicio = new Date(hoje.setHours(0, 0, 0, 0));
-    const dataFim = new Date(hoje.setHours(23, 59, 59, 999));
+
+    // Se data for fornecida, usa essa data; caso contrário, usa hoje
+    let dataInicio, dataFim;
+
+    if (data) {
+      // Parse manual da data para evitar problemas de timezone
+      const [ano, mes, dia] = data.split('-').map(Number);
+      dataInicio = new Date(Date.UTC(ano, mes - 1, dia, 0, 0, 0, 0));
+      dataFim = new Date(Date.UTC(ano, mes - 1, dia, 23, 59, 59, 999));
+    } else {
+      // Se não houver data, usa hoje em timezone local
+      const hoje = new Date();
+      dataInicio = new Date(hoje);
+      dataInicio.setHours(0, 0, 0, 0);
+      dataFim = new Date(hoje);
+      dataFim.setHours(23, 59, 59, 999);
+    }
+
+    console.log('🔍 [Backend] Intervalo de busca:');
+    console.log('   - Data recebida:', data);
+    console.log('   - dataInicio:', dataInicio.toISOString());
+    console.log('   - dataFim:', dataFim.toISOString());
+    console.log('   - IDs:', ids);
 
     const registos = await RegistoPontoObra.findAll({
       where: {
@@ -286,6 +308,15 @@ const listarRegistosHojeEquipa = async (req, res) => {
       ],
       order: [['timestamp', 'ASC']]
     });
+
+    console.log(`🔍 [Backend] Encontrados ${registos.length} registos`);
+    if (registos.length > 0) {
+      console.log('   - Primeiro registo:', {
+        user: registos[0].User?.nome,
+        timestamp: registos[0].timestamp,
+        tipo: registos[0].tipo
+      });
+    }
 
     res.status(200).json(registos);
   } catch (err) {
