@@ -1122,18 +1122,8 @@ const mapearPrioridade = (prioridadeId) => {
                                         perspective: '1000px'
                                     }}
                                 >
-                                    {/* Animated Background Circles */}
-                                    <motion.div
-                                        animate={{
-                                            scale: [1, 1.2, 1],
-                                            opacity: [0.3, 0.5, 0.3],
-                                            rotate: [0, 180, 360]
-                                        }}
-                                        transition={{
-                                            duration: 3,
-                                            repeat: Infinity,
-                                            ease: "easeInOut"
-                                        }}
+                                    {/* Static Background Circles - Optimized */}
+                                    <div
                                         style={{
                                             position: 'absolute',
                                             top: '-30px',
@@ -1147,16 +1137,7 @@ const mapearPrioridade = (prioridadeId) => {
                                             zIndex: 0
                                         }}
                                     />
-                                    <motion.div
-                                        animate={{
-                                            scale: [1, 1.3, 1],
-                                            rotate: [360, 180, 0]
-                                        }}
-                                        transition={{
-                                            duration: 4,
-                                            repeat: Infinity,
-                                            ease: "easeInOut"
-                                        }}
+                                    <div
                                         style={{
                                             position: 'absolute',
                                             bottom: '-40px',
@@ -1301,16 +1282,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                     position: 'relative',
                                                     overflow: 'hidden'
                                                 }}>
-                                                <motion.div
-                                                    animate={{
-                                                        scale: [1, 1.2, 1],
-                                                        rotate: [0, 180, 360]
-                                                    }}
-                                                    transition={{
-                                                        duration: 20,
-                                                        repeat: Infinity,
-                                                        ease: "linear"
-                                                    }}
+                                                <div
                                                     style={{
                                                         position: 'absolute',
                                                         top: '-50px',
@@ -1401,7 +1373,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                             <motion.div
                                                                 initial={{ opacity: 0, y: 20 }}
                                                                 animate={{ opacity: 1, y: 0 }}
-                                                                transition={{ delay: 0.4 }}
+                                                                transition={{ delay: 0.1 }}
                                                                 whileHover={{ y: -5, boxShadow: '0 8px 20px rgba(25, 118, 210, 0.15)' }}
                                                                 style={{
                                                                     backgroundColor: '#ffffff',
@@ -1411,11 +1383,10 @@ const mapearPrioridade = (prioridadeId) => {
                                                                     textAlign: 'center',
                                                                     transition: 'all 0.3s ease',
                                                                     position: 'relative',
-                                                                    overflow: 'hidden'
+                                                                    overflow: 'hidden',
+                                                                    willChange: 'transform'
                                                                 }}>
-                                                                <motion.div
-                                                                    animate={{ scale: [1, 1.1, 1] }}
-                                                                    transition={{ duration: 2, repeat: Infinity }}
+                                                                <div
                                                                     style={{
                                                                         width: '60px',
                                                                         height: '60px',
@@ -1427,7 +1398,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                                         justifyContent: 'center',
                                                                         fontSize: '28px',
                                                                         boxShadow: '0 4px 15px rgba(25, 118, 210, 0.2)'
-                                                                    }}>⏱️</motion.div>
+                                                                    }}>⏱️</div>
                                                                 <p style={{
                                                                     margin: '0 0 10px',
                                                                     color: '#757575',
@@ -1450,7 +1421,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                             <motion.div
                                                                 initial={{ opacity: 0, y: 20 }}
                                                                 animate={{ opacity: 1, y: 0 }}
-                                                                transition={{ delay: 0.5 }}
+                                                                transition={{ delay: 0.15 }}
                                                                 whileHover={{ y: -5, boxShadow: '0 8px 20px rgba(244, 67, 54, 0.15)' }}
                                                                 style={{
                                                                     backgroundColor: '#ffffff',
@@ -1460,11 +1431,10 @@ const mapearPrioridade = (prioridadeId) => {
                                                                     textAlign: 'center',
                                                                     transition: 'all 0.3s ease',
                                                                     position: 'relative',
-                                                                    overflow: 'hidden'
+                                                                    overflow: 'hidden',
+                                                                    willChange: 'transform'
                                                                 }}>
-                                                                <motion.div
-                                                                    animate={{ rotate: [0, 10, -10, 0] }}
-                                                                    transition={{ duration: 3, repeat: Infinity }}
+                                                                <div
                                                                     style={{
                                                                         width: '60px',
                                                                         height: '60px',
@@ -1476,7 +1446,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                                         justifyContent: 'center',
                                                                         fontSize: '28px',
                                                                         boxShadow: '0 4px 15px rgba(244, 67, 54, 0.2)'
-                                                                    }}>⌛</motion.div>
+                                                                    }}>⌛</div>
                                                                 <p style={{
                                                                     margin: '0 0 10px',
                                                                     color: '#757575',
@@ -1499,7 +1469,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                             <motion.div
                                                                 initial={{ opacity: 0, y: 20 }}
                                                                 animate={{ opacity: 1, y: 0 }}
-                                                                transition={{ delay: 0.6 }}
+                                                                transition={{ delay: 0.2 }}
                                                                 whileHover={{ y: -5, boxShadow: '0 8px 20px rgba(76, 175, 80, 0.15)' }}
                                                                 style={{
                                                                     backgroundColor: '#ffffff',
@@ -1509,11 +1479,10 @@ const mapearPrioridade = (prioridadeId) => {
                                                                     textAlign: 'center',
                                                                     transition: 'all 0.3s ease',
                                                                     position: 'relative',
-                                                                    overflow: 'hidden'
+                                                                    overflow: 'hidden',
+                                                                    willChange: 'transform'
                                                                 }}>
-                                                                <motion.div
-                                                                    animate={{ scale: [1, 1.2, 1] }}
-                                                                    transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                                                                <div
                                                                     style={{
                                                                         width: '60px',
                                                                         height: '60px',
@@ -1525,7 +1494,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                                         justifyContent: 'center',
                                                                         fontSize: '28px',
                                                                         boxShadow: '0 4px 15px rgba(76, 175, 80, 0.2)'
-                                                                    }}>✅</motion.div>
+                                                                    }}>✅</div>
                                                                 <p style={{
                                                                     margin: '0 0 10px',
                                                                     color: '#757575',
@@ -1551,7 +1520,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                         <motion.div
                                                             initial={{ opacity: 0, scale: 0.95 }}
                                                             animate={{ opacity: 1, scale: 1 }}
-                                                            transition={{ delay: 0.7 }}
+                                                            transition={{ delay: 0.25 }}
                                                             style={{
                                                                 backgroundColor: '#ffffff',
                                                                 borderRadius: '20px',
@@ -1583,9 +1552,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                                         {c.HorasGastas}h de {c.HorasTotais}h utilizadas
                                                                     </p>
                                                                 </div>
-                                                                <motion.div
-                                                                    animate={{ scale: [1, 1.1, 1] }}
-                                                                    transition={{ duration: 2, repeat: Infinity }}
+                                                                <div
                                                                     style={{
                                                                         fontSize: '36px',
                                                                         fontWeight: '900',
@@ -1594,7 +1561,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                                         WebkitTextFillColor: 'transparent'
                                                                     }}>
                                                                     {Math.round((c.HorasGastas / c.HorasTotais) * 100)}%
-                                                                </motion.div>
+                                                                </div>
                                                             </div>
                                                             <div style={{
                                                                 height: '16px',
@@ -1607,32 +1574,15 @@ const mapearPrioridade = (prioridadeId) => {
                                                                 <motion.div
                                                                     initial={{ width: 0 }}
                                                                     animate={{ width: `${(c.HorasGastas / c.HorasTotais) * 100}%` }}
-                                                                    transition={{ duration: 1.5, ease: "easeOut", delay: 0.8 }}
+                                                                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
                                                                     style={{
                                                                         height: '100%',
                                                                         background: 'linear-gradient(90deg, #1976D2 0%, #42A5F5 100%)',
                                                                         borderRadius: '20px',
                                                                         position: 'relative',
-                                                                        boxShadow: '0 2px 8px rgba(25, 118, 210, 0.4)'
+                                                                        boxShadow: '0 2px 8px rgba(25, 118, 210, 0.4)',
+                                                                        willChange: 'width'
                                                                     }}>
-                                                                    <motion.div
-                                                                        animate={{
-                                                                            x: ['-100%', '200%']
-                                                                        }}
-                                                                        transition={{
-                                                                            duration: 2,
-                                                                            repeat: Infinity,
-                                                                            ease: "easeInOut"
-                                                                        }}
-                                                                        style={{
-                                                                            position: 'absolute',
-                                                                            top: 0,
-                                                                            left: 0,
-                                                                            width: '50%',
-                                                                            height: '100%',
-                                                                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)'
-                                                                        }}
-                                                                    />
                                                                 </motion.div>
                                                             </div>
                                                         </motion.div>
@@ -1738,17 +1688,8 @@ const mapearPrioridade = (prioridadeId) => {
                                                     position: 'relative',
                                                     overflow: 'hidden'
                                                 }}>
-                                                {/* Animated background circles */}
-                                                <motion.div
-                                                    animate={{
-                                                        scale: [1, 1.3, 1],
-                                                        x: [-50, 50, -50]
-                                                    }}
-                                                    transition={{
-                                                        duration: 15,
-                                                        repeat: Infinity,
-                                                        ease: "easeInOut"
-                                                    }}
+                                                {/* Static background circle - Optimized */}
+                                                <div
                                                     style={{
                                                         position: 'absolute',
                                                         top: '-30px',
@@ -1805,13 +1746,11 @@ const mapearPrioridade = (prioridadeId) => {
                                                             backdropFilter: 'blur(10px)'
                                                         }}
                                                     >
-                                                        <motion.span
-                                                            animate={{ rotate: [0, 90, 0] }}
-                                                            transition={{ duration: 2, repeat: Infinity }}
+                                                        <span
                                                             style={{ fontSize: '20px', fontWeight: 'bold' }}
                                                         >
                                                             +
-                                                        </motion.span>
+                                                        </span>
                                                         {t('Novo Pedido')}
                                                     </motion.button>
                                                 </div>
@@ -2087,9 +2026,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                             e.target.style.boxShadow = 'none';
                                                         }}
                                                     />
-                                                    <motion.div
-                                                        animate={{ rotate: [0, 20, 0] }}
-                                                        transition={{ duration: 2, repeat: Infinity }}
+                                                    <div
                                                         style={{
                                                             position: 'absolute',
                                                             left: '16px',
@@ -2099,7 +2036,7 @@ const mapearPrioridade = (prioridadeId) => {
                                                             fontSize: '18px'
                                                         }}>
                                                         🔍
-                                                    </motion.div>
+                                                    </div>
                                                 </motion.div>
 
                                                 {/* Filtro de Ano */}
