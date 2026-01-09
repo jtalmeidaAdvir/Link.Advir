@@ -296,7 +296,7 @@ const AnaliseComplotaPontos = () => {
                     }
 
                     // Passo 2: Buscar dados do mês na API Primavera (faltas + horas extras)
-                    const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
+                    const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}/${anoSelecionado}`;
 
                     const res = await fetch(urlFaltasMensal, {
                         headers: {

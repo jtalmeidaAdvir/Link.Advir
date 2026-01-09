@@ -1195,7 +1195,7 @@ const RegistosPorUtilizador = () => {
             
             if (painelAdminToken && urlempresa && loginToken) {
                 try {
-                    const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
+                    const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}/${anoSelecionado}`;
 
                     const codFuncionario = await API.buscarCodFuncionario(loginToken, user.id);
 
@@ -1513,7 +1513,7 @@ const RegistosPorUtilizador = () => {
                         if (painelAdminToken && urlempresa && loginToken) {
                             try {
                                 // Usar o novo endpoint mensal que retorna FALTAS E HORAS EXTRAS
-                                const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
+                                const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}/${anoSelecionado}`;
 
                                 // Obter codFuncionario do utilizador ANTES de fazer a requisição
                                 // Verificar cache primeiro
