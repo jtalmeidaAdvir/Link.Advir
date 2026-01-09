@@ -54,10 +54,26 @@ const RegistoPontoObra = (props) => {
     const [minhasEquipas, setMinhasEquipas] = useState([]);
     const [membrosSelecionados, setMembrosSelecionados] = useState([]);
     const [horasEquipa, setHorasEquipa] = useState({});
+    const [dataRegistoEquipa, setDataRegistoEquipa] = useState(new Date().toISOString().split('T')[0]);
 
     const [mostrarManual, setMostrarManual] = useState(false);
     const [mostrarEquipa, setMostrarEquipa] = useState(false);
     const [modoOffline, setModoOffline] = useState(false);
+    const [picagensExpandidas, setPicagensExpandidas] = useState(false);
+
+    // Função para formatar data para exibição dd/MM/yyyy
+    const formatarDataParaExibicao = (dataISO) => {
+        if (!dataISO) return '';
+        const [ano, mes, dia] = dataISO.split('-');
+        return `${dia}/${mes}/${ano}`;
+    };
+
+    // Função para converter dd/MM/yyyy para yyyy-MM-dd
+    const converterDataParaISO = (dataFormatada) => {
+        if (!dataFormatada) return '';
+        const [dia, mes, ano] = dataFormatada.split('/');
+        return `${ano}-${mes}-${dia}`;
+    };
 
     const [cameras, setCameras] = useState([]);
     const [currentCamIdx, setCurrentCamIdx] = useState(0);
@@ -250,6 +266,44 @@ const RegistoPontoObra = (props) => {
         return { estado, corEstado };
     };
 
+    // Calcular horas trabalhadas de um membro para a data selecionada
+    const calcularHorasTrabalhadas = (userId, registosEquipa) => {
+        // Filtrar registos do utilizador
+        const registosUser = registosEquipa.filter(r => r.user_id === userId);
+
+        if (registosUser.length === 0) {
+            return '0h 00m';
+        }
+
+        // Ordenar por timestamp
+        const registosOrdenados = registosUser.sort((a, b) =>
+            new Date(a.timestamp) - new Date(b.timestamp)
+        );
+
+        let totalMinutos = 0;
+        let ultimaEntrada = null;
+
+        for (const registo of registosOrdenados) {
+            if (registo.tipo === 'entrada') {
+                ultimaEntrada = new Date(registo.timestamp);
+            } else if (registo.tipo === 'saida' && ultimaEntrada) {
+                const saida = new Date(registo.timestamp);
+                const diffMs = saida - ultimaEntrada;
+                const diffMinutos = Math.floor(diffMs / (1000 * 60));
+                totalMinutos += diffMinutos;
+                ultimaEntrada = null;
+            }
+        }
+
+        // Se ainda houver entrada sem saída, não contar (pode estar a trabalhar)
+        // Para dias anteriores, não adicionar tempo extra
+
+        const horas = Math.floor(totalMinutos / 60);
+        const minutos = totalMinutos % 60;
+
+        return `${horas}h ${String(minutos).padStart(2, '0')}m`;
+    };
+
     // IDs (inclui sempre o utilizador atual)
     const getIdsEquipa = (eq) => {
         const userId = parseInt(secureStorage.getItem("user_id"));
@@ -410,11 +464,22 @@ const RegistoPontoObra = (props) => {
             const todosMembros = minhasEquipas.flatMap((eq) =>
                 eq.membros.map((m) => m.id),
             );
-            if (!todosMembros.length) return;
+            if (!todosMembros.length) {
+                setRegistosEquipa([]);
+                return;
+            }
 
             const ids = todosMembros.join(",");
+            const dataParam = dataRegistoEquipa || new Date().toISOString().split('T')[0];
+
+            console.log('🔄 Carregando picagens da equipa para:', formatarDataParaExibicao(dataParam));
+            console.log('🔍 URL completa:', `https://backend.advir.pt/api/registo-ponto-obra/listar-dia-equipa?membros=${ids}&data=${dataParam}`);
+
+            // Limpar registos antes de carregar novos
+            setRegistosEquipa([]);
+
             const res = await fetch(
-                `https://backend.advir.pt/api/registo-ponto-obra/listar-dia-equipa?membros=${ids}`,
+                `https://backend.advir.pt/api/registo-ponto-obra/listar-dia-equipa?membros=${ids}&data=${dataParam}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 },
@@ -422,12 +487,19 @@ const RegistoPontoObra = (props) => {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log(`✅ ${data.length} picagens encontradas para ${formatarDataParaExibicao(dataParam)}`);
+                console.log('📋 Detalhes:', data);
                 setRegistosEquipa(data);
+            } else {
+                console.error('❌ Erro ao carregar picagens:', res.status);
+                setRegistosEquipa([]);
             }
         };
 
-        fetchRegistosEquipa();
-    }, [minhasEquipas]);
+        if (minhasEquipas.length > 0) {
+            fetchRegistosEquipa();
+        }
+    }, [minhasEquipas, dataRegistoEquipa]);
 
     const obterMoradaPorCoordenadas = async (lat, lon) => {
         try {
@@ -840,9 +912,18 @@ const longitude = loc?.coords?.longitude ?? null;
     const latitude = loc?.coords?.latitude ?? null;
     const longitude = loc?.coords?.longitude ?? null;
 
+    const dataParaRegisto = dataRegistoEquipa || new Date().toISOString().split('T')[0];
     const hoje = new Date().toISOString().split('T')[0];
+    const isDiaAnterior = dataParaRegisto !== hoje;
     const erros = [];
     const sucessos = [];
+
+    // Se for dia anterior, todos os membros precisam de hora definida
+    if (isDiaAnterior && membrosSelecionados.some(id => !horasEquipa[id])) {
+      alert('Para registar pontos em dias anteriores, é necessário definir a hora para todos os membros selecionados.');
+      setLoading(false);
+      return;
+    }
 
     // Separar membros com e sem hora definida
     const membrosComHora = membrosSelecionados.filter(id => horasEquipa[id]);
@@ -851,7 +932,7 @@ const longitude = loc?.coords?.longitude ?? null;
     // Registar ponto esquecido para membros com hora definida
     for (const userId of membrosComHora) {
       const horaDefinida = horasEquipa[userId];
-      const timestamp = new Date(`${hoje}T${horaDefinida}:00`);
+      const timestamp = new Date(`${dataParaRegisto}T${horaDefinida}:00`);
 
       try {
         const res = await fetch(
@@ -867,7 +948,7 @@ const longitude = loc?.coords?.longitude ?? null;
               obra_id: obraSelecionada,
               tipo,
               timestamp: timestamp.toISOString(),
-              justificacao: `Registo de equipa - ${tipo} às ${horaDefinida}`,
+              justificacao: `Registo de equipa - ${tipo} às ${horaDefinida} (Data: ${dataParaRegisto})`,
               skipValidation: true
             }),
           },
@@ -945,7 +1026,7 @@ const longitude = loc?.coords?.longitude ?? null;
 
     // Recarregar registos
     const resRegistos = await fetch(
-      `https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`,
+      `https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${dataParaRegisto}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       },
@@ -994,6 +1075,8 @@ const longitude = loc?.coords?.longitude ?? null;
     // Limpar seleções
     setMembrosSelecionados([]);
     setHorasEquipa({});
+    // Resetar data para hoje após registo bem sucedido
+    setDataRegistoEquipa(new Date().toISOString().split('T')[0]);
 
   } catch (err) {
     console.error("Erro registo equipa:", err);
@@ -1353,6 +1436,76 @@ const longitude = loc?.coords?.longitude ?? null;
                                                             />
                                                         </div>
 
+                                                        {/* Data do Registo */}
+                                                        <div className="mb-3">
+                                                            <label className="form-label fw-semibold small">
+                                                                Data do Registo:
+                                                            </label>
+                                                            <input
+                                                                type="date"
+                                                                className="form-control form-control-custom"
+                                                                value={dataRegistoEquipa}
+                                                                onChange={(e) => setDataRegistoEquipa(e.target.value)}
+                                                                max={new Date().toISOString().split('T')[0]}
+                                                            />
+                                                            <small className="text-muted">
+                                                                Selecione a data para registar pontos (hoje ou dias anteriores)
+                                                            </small>
+                                                        </div>
+
+                                                        {/* Lista de Picagens do Membro Selecionado */}
+                                                        {membrosSelecionados.length > 0 && (() => {
+                                                            // Filtrar registos apenas dos membros selecionados
+                                                            const registosFiltrados = registosEquipa.filter(reg =>
+                                                                membrosSelecionados.includes(reg.user_id)
+                                                            );
+
+                                                            if (registosFiltrados.length === 0) {
+                                                                return null;
+                                                            }
+
+                                                            return (
+                                                                <div className="mb-3">
+                                                                    <div className="card border-info">
+                                                                        <div
+                                                                            className="card-header bg-info text-white py-2"
+                                                                            style={{ cursor: 'pointer' }}
+                                                                            onClick={() => setPicagensExpandidas(!picagensExpandidas)}
+                                                                        >
+                                                                            <div className="d-flex justify-content-between align-items-center">
+                                                                                <small className="fw-bold">
+                                                                                    📋 Picagens de {formatarDataParaExibicao(dataRegistoEquipa)} ({registosFiltrados.length})
+                                                                                </small>
+                                                                                <span>{picagensExpandidas ? '▲' : '▼'}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        {picagensExpandidas && (
+                                                                            <div className="card-body p-2" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                                                                {registosFiltrados.map((registo, idx) => (
+                                                                                    <div key={idx} className="d-flex justify-content-between align-items-center border-bottom py-2 px-1">
+                                                                                        <div className="flex-grow-1">
+                                                                                            <small className="fw-bold">{registo.User?.nome || 'N/A'}</small>
+                                                                                            <br />
+                                                                                            <small className="text-muted">{registo.Obra?.nome || 'N/A'}</small>
+                                                                                        </div>
+                                                                                        <div className="text-end">
+                                                                                            <span className={`badge ${registo.tipo === 'entrada' ? 'bg-success' : 'bg-danger'}`}>
+                                                                                                {registo.tipo === 'entrada' ? '🟢 ENTRADA' : '🔴 SAÍDA'}
+                                                                                            </span>
+                                                                                            <br />
+                                                                                            <small className="text-muted">
+                                                                                                {new Date(registo.timestamp).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                                                                                            </small>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })()}
+
                                                         {/* Membros da equipa com estado atual */}
                                                         <div className="mb-3">
                                                             <div className="d-flex justify-content-between align-items-center mb-2">
@@ -1487,6 +1640,7 @@ const longitude = loc?.coords?.longitude ?? null;
                                                                                                 obraSelecionada,
                                                                                                 registosEquipa,
                                                                                             );
+                                                                                        const horasTrabalhadas = calcularHorasTrabalhadas(m.id, registosEquipa);
                                                                                         const checked =
                                                                                             membrosSelecionados.includes(
                                                                                                 m.id,
@@ -1499,57 +1653,32 @@ const longitude = loc?.coords?.longitude ?? null;
                                                                                                 className="border-bottom py-2"
                                                                                             >
                                                                                                 <div className="d-flex justify-content-between align-items-center mb-2 ps-3">
-                                                                                                    <div>
+                                                                                                    <div className="d-flex align-items-center">
                                                                                                         <input
                                                                                                             className="form-check-input me-2"
                                                                                                             type="checkbox"
                                                                                                             id={`membro-${m.id}`}
-                                                                                                            value={
-                                                                                                                m.id
-                                                                                                            }
-                                                                                                            checked={
-                                                                                                                checked
-                                                                                                            }
-                                                                                                            onChange={(
-                                                                                                                e,
-                                                                                                            ) => {
-                                                                                                                const isChecked =
-                                                                                                                    e
-                                                                                                                        .target
-                                                                                                                        .checked;
-                                                                                                                setMembrosSelecionados(
-                                                                                                                    (
-                                                                                                                        prev,
-                                                                                                                    ) =>
-                                                                                                                        isChecked
-                                                                                                                            ? [
-                                                                                                                                  ...prev,
-                                                                                                                                  m.id,
-                                                                                                                              ]
-                                                                                                                            : prev.filter(
-                                                                                                                                  (
-                                                                                                                                      id,
-                                                                                                                                  ) =>
-                                                                                                                                      id !==
-                                                                                                                                      m.id,
-                                                                                                                              ),
+                                                                                                            checked={checked}
+                                                                                                            onChange={(e) => {
+                                                                                                                const isChecked = e.target.checked;
+                                                                                                                setMembrosSelecionados(prev =>
+                                                                                                                    isChecked
+                                                                                                                        ? [...prev, m.id]
+                                                                                                                        : prev.filter(id => id !== m.id)
                                                                                                                 );
                                                                                                             }}
                                                                                                         />
                                                                                                         <label
-                                                                                                            className="form-check-label"
+                                                                                                            className="form-check-label mb-0"
                                                                                                             htmlFor={`membro-${m.id}`}
                                                                                                         >
-                                                                                                            {m.nome ||
-                                                                                                                `Membro ${m.id}`}
+                                                                                                            <span className="fw-semibold">{m.nome || `Membro ${m.id}`}</span>
+                                                                                                            {' '}
+                                                                                                            <small className="text-muted">({horasTrabalhadas})</small>
                                                                                                         </label>
                                                                                                     </div>
-                                                                                                    <span
-                                                                                                        className={`fw-semibold ${corEstado} me-2`}
-                                                                                                    >
-                                                                                                        {
-                                                                                                            estado
-                                                                                                        }
+                                                                                                    <span className={`fw-semibold ${corEstado}`}>
+                                                                                                        {estado}
                                                                                                     </span>
                                                                                                 </div>
                                                                                                 {checked && (
@@ -1622,7 +1751,7 @@ const longitude = loc?.coords?.longitude ?? null;
                                                             </div>
                                                         </div>
                                                         <small className="text-muted d-block mt-2">
-                                                            Membros com hora definida: registo como ponto esquecido | Membros sem hora: registo em tempo real
+                                                            <strong>Nota:</strong> Selecione a data desejada para registar pontos (incluindo dias anteriores). Membros com hora definida: registo retroativo | Membros sem hora: registo em tempo real
                                                         </small>
                                                     </div>
                                                 )}
